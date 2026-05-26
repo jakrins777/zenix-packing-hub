@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+  // 1. ตั้งค่าการเชื่อมต่อฐานข้อมูล (PostgreSQL)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 2. ตั้งค่าตัวเจนโค้ดสำหรับฝั่ง Node.js
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 3. กำหนดสิทธิ์ผู้ใช้งาน (Enum Roles)
+enum UserRole {
+  admin
+  packer
+}
+
+// 4. ตารางผู้ใช้งาน (Users)
+model User {
+  id           Int          @id @default(autoincrement())
+  username     String       @unique
+  passwordHash String       @map("password_hash")
+  firstName    String       @map("first_name")
+  lastName     String?      @map("last_name")
+  role         UserRole     @default(packer)
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  
+  // Relation: ผู้ใช้งาน 1 คน สามารถมีประวัติการแพ็คได้หลายรายการ
+  packingLogs  PackingLog[]
+
+  @@map("users") // บังคับให้ชื่อตารางในฐานข้อมูลเป็นตัวพิมพ์เล็กตามมาตรฐาน SQL
+}
+
+// 5. ตารางฐานข้อมูลกล่องบรรจุภัณฑ์ (Boxes Master Data)
+model Box {
+  pckId        String   @id @map("pck_id") // รหัสกล่อง เช่น 'PCK0000022'
+  description  String
+  maxCapacity  Int      @map("max_capacity")
+  width        Float?
+  length       Float?
+  height       Float?
+  boxWeight    Float    @default(0.0) @map("box_weight")
+  desiccantQty Int      @default(0) @map("desiccant_qty")
+  currentStock Int      @default(0) @map("current_stock")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relation: กล่อง 1 ไซส์ สามารถถูกผูกเป็นกล่องมาตรฐานให้กับสินค้าได้หลายชิ้น
+  items        Item[]
+
+  @@map("boxes")
+}
+
+// 6. ตารางฐานข้อมูลสินค้า (Items Master Data)
+model Item {
+  itemId       String   @id @map("item_id") // รหัสสินค้า
+  itemName     String   @map("item_name")
+  supplier     String
+  itemWeight   Float    @map("item_weight")
+  defaultPckId String?  @map("default_pck_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  requireDesiccant Boolean  @default(false) @map("require_desiccant")
+  // Relation Link: เชื่อมไปหาตารางกล่องบรรจุภัณฑ์
+  defaultBox   Box?     @relation(fields: [defaultPckId], references: [pckId], onDelete: SetNull)
+  
+  // Relation: สินค้า 1 ชิ้น สามารถมีประวัติการถูกแพ็คได้หลายครั้ง
+  packingLogs  PackingLog[]
+
+  @@map("items")
+}
+
+// 7. ตารางบันทึกประวัติการแพ็คจริงหน้างาน (Packing Logs Transaction)
+model PackingLog {
+  logId       BigInt   @id @default(autoincrement()) @map("log_id")
+  packedAt    DateTime @default(now()) @map("packed_at")
+  userId      Int      @map("user_id")
+  itemId      String   @map("item_id")
+  packQty     Int      @map("pack_qty")
+  boxUsed     Float    @map("box_used")    // รองรับจำนวนกล่องแบบทศนิยม เช่น 1.5
+  totalWeight Float    @map("total_weight")
+
+  // Relation Links: เชื่อมโยงประวัติกลับไปหาคนแพ็คและตัวสินค้า
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  item        Item     @relation(fields: [itemId], references: [itemId], onDelete: Restrict)
+
+  @@index([packedAt]) // ทำ Index ที่เวลาเพื่อความเร็วในการ Query รายงานย้อนหลัง
+  @@map("packing_logs")
+}
