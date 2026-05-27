@@ -1,26 +1,61 @@
 export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
+  // 🌟 ดักเช็คสิทธิ์แอดมินตรงนี้ที่เดียว (ตัวใหญ่-ตัวเล็กผ่านหมด)
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
+
   return (
-    <nav className="bg-gray-900 text-white shadow-md print:hidden">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center px-6 py-4">
-        <div className="text-2xl font-bold tracking-wider text-blue-400 mb-4 md:mb-0">🛡️ ZENIX Packing Hub</div>
-        <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
-          <div className="flex space-x-2">
-            <button onClick={() => setCurrentTab('packing')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentTab === 'packing' ? 'bg-blue-600' : 'text-gray-300'}`}>📦 สแกนแพ็ค</button>
-            {user.role === 'admin' && (
-              <>
-                <button onClick={() => setCurrentTab('dashboard')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentTab === 'dashboard' ? 'bg-blue-600' : 'text-gray-300'}`}>📊 แดชบอร์ด</button>
-                <button onClick={() => setCurrentTab('admin')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentTab === 'admin' ? 'bg-blue-600' : 'text-gray-300'}`}>⚙️ แอดมิน</button>
-              </>
-            )}
-          </div>
-          <div className="flex items-center space-x-4 border-t-2 md:border-t-0 md:border-l-2 border-gray-700 pt-4 md:pt-0 pl-0 md:pl-6">
-            <div className="text-right">
-              <p className="font-bold text-sm">{user.firstName}</p>
-              <p className="text-xs bg-gray-600 px-2 rounded inline-block">{user.role.toUpperCase()}</p>
-            </div>
-            <button onClick={onLogout} className="bg-gray-700 hover:bg-red-600 px-3 py-2 rounded text-sm font-bold">ออกระบบ</button>
-          </div>
+    <nav className="bg-indigo-900 text-white shadow-lg">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        
+        {/* โลโก้ */}
+        <div className="flex items-center space-x-2">
+          <span className="text-2xl">📦</span>
+          <h1 className="text-2xl font-black tracking-wider text-white">ZENIX<span className="text-indigo-400">HUB</span></h1>
         </div>
+
+        {/* ปุ่มเมนูต่างๆ */}
+        <div className="flex flex-wrap justify-center items-center gap-2 md:gap-4">
+          <button 
+            onClick={() => setCurrentTab('packing')} 
+            className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'packing' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'}`}
+          >
+            🚀 สแกนแพ็ค
+          </button>
+
+          {/* 🌟 ถ้าเป็นแอดมิน ถึงจะโชว์ 2 ปุ่มนี้ */}
+          {isAdmin && (
+            <>
+              <button 
+                onClick={() => setCurrentTab('dashboard')} 
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'}`}
+              >
+                📊 Dashboard
+              </button>
+              
+              <button 
+                onClick={() => setCurrentTab('admin')} 
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'admin' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'}`}
+              >
+                ⚙️ แอดมิน
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* โปรไฟล์พนักงาน และปุ่มออก */}
+        <div className="flex items-center space-x-4 bg-indigo-950 px-4 py-2 rounded-xl border border-indigo-800">
+          <div className="flex flex-col text-right">
+            <span className="text-xs text-indigo-400 font-bold uppercase">{user?.role}</span>
+            <span className="text-sm font-black text-white">{user?.firstName}</span>
+          </div>
+          <div className="w-px h-8 bg-indigo-800"></div>
+          <button 
+            onClick={onLogout} 
+            className="text-red-400 hover:text-red-300 font-bold text-sm transition-colors flex items-center space-x-1"
+          >
+            <span>ออกจากระบบ</span>
+          </button>
+        </div>
+
       </div>
     </nav>
   );
