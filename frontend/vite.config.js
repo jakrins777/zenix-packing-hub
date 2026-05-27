@@ -10,8 +10,11 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      // สั่งให้ Vite ช่วยส่ง request ที่ขึ้นต้นด้วย /api ไปหา Backend ให้หน่อย
-      '/api': 'http://localhost:5000'
+      // 🌟 เพิ่มการตั้งค่า Proxy ตรงนี้
+      '/api': {
+        target: 'http://localhost:5000', // 💡 ต้องตรงกับ Port ที่ Backend รันอยู่ (ปกติคือ 5000)
+        changeOrigin: true,
+      },
     }
   }
 })

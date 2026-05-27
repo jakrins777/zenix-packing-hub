@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 require('dotenv').config();
-
+const bcrypt = require('bcrypt');
 const multer = require('multer');
 const xlsx = require('xlsx');
 
@@ -41,26 +41,41 @@ app.get('/api/boxes', async (req, res) => {
 });
 
 // [CREATE] เพิ่มข้อมูลกล่องใหม่
+// [POST] เพิ่มกล่อง
 app.post('/api/boxes', async (req, res) => {
   try {
-    const newBox = await prisma.box.create({ data: req.body });
-    res.status(201).json({ success: true, data: newBox, message: 'เพิ่มกล่องใหม่สำเร็จ' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด: รหัสกล่องอาจซ้ำกัน' });
+    const { pckId, description, maxCapacity } = req.body;
+    await prisma.box.create({
+      data: { 
+        pckId: pckId.toUpperCase(), 
+        description, 
+        // 🌟 ครอบ parseInt เพื่อแปลงข้อความเป็นตัวเลข (ฐาน 10)
+        maxCapacity: parseInt(maxCapacity, 10) 
+      }
+    });
+    res.json({ success: true, message: '✅ เพิ่มกล่องสำเร็จ' });
+  } catch (error) { 
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'รหัสกล่องนี้มีอยู่แล้ว' });
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message }); 
   }
 });
 
-// [UPDATE] แก้ไขข้อมูลกล่อง
+// [PUT] แก้ไขข้อมูลกล่อง
 app.put('/api/boxes/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedBox = await prisma.box.update({
+    const { description, maxCapacity } = req.body;
+    await prisma.box.update({
       where: { pckId: id },
-      data: req.body
+      data: { 
+        description, 
+        // 🌟 ครอบ parseInt ตรงนี้ด้วยเช่นกัน
+        maxCapacity: parseInt(maxCapacity, 10) 
+      }
     });
-    res.json({ success: true, data: updatedBox, message: 'อัปเดตข้อมูลกล่องสำเร็จ' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.json({ success: true, message: '✅ อัปเดตข้อมูลกล่องสำเร็จ' });
+  } catch (error) { 
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message }); 
   }
 });
 
@@ -119,7 +134,7 @@ app.post('/api/items', async (req, res) => {
       data: {
         itemId: req.body.itemId,
         itemName: req.body.itemName,
-        supplier: req.body.supplier,
+        supplier: String(row['Customer'] || row['ลูกค้า'] || row['Product Code'] || row.supplier || '-'),
         itemWeight: Number(req.body.itemWeight),
         requireDesiccant: Boolean(req.body.requireDesiccant), // <--- อัปเดตตรงนี้
         defaultPckId: req.body.defaultPckId || null
@@ -329,46 +344,48 @@ app.delete('/api/logs/:id', async (req, res) => {
 });
 
 // ==========================================
-// 🔐 AUTH (ระบบเข้าสู่ระบบ)
+// 🔐 API เข้าสู่ระบบ (Login)
 // ==========================================
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
-    // 1. ค้นหา User จาก username
-    const user = await prisma.user.findUnique({ where: { username } });
-    
-    // 2. เช็คว่าเจอไหม และรหัสผ่านตรงไหม 
-    // (Note: ของจริงต้องใช้ bcrypt เทียบรหัสผ่านที่ถูก Hash ไว้ แต่ตอนนี้เราเทียบตรงๆ ไปก่อนครับ)
-    if (!user || user.passwordHash !== password) {
-      return res.status(401).json({ success: false, message: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง' });
-    }
-    
-    // 3. ถ้าผ่าน ส่งข้อมูลพื้นฐานกลับไป (ห้ามส่ง Password กลับไปเด็ดขาด)
-    res.json({ 
-      success: true, 
-      data: { id: user.id, username: user.username, firstName: user.firstName, role: user.role } 
+    const cleanUsername = String(username).toUpperCase().trim();
+
+    const user = await prisma.user.findUnique({
+      where: { username: cleanUsername }
     });
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'ไม่พบรหัสพนักงานนี้ในระบบ' });
+    }
+
+    let isMatch = false;
+
+    // 1. ลองเทียบรหัสผ่านแบบเข้ารหัสด้วย Bcrypt
+    isMatch = await bcrypt.compare(password, user.passwordHash);
+
+    // 2. 🌟 ถ้าระบบเดิมยังไม่ได้เข้ารหัส (Plaintext) ให้เทียบตรงๆ ก่อน 
+    if (!isMatch && password === user.passwordHash) {
+      isMatch = true;
+      // แอบอัปเดต Database ให้เป็นแบบเข้ารหัสทันที (Seamless Migration)
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: hashedPassword }
+      });
+      console.log(`🔄 อัปเดตรหัสผ่านของ ${cleanUsername} ให้ปลอดภัยเรียบร้อย!`);
+    }
+
+    if (isMatch) {
+      res.json({ success: true, message: 'เข้าสู่ระบบสำเร็จ', user: { id: user.id, username: user.username, firstName: user.firstName, role: user.role } });
+    } else {
+      res.status(401).json({ success: false, message: 'รหัสผ่านไม่ถูกต้อง' });
+    }
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message });
   }
 });
-
-// ==========================================
-// 👤 API สำหรับจัดการพนักงาน (User Management)
-// ==========================================
-
-// [GET] ดึงข้อมูลพนักงานทั้งหมด
-app.get('/api/users', async (req, res) => {
-  try {
-    // ดึงมาหมด ยกเว้นรหัสผ่านเพื่อความปลอดภัยเบื้องต้นตอนส่งข้อมูล
-    const users = await prisma.user.findMany({
-      select: { id: true, username: true, firstName: true, role: true }
-    });
-    res.json({ success: true, data: users });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
-});
-
 // ==========================================
 // 👤 API สำหรับจัดการพนักงาน (User Management)
 // ==========================================
@@ -378,23 +395,22 @@ app.post('/api/users', async (req, res) => {
   try {
     const { username, password, firstName, role } = req.body;
     const cleanUsername = String(username).toUpperCase().trim();
-    
-    // 🌟 ดักแปลง role ให้ตรงกับ enum ใน schema (พิมพ์ใหญ่ตัวแรก)
     const cleanRole = role === 'admin' ? 'Admin' : 'Operator';
+
+    // 🌟 เข้ารหัสผ่านก่อนบันทึก (ความปลอดภัยระดับ 10 รอบ)
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     await prisma.user.create({
       data: { 
         username: cleanUsername, 
-        passwordHash: password, // ตรงกับ schema แล้ว
+        passwordHash: hashedPassword, // 🌟 เซฟรหัสที่เข้ารหัสแล้ว
         firstName: firstName, 
-        role: cleanRole         // ส่ง Admin หรือ Operator เข้าไป
+        role: cleanRole 
       }
     });
     res.json({ success: true, message: '✅ เพิ่มพนักงานใหม่สำเร็จ' });
   } catch (error) { 
-    if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, message: '❌ รหัสพนักงานนี้มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น' });
-    }
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: '❌ รหัสพนักงานนี้มีอยู่ในระบบแล้ว' });
     res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message }); 
   }
 });
@@ -407,14 +423,11 @@ app.put('/api/users/:id', async (req, res) => {
     const cleanUsername = String(username).toUpperCase().trim();
     const cleanRole = role === 'admin' ? 'Admin' : 'Operator';
     
-    const updateData = { 
-      username: cleanUsername, 
-      firstName: firstName, 
-      role: cleanRole 
-    };
+    const updateData = { username: cleanUsername, firstName: firstName, role: cleanRole };
     
+    // 🌟 ถ้ามีการกรอกรหัสผ่านใหม่เข้ามา ให้เข้ารหัสก่อนบันทึก
     if (password && password.trim() !== '') {
-      updateData.passwordHash = password; 
+      updateData.passwordHash = await bcrypt.hash(password, 10); 
     }
 
     await prisma.user.update({
@@ -423,9 +436,7 @@ app.put('/api/users/:id', async (req, res) => {
     });
     res.json({ success: true, message: '✅ อัปเดตข้อมูลพนักงานสำเร็จ' });
   } catch (error) { 
-    if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, message: '❌ รหัสพนักงานนี้มีคนใช้แล้ว กรุณาใช้รหัสอื่น' });
-    }
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: '❌ รหัสพนักงานนี้มีคนใช้แล้ว' });
     res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message }); 
   }
 });

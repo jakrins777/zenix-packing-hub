@@ -11,8 +11,18 @@ function App() {
   // 1. STATE & REFS
   // ==========================================
   const [currentUser, setCurrentUser] = useState(() => {
-    const savedUser = localStorage.getItem('zenix_user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = localStorage.getItem('zenix_user');
+      
+      if (!savedUser || savedUser === 'undefined') {
+        return null;
+      }
+      return JSON.parse(savedUser);
+    } catch (error) {
+      console.error("🚨 ข้อมูลในเครื่องพัง ทำการเคลียร์ทิ้ง:", error);
+      localStorage.removeItem('zenix_user'); 
+      return null;
+    }
   });
   
   const [currentTab, setCurrentTab] = useState('packing');
@@ -47,6 +57,61 @@ function App() {
   const [userForm, setUserForm] = useState({ username: '', password: '', firstName: '', role: 'operator' });
   const [editingUserId, setEditingUserId] = useState(null);
 
+  // 🌟 State สำหรับระบบ Copy-Paste จาก Excel
+  const [bulkText, setBulkText] = useState('');
+  const [calcResults, setCalcResults] = useState([]);
+
+  // 🌟 ฟังก์ชันประมวลผลข้อมูลที่ Paste มา
+  const handleBulkCalculate = () => {
+    if (!bulkText.trim()) return;
+
+    const rows = bulkText.split('\n').filter(r => r.trim());
+    
+    const results = rows.map((row, index) => {
+      // ใช้ Regular Expression แยกด้วย Tab (Excel) หรือเว้นวรรค
+      const parts = row.trim().split(/[\t ]+/);
+      
+      // 🌟 เพิ่มการทำความสะอาดรหัสสินค้าขั้นสุด (ตัดช่องว่างและอักขระซ่อนเร้นออกให้เกลี้ยง)
+      let itemCode = (parts[0] || '').toUpperCase().trim();
+      itemCode = itemCode.replace(/[\r\n\s]+/g, ''); // ลบตัวขึ้นบรรทัดใหม่ที่มองไม่เห็น
+
+      const qty = parseInt(parts[1] || 0, 10);
+
+      if (!itemCode) return null;
+
+      // 1. ค้นหาสินค้าจาก Master Data
+      const foundItem = items.find(i => i.itemId === itemCode);
+      if (!foundItem) {
+        return { id: index, itemCode, qty, error: '❌ ไม่พบรหัสสินค้านี้ในมาสเตอร์' };
+      }
+
+      // 2. ค้นหากล่อง
+      const foundBox = boxes.find(b => b.pckId === foundItem.defaultPckId);
+      if (!foundBox) {
+        return { id: index, itemCode, qty, itemName: foundItem.itemName, customer: foundItem.supplier, error: '⚠️ ยังไม่ผูกกล่อง' };
+      }
+
+      // 3. คำนวณจำนวนกล่อง
+      const boxCap = foundBox.maxCapacity || 1;
+      const totalBoxes = Math.ceil(qty / boxCap);
+      const remainder = qty % boxCap;
+
+      return {
+        id: index,
+        itemCode,
+        itemName: foundItem.itemName,
+        customer: foundItem.supplier, // ดึงข้อมูลลูกค้ามาแสดง
+        qty,
+        boxType: foundBox.pckId,
+        boxCap,
+        totalBoxes,
+        lastBoxQty: remainder === 0 ? boxCap : remainder, // เศษใส่กล่องสุดท้าย
+        requireDesiccant: foundItem.requireDesiccant
+      };
+    }).filter(Boolean);
+
+    setCalcResults(results);
+  };
   // ==========================================
   // 2. DATA FETCHING
   // ==========================================
@@ -125,19 +190,43 @@ function App() {
     }
   };
 
-  const handleScan = async (e) => {
+  //  แยกฟังก์ชันค้นหาออกมา เพื่อให้เรียกใช้ได้ทั้งตอน "วาง" และ "กด Enter"
+  const fetchItemData = async (searchCode) => {
+    if (!searchCode) return;
+    setLoading(true); setError(''); setResult(null); setSaveMessage('');
+    try {
+      const response = await fetch(`/api/items/${searchCode}`);
+      const data = await response.json();
+      if (data.success) { 
+        setResult(data.data); setQty(1); playSound('success'); 
+      } else { 
+        setError('❌ ไม่พบรหัสสินค้านี้ในระบบ'); playSound('error'); 
+      }
+    } catch (err) { setError('❌ ขัดข้อง: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'); playSound('error'); } 
+    finally { setLoading(false); }
+  };
+
+  // ระบบค้นหาอัตโนมัติ (Auto-Search) จะทำงานเมื่อ "วางข้อความ" หรือพิมพ์เสร็จแล้วหยุด 0.5 วิ
+  useEffect(() => {
+    // ถ้าช่องว่างเปล่า ให้ล้างหน้าจอ
+    if (!barcode.trim()) {
+      setResult(null);
+      setError('');
+      return;
+    }
+    
+    // หน่วงเวลา 0.5 วินาที ถ้าไม่มีการพิมพ์เพิ่ม จะวิ่งไปค้นหาข้อมูลให้ทันที
+    const delayDebounceFn = setTimeout(() => {
+      fetchItemData(barcode.trim());
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [barcode]);
+
+  
+  const handleScan = (e) => {
     if (e.key === 'Enter' && barcode.trim() !== '') {
-      setLoading(true); setError(''); setResult(null); setSaveMessage('');
-      try {
-        const response = await fetch(`/api/items/${barcode}`);
-        const data = await response.json();
-        if (data.success) { 
-          setResult(data.data); setQty(1); playSound('success'); 
-        } else { 
-          setError('❌ ไม่พบรหัสสินค้านี้ในระบบ'); playSound('error'); 
-        }
-      } catch (err) { setError('❌ ขัดข้อง: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'); playSound('error'); } 
-      finally { setLoading(false); }
+      fetchItemData(barcode.trim());
     }
   };
 
@@ -260,79 +349,110 @@ function App() {
   // ==========================================
   if (!currentUser) return <Login onLogin={setCurrentUser} />;
 
+  if (!currentUser) return <Login onLogin={setCurrentUser} />;
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
-      <Navbar user={currentUser} onLogout={() => { setCurrentUser(null); localStorage.removeItem('zenix_user'); }} currentTab={currentTab} setCurrentTab={setCurrentTab} />
+      
+      {/* 🌟 ต้องมีบรรทัดนี้ Navbar ถึงจะโผล่มาครับ! */}
+      <Navbar 
+        user={currentUser} 
+        onLogout={() => { setCurrentUser(null); localStorage.removeItem('zenix_user'); }} 
+        currentTab={currentTab} 
+        setCurrentTab={setCurrentTab} 
+      />
 
       <div className="max-w-6xl mx-auto p-4 md:p-8">
         
         {/* --- หน้าสแกนแพ็คสินค้า --- */}
-        {currentTab === 'packing' && (
-          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-            <div className="bg-indigo-700 text-white p-6 text-center shadow-inner">
-              <h1 className="text-3xl font-black tracking-wide">🚀 สแกนแพ็คสินค้า</h1>
-            </div>
-            <div className="p-6 md:p-8">
-              <div className="mb-6">
-                <label className="block text-lg font-bold text-indigo-900 mb-2">1️⃣ สแกนรหัสสินค้า (Item ID)</label>
-                <input ref={barcodeInputRef} type="text" autoFocus value={barcode} onChange={(e) => setBarcode(e.target.value.toUpperCase())} onKeyDown={handleScan} placeholder="สแกนบาร์โค้ดที่นี่ แล้วกด Enter..." className="w-full text-xl p-4 border-2 border-indigo-100 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 focus:outline-none transition-all shadow-sm"/>
+        {/* ========================================== */}
+      {/* 🚀 หน้าจอหลัก: วางแผนการแพ็ค (Bulk Calculator) */}
+      {/* ========================================== */}
+      {currentTab === 'packing' && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
+            <h2 className="text-2xl font-black text-indigo-900 mb-2">📋 วางแผนจำนวนกล่องบรรจุภัณฑ์</h2>
+            <p className="text-gray-500 mb-6 font-medium">ก๊อปปี้ข้อมูล <span className="text-indigo-600 font-bold">รหัสสินค้า</span> และ <span className="text-indigo-600 font-bold">จำนวน</span> จาก Excel มาวางในช่องด้านล่างได้เลย</p>
+            
+            <div className="space-y-4">
+              <textarea 
+                rows="6"
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                placeholder={"ตัวอย่างรูปแบบการวางจาก Excel:\nITEM001     500\nITEM002     120"}
+                className="w-full p-4 border-2 border-indigo-100 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-mono text-sm bg-gray-50"
+              ></textarea>
+              
+              <div className="flex gap-4">
+                <button 
+                  onClick={handleBulkCalculate}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all transform active:scale-95 text-lg"
+                >
+                  🧮 คำนวณจำนวนกล่อง
+                </button>
+                <button 
+                  onClick={() => { setBulkText(''); setCalcResults([]); }}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-4 px-8 rounded-xl transition-all"
+                >
+                  ล้างข้อมูล
+                </button>
               </div>
-
-              {loading && !result && <p className="text-indigo-500 animate-pulse text-center mb-4 font-bold">กำลังค้นหาข้อมูล...</p>}
-              {error && <p className="text-red-700 font-bold bg-red-50 border border-red-200 p-4 rounded-xl text-center mb-4">{error}</p>}
-              {saveMessage && <p className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center mb-4 text-xl animate-bounce">{saveMessage}</p>}
-
-              {result && (
-                <div className="bg-slate-50 border-2 border-indigo-100 rounded-2xl p-6 shadow-sm">
-                  
-                  <div className="flex flex-col md:flex-row justify-between items-center border-b-2 border-indigo-100 pb-4 mb-5">
-                    <h2 className="text-2xl font-black text-indigo-900">📦 {result.itemName}</h2>
-                    <div className="mt-4 md:mt-0 flex items-center bg-white border-2 border-indigo-200 rounded-xl p-2 px-4 shadow-sm">
-                      <label className="font-bold text-indigo-800 mr-4">ระบุจำนวนที่แพ็ค:</label>
-                      <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} className="w-24 text-2xl font-black text-indigo-600 text-center focus:outline-none bg-transparent"/>
-                      <span className="ml-2 font-bold text-gray-400">ชิ้น</span>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                      <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">🏢 Supplier</p>
-                      <p className="font-black text-lg text-indigo-900 truncate" title={result.supplier}>{result.supplier || '-'}</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                      <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">น้ำหนัก / ชิ้น</p>
-                      <p className="font-black text-lg text-gray-700">{result.itemWeight} kg</p>
-                    </div>
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                      <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">กล่องที่ใช้</p>
-                      <p className="font-black text-lg text-indigo-600">{result.defaultBox?.pckId || '-'}</p>
-                    </div>
-                    <div className="bg-emerald-50 p-4 rounded-xl shadow-sm border border-emerald-200">
-                      <p className="text-emerald-700 text-xs font-bold uppercase tracking-wider mb-1">⚖️ น้ำหนักรวม</p>
-                      <p className="font-black text-xl text-emerald-600">{calculatedTotalWeight} <span className="text-sm font-bold">kg</span></p>
-                    </div>
-                    <div className="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-200 col-span-2">
-                      <p className="text-amber-700 text-xs font-bold uppercase tracking-wider mb-1">📦 จำนวนกล่อง</p>
-                      <p className="font-black text-2xl text-amber-600">{calculatedBoxesUsed} <span className="text-base font-bold">ใบ</span></p>
-                    </div>
-                    <div className="bg-sky-50 p-4 rounded-xl shadow-sm border border-sky-200 col-span-2">
-                      <p className="text-sky-700 text-xs font-bold uppercase tracking-wider mb-1">💧 ซองกันชื้นที่ต้องใส่</p>
-                      {result.requireDesiccant ? (
-                        <p className="font-black text-2xl text-sky-600">{calculatedDesiccant} <span className="text-base font-bold">ซอง</span></p>
-                      ) : (
-                        <p className="font-black text-lg text-slate-400 mt-1">❌ ไม่ต้องใส่</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <button onClick={handleSavePack} disabled={loading || !qty || qty <= 0} className={`w-full py-4 text-xl font-black text-white rounded-xl transition-all shadow-lg ${(loading || !qty || qty <= 0) ? 'bg-gray-300 cursor-not-allowed text-gray-500 shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-500/30 active:scale-95'}`}>
-                    {loading ? 'กำลังบันทึกข้อมูล...' : '💾 บันทึกประวัติการแพ็ค'}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
-        )}
+
+          {/* ตารางแสดงผลลัพธ์การคำนวณ */}
+          {calcResults.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 animate-fade-in-up">
+              <div className="bg-indigo-900 p-4 text-white font-bold flex justify-between items-center">
+                <span>ผลลัพธ์การคำนวณ ({calcResults.length} รายการ)</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-indigo-50 border-b border-indigo-100">
+                    <tr>
+                      <th className="py-4 px-4 text-left font-bold text-indigo-900">รหัสสินค้า</th>
+                      <th className="py-4 px-4 text-left font-bold text-indigo-900">ชื่อสินค้า / ลูกค้า</th>
+                      <th className="py-4 px-4 text-center font-bold text-indigo-900">ยอดออเดอร์</th>
+                      <th className="py-4 px-4 text-center font-bold text-indigo-900">กล่องที่ใช้ (จุ/กล่อง)</th>
+                      <th className="py-4 px-4 text-center font-bold text-purple-700 bg-purple-50">📦 จำนวนกล่องที่ต้องแพ็ค</th>
+                      <th className="py-4 px-4 text-center font-bold text-indigo-900">หมายเหตุ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {calcResults.map((res) => (
+                      <tr key={res.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-gray-800">{res.itemCode}</td>
+                        {res.error ? (
+                          <td colSpan="5" className="py-3 px-4 text-red-500 font-bold bg-red-50">{res.error}</td>
+                        ) : (
+                          <>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-gray-700">{res.itemName}</div>
+                              <div className="text-xs text-indigo-600 font-bold">{res.customer}</div>
+                            </td>
+                            <td className="py-3 px-4 text-center font-black text-gray-700">{res.qty.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-center text-sm">
+                              <span className="font-bold text-blue-700">{res.boxType}</span> <br/>
+                              <span className="text-gray-500">(จุ {res.boxCap} ชิ้น)</span>
+                            </td>
+                            <td className="py-3 px-4 text-center font-black text-xl text-purple-700 bg-purple-50">
+                              {res.totalBoxes} <span className="text-sm font-normal text-purple-900">กล่อง</span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-sm font-medium text-gray-600">
+                              {res.requireDesiccant && <span className="text-blue-500 mr-2">💧 กันชื้น</span>}
+                              เศษกล่องสุดท้าย: {res.lastBoxQty} ชิ้น
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
         {/* --- หน้า Dashboard --- */}
         {currentTab === 'dashboard' && currentUser?.role?.toLowerCase() === 'admin' && (

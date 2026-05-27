@@ -32,7 +32,7 @@ export default function AdminPanel({
       if (sortBy === 'id_desc') return (b.itemId || '').localeCompare(a.itemId || '');
       if (sortBy === 'name_asc') return (a.itemName || '').localeCompare(b.itemName || '');
       if (sortBy === 'name_desc') return (b.itemName || '').localeCompare(a.itemName || '');
-      // 🌟 เพิ่มเงื่อนไขเรียงตาม Supplier A-Z และ Z-A
+      // 🌟 เพิ่มเงื่อนไขเรียงตาม Customer A-Z และ Z-A
       if (sortBy === 'supplier_asc') return (a.supplier || '').localeCompare(b.supplier || '');
       if (sortBy === 'supplier_desc') return (b.supplier || '').localeCompare(a.supplier || '');
       return 0;
@@ -88,7 +88,7 @@ export default function AdminPanel({
                   />
                 </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">ชื่อสินค้า (ไม่บังคับ)</label><input type="text" value={itemForm.itemName || ''} onChange={(e) => setItemForm({...itemForm, itemName: e.target.value})} className="w-full p-2 border rounded" placeholder="เว้นว่างได้" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label><input type="text" value={itemForm.supplier || ''} onChange={(e) => setItemForm({...itemForm, supplier: e.target.value})} className="w-full p-2 border rounded" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Customer</label><input type="text" value={itemForm.supplier || ''} onChange={(e) => setItemForm({...itemForm, supplier: e.target.value})} className="w-full p-2 border rounded" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">น้ำหนัก (kg) *</label><input type="number" step="0.001" required value={itemForm.itemWeight || ''} onChange={(e) => setItemForm({...itemForm, itemWeight: e.target.value})} className="w-full p-2 border rounded" /></div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">กล่องมาตรฐาน</label>
@@ -126,7 +126,7 @@ export default function AdminPanel({
                 <span className="text-gray-400 mr-2">🔍</span>
                 <input 
                   type="text" 
-                  placeholder="ค้นหารหัส, ชื่อสินค้า หรือ Supplier..." 
+                  placeholder="ค้นหารหัส, ชื่อสินค้า หรือ Customer..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full outline-none text-sm"
@@ -147,9 +147,9 @@ export default function AdminPanel({
                   <option value="id_desc">รหัสสินค้า (Z-A)</option>
                   <option value="name_asc">ชื่อสินค้า (A-Z)</option>
                   <option value="name_desc">ชื่อสินค้า (Z-A)</option>
-                  {/* 🌟 เพิ่มตัวเลือกเรียงตาม Supplier */}
-                  <option value="supplier_asc">Supplier (A-Z)</option>
-                  <option value="supplier_desc">Supplier (Z-A)</option>
+                  {/* 🌟 เพิ่มตัวเลือกเรียงตาม Customer */}
+                  <option value="supplier_asc">Customer (A-Z)</option>
+                  <option value="supplier_desc">Customer (Z-A)</option>
                 </select>
               </div>
             </div>
@@ -157,7 +157,7 @@ export default function AdminPanel({
             <div className="overflow-x-auto rounded-lg border border-gray-200 flex-1">
               <table className="min-w-full bg-white">
                 <thead className="bg-gray-100">
-                  <tr><th className="py-3 px-4 border-b text-left">รหัสสินค้า</th><th className="py-3 px-4 border-b text-left">ชื่อสินค้า</th><th className="py-3 px-4 border-b text-left">Supplier</th><th className="py-3 px-4 border-b text-center">กันชื้น</th><th className="py-3 px-4 border-b text-center">จัดการ</th></tr>
+                  <tr><th className="py-3 px-4 border-b text-left">รหัสสินค้า</th><th className="py-3 px-4 border-b text-left">ชื่อสินค้า</th><th className="py-3 px-4 border-b text-left">Customer</th><th className="py-3 px-4 border-b text-center">กันชื้น</th><th className="py-3 px-4 border-b text-center">จัดการ</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {processedItems.length > 0 ? (

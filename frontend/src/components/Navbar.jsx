@@ -1,15 +1,19 @@
 export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
-  // 🌟 ดักเช็คสิทธิ์แอดมินตรงนี้ที่เดียว (ตัวใหญ่-ตัวเล็กผ่านหมด)
+  // ดักเช็คสิทธิ์แอดมินตรงนี้ที่เดียว (ตัวใหญ่-ตัวเล็กผ่านหมด)
   const isAdmin = user?.role?.toLowerCase() === 'admin';
 
   return (
     <nav className="bg-indigo-900 text-white shadow-lg">
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
         
-        {/* โลโก้ */}
-        <div className="flex items-center space-x-2">
-          <span className="text-2xl">📦</span>
-          <h1 className="text-2xl font-black tracking-wider text-white">ZENIX<span className="text-indigo-400">HUB</span></h1>
+        {/* 🌟 โลโก้แบบรูปภาพกลับมาแล้วครับ! */}
+        <div className="flex items-center space-x-3">
+          <img 
+            src="/logo-zenix.png" /* 💡 อย่าลืมเช็คชื่อไฟล์รูปให้ตรงกับที่มีในโฟลเดอร์ public ด้วยนะครับ เช่น /logo.png, /logo.jpg */
+            alt="Zenix Logo" 
+            className="h-10 w-auto object-contain" 
+          />
+          <h1 className="text-2xl font-black tracking-wider text-white">ZENIX<span className="text-indigo-400">PACKINGHUB</span></h1>
         </div>
 
         {/* ปุ่มเมนูต่างๆ */}
@@ -21,7 +25,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
             🚀 สแกนแพ็ค
           </button>
 
-          {/* 🌟 ถ้าเป็นแอดมิน ถึงจะโชว์ 2 ปุ่มนี้ */}
+          {/* ถ้าเป็นแอดมิน ถึงจะโชว์ 2 ปุ่มนี้ */}
           {isAdmin && (
             <>
               <button 
