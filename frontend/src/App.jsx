@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from './supabaseClient'; // 🌟 1. อย่าลืมตรวจสอบ Path ไฟล์นี้นะครับ!
+import { supabase } from './supabaseClient'; 
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import PackingStation from './pages/PackingStation';
