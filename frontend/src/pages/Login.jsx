@@ -27,7 +27,7 @@ export default function Login({ onLogin }) {
         .from('users') // 💡 อย่าลืมเช็คว่าใน Supabase ตารางชื่อ users นะครับ
         .select('*')
         .eq('username', username.trim())
-        .eq('password', password)
+        .eq('password_hash', password)
         .single(); // บังคับให้คืนค่ามาแค่ 1 แถว (เพราะถ้าหาไม่เจอ มันจะคืนค่า Error ออกมา)
 
       // ดักกรณีหาไม่เจอ (รหัสผิด หรือ ไม่มี User นี้)
