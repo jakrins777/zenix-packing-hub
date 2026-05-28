@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '../supabaseClient'; // 🌟 อย่าลืมเช็ค Path ให้ตรงนะครับ
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -21,39 +22,30 @@ export default function Login({ onLogin }) {
     console.log("👉 กำลังพยายามล็อกอินด้วย:", username); // พิมพ์บอกใน Console
 
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim(), password })
-      });
-      
-      // ดักกรณี Backend ตาย หรือหา API ไม่เจอ
-      if (!response.ok && response.status === 404) {
-        throw new Error("หา API ฝั่ง Backend ไม่เจอ (404)");
+      // 🌟 ใช้ Supabase ยิงตรงเข้า Database ค้นหา Username และ Password
+      const { data, error: supabaseError } = await supabase
+        .from('users') // 💡 อย่าลืมเช็คว่าใน Supabase ตารางชื่อ users นะครับ
+        .select('*')
+        .eq('username', username.trim())
+        .eq('password', password)
+        .single(); // บังคับให้คืนค่ามาแค่ 1 แถว (เพราะถ้าหาไม่เจอ มันจะคืนค่า Error ออกมา)
+
+      // ดักกรณีหาไม่เจอ (รหัสผิด หรือ ไม่มี User นี้)
+      if (supabaseError || !data) {
+        console.error("🚨 ข้อมูลไม่ถูกต้อง:", supabaseError?.message);
+        setError('❌ รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
+        return; // จบการทำงานตรงนี้เลย
       }
 
-      const data = await response.json();
-      console.log("📦 ข้อมูลที่ได้จาก Backend:", data); // 💡 ให้สังเกตบรรทัดนี้ใน Console
-      
-      if (data.success) {
-        // 🌟 ดักจับข้อมูลผู้ใช้ให้ครอบคลุม ไม่ว่าหลังบ้านจะตั้งชื่อตัวแปรว่าอะไร
-        const userData = data.user || data.data || data; 
-        
-        // ถ้าล็อกอินผ่านแต่ไม่มีก้อนข้อมูล User ส่งมาเลย ให้แจ้งเตือน
-        if (!userData || Object.keys(userData).length === 0) {
-          setError('❌ ล็อกอินสำเร็จ แต่ระบบหลังบ้านไม่ได้ส่งข้อมูลโปรไฟล์มาให้');
-          setIsLoading(false);
-          return;
-        }
+      console.log("📦 ข้อมูลที่ได้จาก Database:", data); 
 
-        localStorage.setItem('zenix_user', JSON.stringify(userData));
-        onLogin(userData);
-      } else {
-        setError(data.message || '❌ รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
-      }
+      // ล็อกอินสำเร็จ! เก็บลง LocalStorage และส่งค่ากลับไปให้ App.jsx
+      localStorage.setItem('zenix_user', JSON.stringify(data));
+      onLogin(data);
+
     } catch (err) {
-      console.error("🚨 ระบบล็อกอินขัดข้อง:", err);
-      setError(`❌ ขัดข้อง: ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (${err.message})`);
+      console.error("🚨 ระบบขัดข้อง:", err);
+      setError(`❌ ขัดข้อง: ไม่สามารถเชื่อมต่อฐานข้อมูลได้ (${err.message})`);
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +111,6 @@ export default function Login({ onLogin }) {
               </div>
             </div>
 
-            {/* 🌟 เปลี่ยนมาใช้ onClick โดยตรงเพื่อความชัวร์ 100% */}
             <button 
               type="button" 
               onClick={handleLoginClick}

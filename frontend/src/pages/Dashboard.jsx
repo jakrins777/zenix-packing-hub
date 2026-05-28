@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient'; // 🌟 อย่าลืมเช็ค path ไฟล์นี้ให้ตรงนะครับ
 
 export default function Dashboard() {
   const [reports, setReports] = useState([]);
@@ -10,13 +11,22 @@ export default function Dashboard() {
 
   const fetchReports = async () => {
     try {
-      const res = await fetch('/api/reports');
-      const data = await res.json();
-      if (data.success) {
-        setReports(data.reports);
+      // 🌟 เปลี่ยนมายิงตรงเข้า Supabase ดึงตาราง reports และเรียงจากใหม่ไปเก่า
+      const { data, error } = await supabase
+        .from('reports')
+        .select('*')
+        .order('createdAt', { ascending: false }); // เรียงวันที่ล่าสุดขึ้นก่อน
+
+      if (error) {
+        throw error;
+      }
+
+      // ถ้ามีข้อมูล ก็เอาไปใส่ใน State ได้เลย
+      if (data) {
+        setReports(data);
       }
     } catch (error) {
-      console.error("Error fetching reports:", error);
+      console.error("🚨 Error fetching reports:", error.message);
     } finally {
       setIsLoading(false);
     }
