@@ -51,7 +51,7 @@ model Box {
   currentStock Int      @default(0) @map("current_stock")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
-  
+  minStockLevel Int          @default(0) // จุดแจ้งเตือนสั่งซื้อ (ถ้าสต็อกต่ำกว่านี้จะแจ้งเตือน)
   // Relation: กล่อง 1 ไซส์ สามารถถูกผูกเป็นกล่องมาตรฐานให้กับสินค้าได้หลายชิ้น
   items        Item[]
 
@@ -94,3 +94,13 @@ model PackingLog {
   @@index([packedAt]) // ทำ Index ที่เวลาเพื่อความเร็วในการ Query รายงานย้อนหลัง
   @@map("packing_logs")
 }
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now()) // วันที่และเวลาที่บันทึก
+  operator    String   // ชื่อพนักงานที่กดบันทึก
+  totalOrders Int      // จำนวนรายการสินค้าในรอบนั้น
+  totalBoxes  Int      // จำนวนกล่องรวมที่ต้องใช้ในรอบนั้น
+  data        String   // เก็บข้อมูลตารางรายก้อน (แปลงเป็น JSON String)
+}
+

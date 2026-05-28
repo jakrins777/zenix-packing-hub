@@ -25,6 +25,14 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
             🚀 สแกนแพ็ค
           </button>
 
+          {/* 🌟 เพิ่มปุ่ม "เช็คสต็อกกล่อง" ตรงนี้ (เพื่อให้ทุกคนมองเห็นได้) */}
+          <button 
+            onClick={() => setCurrentTab('inventory')} 
+            className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'inventory' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'}`}
+          >
+            📦 เช็คสต็อกกล่อง
+          </button>
+
           {/* ถ้าเป็นแอดมิน ถึงจะโชว์ 2 ปุ่มนี้ */}
           {isAdmin && (
             <>

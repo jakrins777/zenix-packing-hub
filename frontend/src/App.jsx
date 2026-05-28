@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React,{ useState, useEffect, useRef, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import PackingStation from './pages/PackingStation';
@@ -41,7 +41,7 @@ function App() {
   const [items, setItems] = useState([]);
   const [boxes, setBoxes] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [users, setUsers] = useState([]); // 🌟 เพิ่ม State พนักงาน
+  const [users, setUsers] = useState([]); 
   
   const [timeFilter, setTimeFilter] = useState('today');
   const [customDate, setCustomDate] = useState('');
@@ -53,64 +53,85 @@ function App() {
   const [boxForm, setBoxForm] = useState({ pckId: '', description: '', maxCapacity: '' });
   const [editingBoxId, setEditingBoxId] = useState(null);
 
-  // 🌟 เพิ่ม State ฟอร์มพนักงาน
+  // เพิ่ม State ฟอร์มพนักงาน
   const [userForm, setUserForm] = useState({ username: '', password: '', firstName: '', role: 'operator' });
   const [editingUserId, setEditingUserId] = useState(null);
 
-  // 🌟 State สำหรับระบบ Copy-Paste จาก Excel
+  // State สำหรับระบบ Copy-Paste จาก Excel
   const [bulkText, setBulkText] = useState('');
   const [calcResults, setCalcResults] = useState([]);
 
-  // 🌟 ฟังก์ชันประมวลผลข้อมูลที่ Paste มา
+  
+  const [boxSummary, setBoxSummary] = useState([]);
+
+  
+  // ฟังก์ชันประมวลผลข้อมูลที่ Paste มา
+  // 🌟 ฟังก์ชันประมวลผลข้อมูลและจับกลุ่มกล่อง (Consolidation)
   const handleBulkCalculate = () => {
     if (!bulkText.trim()) return;
 
     const rows = bulkText.split('\n').filter(r => r.trim());
-    
-    const results = rows.map((row, index) => {
-      // ใช้ Regular Expression แยกด้วย Tab (Excel) หรือเว้นวรรค
-      const parts = row.trim().split(/[\t ]+/);
-      
-      // 🌟 เพิ่มการทำความสะอาดรหัสสินค้าขั้นสุด (ตัดช่องว่างและอักขระซ่อนเร้นออกให้เกลี้ยง)
-      let itemCode = (parts[0] || '').toUpperCase().trim();
-      itemCode = itemCode.replace(/[\r\n\s]+/g, ''); // ลบตัวขึ้นบรรทัดใหม่ที่มองไม่เห็น
+    const results = [];
+    const summaryMap = {}; // ตัวแปรสำหรับจับกลุ่มกล่อง
 
+    rows.forEach((row, index) => {
+      const parts = row.trim().split(/[\t ]+/);
+      let itemCode = (parts[0] || '').toUpperCase().trim().replace(/[\r\n\s]+/g, '');
       const qty = parseInt(parts[1] || 0, 10);
 
-      if (!itemCode) return null;
+      if (!itemCode) return;
 
-      // 1. ค้นหาสินค้าจาก Master Data
       const foundItem = items.find(i => i.itemId === itemCode);
       if (!foundItem) {
-        return { id: index, itemCode, qty, error: '❌ ไม่พบรหัสสินค้านี้ในมาสเตอร์' };
+        results.push({ id: index, itemCode, qty, error: '❌ ไม่พบรหัสสินค้านี้' });
+        return;
       }
 
-      // 2. ค้นหากล่อง
       const foundBox = boxes.find(b => b.pckId === foundItem.defaultPckId);
       if (!foundBox) {
-        return { id: index, itemCode, qty, itemName: foundItem.itemName, customer: foundItem.supplier, error: '⚠️ ยังไม่ผูกกล่อง' };
+        results.push({ id: index, itemCode, qty, itemName: foundItem.itemName, customer: foundItem.supplier, error: '⚠️ ยังไม่ผูกกล่อง' });
+        return;
       }
 
-      // 3. คำนวณจำนวนกล่อง
+      // 1. เก็บผลลัพธ์ราย Item (เพื่อโชว์ในตารางหลัก)
       const boxCap = foundBox.maxCapacity || 1;
-      const totalBoxes = Math.ceil(qty / boxCap);
-      const remainder = qty % boxCap;
-
-      return {
+      results.push({
         id: index,
         itemCode,
         itemName: foundItem.itemName,
-        customer: foundItem.supplier, // ดึงข้อมูลลูกค้ามาแสดง
+        customer: foundItem.supplier,
         qty,
         boxType: foundBox.pckId,
-        boxCap,
-        totalBoxes,
-        lastBoxQty: remainder === 0 ? boxCap : remainder, // เศษใส่กล่องสุดท้าย
-        requireDesiccant: foundItem.requireDesiccant
-      };
-    }).filter(Boolean);
+        boxDesc: foundBox.description,
+        boxCap
+      });
+
+      // 2. จับกลุ่มยอดรวมเพื่อประหยัดกล่อง (Consolidate)
+      if (!summaryMap[foundBox.pckId]) {
+        summaryMap[foundBox.pckId] = {
+          boxType: foundBox.pckId,
+          boxDesc: foundBox.description,
+          boxCap: boxCap,
+          totalQty: 0,
+          itemCount: 0
+        };
+      }
+      summaryMap[foundBox.pckId].totalQty += qty;
+      summaryMap[foundBox.pckId].itemCount += 1;
+    });
+
+    // 3. คำนวณความจุและพื้นที่เหลือ สำหรับกล่องแต่ละกลุ่ม
+    const summaryArray = Object.values(summaryMap).map(box => {
+      const totalBoxes = Math.ceil(box.totalQty / box.boxCap);
+      const remainder = box.totalQty % box.boxCap;
+      // 🌟 ไฮไลท์: คำนวณพื้นที่ว่างในกล่องใบสุดท้าย
+      const spaceLeft = remainder === 0 ? 0 : box.boxCap - remainder; 
+
+      return { ...box, totalBoxes, remainder, spaceLeft };
+    });
 
     setCalcResults(results);
+    setBoxSummary(summaryArray); // เซฟข้อมูลกลุ่มกล่อง
   };
   // ==========================================
   // 2. DATA FETCHING
@@ -125,7 +146,7 @@ function App() {
       const dataBoxes = await resBoxes.json();
       if (dataBoxes.success) setBoxes(dataBoxes.data);
 
-      // 🌟 ดึงข้อมูลพนักงาน
+      //  ดึงข้อมูลพนักงาน
       const resUsers = await fetch('/api/users');
       const dataUsers = await resUsers.json();
       if (dataUsers.success) setUsers(dataUsers.data);
@@ -135,13 +156,14 @@ function App() {
   const fetchLogsData = useCallback(async () => {
     try {
       const resLogs = await fetch('/api/logs');
+      
       const dataLogs = await resLogs.json();
       if (dataLogs.success) setLogs(dataLogs.data);
     } catch (err) { console.error('โหลดข้อมูล Logs ไม่สำเร็จ', err); }
   }, []);
 
   useEffect(() => {
-    // 🌟 เติม .toLowerCase() เพื่อให้ตัว A ใหญ่ หรือเล็ก ก็ผ่านหมด
+    //  เติม .toLowerCase() เพื่อให้ตัว A ใหญ่ หรือเล็ก ก็ผ่านหมด
     if (currentUser?.role?.toLowerCase() === 'admin') {
       if (currentTab === 'admin') fetchAdminData();
       if (currentTab === 'dashboard') fetchLogsData();
@@ -255,6 +277,40 @@ function App() {
     } catch (err) { alert('ลบไม่สำเร็จ ระบบขัดข้อง'); }
   };
 
+  // 🌟 ฟังก์ชันบันทึกรายงานเข้า Dashboard
+  const handleSaveReport = async () => {
+    // คัดกรองเอาเฉพาะรายการที่ไม่มี Error (รายการที่หาสินค้า/กล่องเจอ)
+    const validItems = calcResults.filter(r => !r.error);
+    if (validItems.length === 0) return alert('ไม่มีข้อมูลที่ถูกต้องให้บันทึกครับ');
+
+    // คำนวณยอดกล่องรวมทั้งหมดในรอบนี้
+    const totalBoxesUsed = validItems.reduce((sum, item) => sum + item.totalBoxes, 0);
+
+    try {
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operator: currentUser?.firstName || 'ไม่ระบุตัวตน',
+          totalOrders: validItems.length,
+          totalBoxes: totalBoxesUsed,
+          data: validItems
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('💾 บันทึกข้อมูลสรุปเข้า Dashboard เรียบร้อยแล้ว!');
+        // ล้างหน้าจอเตรียมทำรอบต่อไป
+        setCalcResults([]);
+        setBulkText('');
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      alert('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+    }
+  };
   // ==========================================
   // 5. ADMIN FEATURES
   // ==========================================
@@ -299,7 +355,7 @@ function App() {
     } catch (err) { alert('ลบไม่สำเร็จ'); }
   };
 
-  // 🌟 ฟังก์ชันจัดการพนักงาน
+  //  ฟังก์ชันจัดการพนักงาน
   const handleUserSubmit = async (e) => {
     e.preventDefault();
     const url = editingUserId ? `/api/users/${editingUserId}` : '/api/users';
@@ -344,6 +400,8 @@ function App() {
     e.target.value = null; 
   };
 
+
+
   // ==========================================
   // 6. UI RENDER
   // ==========================================
@@ -354,7 +412,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       
-      {/* 🌟 ต้องมีบรรทัดนี้ Navbar ถึงจะโผล่มาครับ! */}
+      {/*  ต้องมีบรรทัดนี้ Navbar ถึงจะโผล่มาครับ! */}
       <Navbar 
         user={currentUser} 
         onLogout={() => { setCurrentUser(null); localStorage.removeItem('zenix_user'); }} 
@@ -364,7 +422,7 @@ function App() {
 
       <div className="max-w-6xl mx-auto p-4 md:p-8">
         
-        {/* --- หน้าสแกนแพ็คสินค้า --- */}
+        
         {/* ========================================== */}
       {/* 🚀 หน้าจอหลัก: วางแผนการแพ็ค (Bulk Calculator) */}
       {/* ========================================== */}
@@ -391,7 +449,7 @@ function App() {
                   🧮 คำนวณจำนวนกล่อง
                 </button>
                 <button 
-                  onClick={() => { setBulkText(''); setCalcResults([]); }}
+                  onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); }}
                   className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-4 px-8 rounded-xl transition-all"
                 >
                   ล้างข้อมูล
@@ -400,60 +458,102 @@ function App() {
             </div>
           </div>
 
-          {/* ตารางแสดงผลลัพธ์การคำนวณ */}
+          {/* ========================================== */}
+          {/* 📦 ตารางผลลัพธ์แบบใหม่ (มีสรุปพื้นที่เหลือ) */}
+          {/* ========================================== */}
           {calcResults.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 animate-fade-in-up">
-              <div className="bg-indigo-900 p-4 text-white font-bold flex justify-between items-center">
-                <span>ผลลัพธ์การคำนวณ ({calcResults.length} รายการ)</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-indigo-50 border-b border-indigo-100">
-                    <tr>
-                      <th className="py-4 px-4 text-left font-bold text-indigo-900">รหัสสินค้า</th>
-                      <th className="py-4 px-4 text-left font-bold text-indigo-900">ชื่อสินค้า / ลูกค้า</th>
-                      <th className="py-4 px-4 text-center font-bold text-indigo-900">ยอดออเดอร์</th>
-                      <th className="py-4 px-4 text-center font-bold text-indigo-900">กล่องที่ใช้ (จุ/กล่อง)</th>
-                      <th className="py-4 px-4 text-center font-bold text-purple-700 bg-purple-50">📦 จำนวนกล่องที่ต้องแพ็ค</th>
-                      <th className="py-4 px-4 text-center font-bold text-indigo-900">หมายเหตุ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {calcResults.map((res) => (
-                      <tr key={res.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-gray-800">{res.itemCode}</td>
-                        {res.error ? (
-                          <td colSpan="5" className="py-3 px-4 text-red-500 font-bold bg-red-50">{res.error}</td>
-                        ) : (
-                          <>
-                            <td className="py-3 px-4">
-                              <div className="font-bold text-gray-700">{res.itemName}</div>
-                              <div className="text-xs text-indigo-600 font-bold">{res.customer}</div>
-                            </td>
-                            <td className="py-3 px-4 text-center font-black text-gray-700">{res.qty.toLocaleString()}</td>
-                            <td className="py-3 px-4 text-center text-sm">
-                              <span className="font-bold text-blue-700">{res.boxType}</span> <br/>
-                              <span className="text-gray-500">(จุ {res.boxCap} ชิ้น)</span>
-                            </td>
-                            <td className="py-3 px-4 text-center font-black text-xl text-purple-700 bg-purple-50">
-                              {res.totalBoxes} <span className="text-sm font-normal text-purple-900">กล่อง</span>
-                            </td>
-                            <td className="py-3 px-4 text-center text-sm font-medium text-gray-600">
-                              {res.requireDesiccant && <span className="text-blue-500 mr-2">💧 กันชื้น</span>}
-                              เศษกล่องสุดท้าย: {res.lastBoxQty} ชิ้น
-                            </td>
-                          </>
+            <div className="space-y-6 animate-fade-in-up">
+              
+              {/* 🌟 1. การ์ดสรุปการเบิกกล่องและพื้นที่เหลือ (Consolidation Summary) */}
+              {boxSummary.length > 0 && (
+                <div className="bg-gradient-to-r from-indigo-900 to-purple-900 rounded-2xl shadow-xl overflow-hidden text-white border border-indigo-800">
+                  <div className="p-4 bg-black/20 font-black text-lg flex items-center gap-2">
+                    <span>📦</span> สรุปการเบิกกล่องรวม (Consolidation Plan)
+                  </div>
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {boxSummary.map((sum, idx) => (
+                      <div key={idx} className="bg-white/10 rounded-xl p-4 border border-white/20">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-black text-xl text-yellow-300">{sum.boxType}</div>
+                            <div className="text-xs text-indigo-200">{sum.boxDesc}</div>
+                          </div>
+                          <div className="bg-white/20 text-xs px-2 py-1 rounded font-bold">จุ {sum.boxCap} ชิ้น</div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-2 text-center">
+                          <div>
+                            <div className="text-xs text-indigo-200">ของรวม ({sum.itemCount} รายการ)</div>
+                            <div className="font-bold text-lg">{sum.totalQty} ชิ้น</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-indigo-200">ต้องเบิกกล่อง</div>
+                            <div className="font-bold text-lg text-green-400">{sum.totalBoxes} ใบ</div>
+                          </div>
+                        </div>
+                        {/* 🌟 แสดงพื้นที่ว่าง ถ้ามีเศษเหลือ */}
+                        {sum.spaceLeft > 0 && (
+                          <div className="mt-3 bg-red-500/20 text-red-200 text-xs font-bold p-2 rounded-lg text-center border border-red-500/30">
+                            กล่องใบสุดท้าย มีพื้นที่ว่างใส่ได้อีก {sum.spaceLeft} ชิ้น
+                          </div>
                         )}
-                      </tr>
+                        {sum.spaceLeft === 0 && (
+                          <div className="mt-3 bg-green-500/20 text-green-200 text-xs font-bold p-2 rounded-lg text-center border border-green-500/30">
+                            แพ็คพอดีกล่องเต็มทุกใบ (ไม่มีที่ว่าง)
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 🌟 2. ตารางรายละเอียดราย Item */}
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                <div className="bg-gray-50 p-4 border-b border-gray-100 font-bold flex justify-between items-center text-gray-700">
+                  <span>รายละเอียดสินค้าที่ต้องแพ็ค ({calcResults.length} รายการ)</span>
+                  <button onClick={handleSaveReport} className="bg-green-500 hover:bg-green-400 text-white text-sm px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2">
+                    <span>💾</span> ยืนยันและบันทึกรายงาน
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead className="bg-white border-b border-gray-100">
+                      <tr>
+                        <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">รหัสสินค้า</th>
+                        <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">ชื่อสินค้า / ลูกค้า</th>
+                        <th className="py-3 px-4 text-center font-bold text-gray-500 text-sm">จำนวนที่สั่ง</th>
+                        <th className="py-3 px-4 text-center font-bold text-gray-500 text-sm">ชนิดกล่องที่จะถูกจับรวม</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {calcResults.map((res) => (
+                        <tr key={res.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-gray-800">{res.itemCode}</td>
+                          {res.error ? (
+                            <td colSpan="3" className="py-3 px-4 text-red-500 font-bold bg-red-50">{res.error}</td>
+                          ) : (
+                            <>
+                              <td className="py-3 px-4">
+                                <div className="font-bold text-gray-700">{res.itemName}</div>
+                                <div className="text-xs text-indigo-600 font-bold">{res.customer}</div>
+                              </td>
+                              <td className="py-3 px-4 text-center font-black text-gray-700">{res.qty}</td>
+                              <td className="py-3 px-4 text-center">
+                                <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md">{res.boxType}</span>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
+
             </div>
           )}
         </div>
       )}
-
         {/* --- หน้า Dashboard --- */}
         {currentTab === 'dashboard' && currentUser?.role?.toLowerCase() === 'admin' && (
           <div className="bg-white rounded-xl shadow-lg p-6 print:shadow-none print:p-0">
@@ -526,8 +626,8 @@ function App() {
           </div>
         )}
 
-        {/* --- หน้าจัดการแอดมิน --- */}
-       {currentTab === 'admin' && currentUser?.role?.toLowerCase() === 'admin' && (
+{/* --- หน้าจัดการแอดมิน --- */}
+        {currentTab === 'admin' && currentUser?.role?.toLowerCase() === 'admin' && (
           <AdminPanel 
             currentUser={currentUser} adminSubTab={adminSubTab} setAdminSubTab={setAdminSubTab}
             items={items} boxes={boxes} users={users} 
@@ -542,9 +642,84 @@ function App() {
             handleFileUpload={handleFileUpload} handleBoxFileUpload={handleBoxFileUpload}
           />
         )}
+
+        {/* ========================================== */}
+        {/* 📊 แท็บใหม่: หน้าเช็คสต็อกกล่อง (Inventory) */}
+        {/* ========================================== */}
+        {currentTab === 'inventory' && (
+          <div className="bg-white rounded-xl shadow-lg p-6 animate-fade-in-up">
+            
+            {/* 🌟 ส่วนหัว (จะถูกซ่อนตอนสั่ง Print ด้วยคลาส print:hidden) */}
+            <div className="flex justify-between items-center mb-6 print:hidden">
+              <div>
+                <h2 className="text-2xl font-black text-indigo-900">📦 รายงานสต็อกบรรจุภัณฑ์</h2>
+                <p className="text-gray-500 font-medium">ระบบตรวจสอบและแจ้งเตือนจุดสั่งซื้อ (Reorder Point)</p>
+              </div>
+              <button 
+                onClick={() => window.print()}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all flex items-center gap-2"
+              >
+                <span>🖨️</span> พิมพ์รายงานสรุป (Print)
+              </button>
+            </div>
+
+            {/* 🌟 หัวกระดาษที่จะโชว์เฉพาะตอน Print (ซ่อนในหน้าเว็บปกติ) */}
+            <div className="hidden print:block mb-6 text-center">
+              <h1 className="text-2xl font-black text-gray-900">รายงานสต็อกกล่องบรรจุภัณฑ์</h1>
+              <p className="text-sm text-gray-500">วันที่พิมพ์: {new Date().toLocaleDateString('th-TH')}</p>
+            </div>
+
+            {/* ตารางแสดงข้อมูลสต็อก */}
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full bg-white">
+                <thead className="bg-indigo-900 text-white print:bg-gray-200 print:text-black">
+                  <tr>
+                    <th className="py-3 px-4 text-left font-bold border-b print:border-gray-800">รหัสกล่อง</th>
+                    <th className="py-3 px-4 text-left font-bold border-b print:border-gray-800">รายละเอียด</th>
+                    <th className="py-3 px-4 text-center font-bold border-b print:border-gray-800">ยอดสต็อกปัจจุบัน</th>
+                    <th className="py-3 px-4 text-center font-bold border-b print:border-gray-800">จุดสั่งซื้อ (Min)</th>
+                    <th className="py-3 px-4 text-center font-bold border-b print:border-gray-800">สถานะแจ้งเตือน</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {boxes.map((box) => {
+                    // 🌟 เช็คว่าสต็อกเหลือน้อยกว่าหรือเท่ากับจุดสั่งซื้อหรือไม่
+                    const isLowStock = box.currentStock <= box.minStockLevel;
+                    
+                    return (
+                      <tr key={box.pckId} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 font-mono font-bold text-gray-800">{box.pckId}</td>
+                        <td className="py-3 px-4 text-gray-600">{box.description}</td>
+                        
+                        {/* ไฮไลท์ตัวเลขสต็อกถ้าน้อย */}
+                        <td className={`py-3 px-4 text-center font-black text-lg ${isLowStock ? 'text-red-600 print:text-black' : 'text-green-600 print:text-black'}`}>
+                          {box.currentStock || 0}
+                        </td>
+                        
+                        <td className="py-3 px-4 text-center text-gray-500 font-bold">{box.minStockLevel || 0}</td>
+                        <td className="py-3 px-4 text-center font-bold">
+                          {isLowStock ? (
+                            <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs animate-pulse print:border print:border-black print:bg-white print:text-black">
+                              🚨 ต้องสั่งซื้อเพิ่ม!
+                            </span>
+                          ) : (
+                            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs print:border print:border-black print:bg-white print:text-black">
+                              ✅ สต็อกปกติ
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+          </div>
+        )}
         
-      </div>
-    </div>
+      </div> 
+    </div> 
   );
 }
 

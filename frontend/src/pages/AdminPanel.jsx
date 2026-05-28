@@ -17,6 +17,10 @@ export default function AdminPanel({
   const [boxSearchTerm, setBoxSearchTerm] = useState('');
   const [boxSortBy, setBoxSortBy] = useState('id_asc');
 
+  // 🌟 State สำหรับระบบแบ่งหน้าและฟิลเตอร์
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50; 
+  const [filterCustomer, setFilterCustomer] = useState('All');
   // ฟังก์ชันจัดการข้อมูลสินค้า (Items)
   const processedItems = items
     .filter(item => {
@@ -56,6 +60,30 @@ export default function AdminPanel({
       if (boxSortBy === 'cap_desc') return Number(b.maxCapacity) - Number(a.maxCapacity);
       return 0;
     });
+// ==========================================
+  // 🔍 ระบบ Filter และ Pagination (สำหรับสินค้า)
+  // ==========================================
+  // 1. ดึงรายชื่อลูกค้าทั้งหมดจากข้อมูลหลัก (เพื่อทำ Dropdown)
+  const uniqueCustomers = ['All', ...new Set(items.map(item => item.supplier || '-'))];
+
+  // 2. กรองข้อมูล (เอา processedItems ที่ผ่านการค้นหา/เรียงลำดับแล้ว มากรองลูกค้าต่อ)
+  const filteredByCustomer = processedItems.filter(item => {
+    if (filterCustomer === 'All') return true;
+    return (item.supplier || '-') === filterCustomer;
+  });
+
+  // 3. คำนวณตัดแบ่งหน้า
+  const totalPages = Math.ceil(filteredByCustomer.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  
+  // 🌟 ข้อมูลที่จะเอาไปแสดงในตาราง (ตัดมาแค่ 100 ตัว)
+  const currentItems = filteredByCustomer.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handleFilterChange = (e) => {
+    setFilterCustomer(e.target.value);
+    setCurrentPage(1); // เปลี่ยนลูกค้าปุ๊บ ให้กลับไปหน้า 1
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
@@ -120,37 +148,53 @@ export default function AdminPanel({
           </div>
 
           <div className="lg:col-span-2 flex flex-col h-full">
-            {/* แถบเครื่องมือ ค้นหา + เรียงลำดับ (Items) */}
+            {/* แถบเครื่องมือ ค้นหา + กรอง + เรียงลำดับ (Items) */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-gray-50 p-4 mb-4 rounded-xl border border-gray-200 gap-4">
-              <div className="w-full md:w-1/2 flex items-center bg-white border rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-indigo-500 shadow-sm">
+              <div className="w-full md:w-1/3 flex items-center bg-white border rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-indigo-500 shadow-sm">
                 <span className="text-gray-400 mr-2">🔍</span>
                 <input 
                   type="text" 
-                  placeholder="ค้นหารหัส, ชื่อสินค้า หรือ Customer..." 
+                  placeholder="ค้นหารหัส หรือ ชื่อ..." 
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                   className="w-full outline-none text-sm"
                 />
                 {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-red-500 font-bold ml-2">✕</button>
+                  <button onClick={() => { setSearchTerm(''); setCurrentPage(1); }} className="text-gray-400 hover:text-red-500 font-bold ml-2">✕</button>
                 )}
               </div>
               
-              <div className="w-full md:w-auto flex items-center gap-2">
-                <label className="font-bold text-gray-700 text-sm whitespace-nowrap">เรียงตาม:</label>
-                <select 
-                  value={sortBy} 
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium shadow-sm bg-white"
-                >
-                  <option value="id_asc">รหัสสินค้า (A-Z)</option>
-                  <option value="id_desc">รหัสสินค้า (Z-A)</option>
-                  <option value="name_asc">ชื่อสินค้า (A-Z)</option>
-                  <option value="name_desc">ชื่อสินค้า (Z-A)</option>
-                  {/* 🌟 เพิ่มตัวเลือกเรียงตาม Customer */}
-                  <option value="supplier_asc">Customer (A-Z)</option>
-                  <option value="supplier_desc">Customer (Z-A)</option>
-                </select>
+              <div className="w-full md:w-2/3 flex flex-wrap md:flex-nowrap items-center justify-end gap-3">
+                {/* 🌟 Dropdown กรองลูกค้า */}
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <label className="font-bold text-gray-700 text-sm whitespace-nowrap">ลูกค้า:</label>
+                  <select 
+                    value={filterCustomer} 
+                    onChange={handleFilterChange}
+                    className="p-2 w-full md:w-36 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium shadow-sm bg-white"
+                  >
+                    {uniqueCustomers.map((cust, idx) => (
+                      <option key={idx} value={cust}>{cust === 'All' ? '📦 ทั้งหมด' : cust}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Dropdown เรียงลำดับ */}
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <label className="font-bold text-gray-700 text-sm whitespace-nowrap">เรียงตาม:</label>
+                  <select 
+                    value={sortBy} 
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="p-2 w-full md:w-36 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium shadow-sm bg-white"
+                  >
+                    <option value="id_asc">รหัส (A-Z)</option>
+                    <option value="id_desc">รหัส (Z-A)</option>
+                    <option value="name_asc">ชื่อ (A-Z)</option>
+                    <option value="name_desc">ชื่อ (Z-A)</option>
+                    <option value="supplier_asc">ลูกค้า (A-Z)</option>
+                    <option value="supplier_desc">ลูกค้า (Z-A)</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -160,10 +204,11 @@ export default function AdminPanel({
                   <tr><th className="py-3 px-4 border-b text-left">รหัสสินค้า</th><th className="py-3 px-4 border-b text-left">ชื่อสินค้า</th><th className="py-3 px-4 border-b text-left">Customer</th><th className="py-3 px-4 border-b text-center">กันชื้น</th><th className="py-3 px-4 border-b text-center">จัดการ</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {processedItems.length > 0 ? (
-                    processedItems.map(item => (
+                  {/* 🌟 เปลี่ยนจาก processedItems เป็น currentItems */}
+                  {currentItems.length > 0 ? (
+                    currentItems.map(item => (
                       <tr key={item.itemId} className="hover:bg-gray-50">
-                        <td className="py-3 px-4 font-mono font-bold text-gray-700">{item.itemId}</td><td className="py-3 px-4">{item.itemName}</td><td className="py-3 px-4 text-gray-600 font-medium">{item.supplier || '-'}</td><td className="py-3 px-4 text-center text-lg">{item.requireDesiccant ? '✅' : '❌'}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-gray-700">{item.itemId}</td><td className="py-3 px-4 text-sm">{item.itemName}</td><td className="py-3 px-4 text-gray-600 font-medium text-sm">{item.supplier || '-'}</td><td className="py-3 px-4 text-center text-lg">{item.requireDesiccant ? '✅' : '❌'}</td>
                         <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
                           <button onClick={() => { setEditingItemId(item.itemId); setItemForm({ itemId: item.itemId, itemName: item.itemName, supplier: item.supplier, itemWeight: item.itemWeight, defaultPckId: item.defaultPckId || '', requireDesiccant: item.requireDesiccant }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">แก้ไข</button>
                           <button onClick={() => handleDeleteItem(item.itemId)} className="text-sm bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">ลบ</button>
@@ -171,11 +216,41 @@ export default function AdminPanel({
                       </tr>
                     ))
                   ) : (
-                    <tr><td colSpan="5" className="py-8 text-center text-gray-500">❌ ไม่พบสินค้าที่ค้นหา</td></tr>
+                    <tr><td colSpan="5" className="py-8 text-center text-gray-500">❌ ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
+
+            {/* 🌟 เพิ่มปุ่ม Pagination ด้านล่างตาราง */}
+            {filteredByCustomer.length > 0 && (
+              <div className="flex justify-between items-center mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="text-sm text-gray-600 font-medium">
+                  แสดงผล <span className="font-bold text-indigo-600">{indexOfFirstItem + 1}</span> ถึง <span className="font-bold text-indigo-600">{Math.min(indexOfLastItem, filteredByCustomer.length)}</span> จาก <span className="font-bold">{filteredByCustomer.length}</span> รายการ
+                </div>
+                
+                <div className="flex gap-2">
+                  <button 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm disabled:opacity-50 hover:bg-gray-100 transition-all font-bold text-sm text-gray-700"
+                  >
+                    ⬅️ ก่อนหน้า
+                  </button>
+                  <div className="px-3 py-1.5 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-md">
+                    {currentPage} / {totalPages}
+                  </div>
+                  <button 
+                    disabled={currentPage === totalPages || totalPages === 0} 
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm disabled:opacity-50 hover:bg-gray-100 transition-all font-bold text-sm text-gray-700"
+                  >
+                    ถัดไป ➡️
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
@@ -186,25 +261,31 @@ export default function AdminPanel({
       {adminSubTab === 'boxes' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="space-y-6 h-fit">
-             <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+             <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
               <h3 className="text-xl font-bold text-gray-800 mb-4">{editingBoxId ? '✏️ แก้ไขข้อมูลกล่อง' : '➕ เพิ่มกล่องใหม่'}</h3>
               <form onSubmit={handleBoxSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm mb-1">รหัสกล่อง</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">รหัสกล่อง *</label>
                   <input 
                     type="text" required disabled={!!editingBoxId} value={boxForm.pckId || ''} 
                     onChange={(e) => {
                       const val = e?.target?.value || '';
                       setBoxForm(prev => ({ ...prev, pckId: String(val).toUpperCase() }));
                     }} 
-                    className="w-full p-2 border rounded" 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" 
                   />
                 </div>
-                <div><label className="block text-sm mb-1">คำอธิบาย</label><input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({...boxForm, description: e.target.value})} className="w-full p-2 border rounded" /></div>
-                <div><label className="block text-sm mb-1">ความจุสูงสุด</label><input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({...boxForm, maxCapacity: e.target.value})} className="w-full p-2 border rounded" /></div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">คำอธิบาย</label><input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({...boxForm, description: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">จุได้กี่ชิ้น</label><input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({...boxForm, maxCapacity: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-1">สต็อกที่มี (ใบ)</label><input type="number" required value={boxForm.currentStock || 0} onChange={(e) => setBoxForm({...boxForm, currentStock: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600" /></div>
+                </div>
+                <div><label className="block text-sm font-bold text-gray-700 mb-1">จุดสั่งซื้อ (แจ้งเตือนเมื่อเหลือน้อย)</label><input type="number" required value={boxForm.minStockLevel || 0} onChange={(e) => setBoxForm({...boxForm, minStockLevel: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none text-red-500 font-bold" /></div>
+
                 <div className="flex space-x-2 pt-2">
-                  <button type="submit" className="flex-1 bg-green-600 text-white font-bold p-2 rounded">💾 บันทึก</button>
-                  {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', description: '', maxCapacity: '' }); }} className="bg-gray-400 text-white font-bold p-2 rounded">ยกเลิก</button>}
+                  <button type="submit" className="flex-1 bg-green-600 hover:bg-green-700 transition-colors text-white font-bold p-2 rounded shadow">💾 บันทึก</button>
+                  {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', description: '', maxCapacity: '', currentStock: 0, minStockLevel: 0 }); }} className="bg-gray-400 hover:bg-gray-500 text-white font-bold p-2 rounded">ยกเลิก</button>}
                 </div>
               </form>
             </div>
@@ -213,9 +294,12 @@ export default function AdminPanel({
               <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                 <h3 className="text-lg font-bold text-blue-800 mb-2">📁 นำเข้ากล่องด้วย Excel / CSV</h3>
                 <p className="text-xs text-blue-600 mb-4">
-                  รองรับไฟล์ Export จาก <strong>Infor CSI</strong> คอลัมน์ที่ระบบอ่าน: <br/>
+                  คอลัมน์ที่ระบบอ่าน: <br/>
                   <span className="font-mono bg-blue-100 px-1 rounded">Item</span> (รหัสกล่อง), 
-                  <span className="font-mono bg-blue-100 px-1 rounded ml-1">Description</span> (คำอธิบาย)
+                  <span className="font-mono bg-blue-100 px-1 rounded ml-1">Description</span> (คำอธิบาย),
+                  <br/>
+                  <span className="font-mono bg-blue-100 px-1 rounded mt-1 inline-block">จำนวนกล่อง</span> (สต็อกปัจจุบัน), 
+                  <span className="font-mono bg-blue-100 px-1 rounded ml-1 mt-1 inline-block">จุดสั่งซื้อ</span> (Min)
                 </p>
                 <input type="file" accept=".xlsx, .xls, .csv" onChange={handleBoxFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" />
               </div>
@@ -223,7 +307,6 @@ export default function AdminPanel({
           </div>
 
           <div className="lg:col-span-2 flex flex-col h-full">
-            {/* 🌟 แถบเครื่องมือ ค้นหา + เรียงลำดับ (Boxes) */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-gray-50 p-4 mb-4 rounded-xl border border-gray-200 gap-4">
               <div className="w-full md:w-1/2 flex items-center bg-white border rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 shadow-sm">
                 <span className="text-gray-400 mr-2">🔍</span>
@@ -256,24 +339,43 @@ export default function AdminPanel({
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200 flex-1">
+            <div className="overflow-x-auto rounded-lg border border-gray-200 flex-1 shadow-sm">
               <table className="min-w-full bg-white">
-                <thead className="bg-gray-100">
-                  <tr><th className="py-3 px-4 border-b text-left">รหัสกล่อง</th><th className="py-3 px-4 border-b text-left">คำอธิบาย</th><th className="py-3 px-4 border-b text-center">ความจุสูงสุด</th><th className="py-3 px-4 border-b text-center">จัดการ</th></tr>
+                <thead className="bg-indigo-900 text-white">
+                  <tr>
+                    <th className="py-3 px-4 text-left font-bold border-b border-indigo-800">รหัสกล่อง</th>
+                    <th className="py-3 px-4 text-left font-bold border-b border-indigo-800">คำอธิบาย</th>
+                    <th className="py-3 px-4 text-center font-bold border-b border-indigo-800">ความจุ</th>
+                    <th className="py-3 px-4 text-center font-bold border-b border-indigo-800">สต็อกคงเหลือ</th>
+                    <th className="py-3 px-4 text-center font-bold border-b border-indigo-800">จัดการ</th>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {processedBoxes.length > 0 ? (
-                    processedBoxes.map(box => (
-                      <tr key={box.pckId} className="hover:bg-gray-50">
-                        <td className="py-3 px-4 font-mono font-bold text-blue-700">{box.pckId}</td><td className="py-3 px-4 text-gray-600">{box.description || '-'}</td><td className="py-3 px-4 text-center">{box.maxCapacity}</td>
-                        <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
-                          <button onClick={() => { setEditingBoxId(box.pckId); setBoxForm({ pckId: box.pckId, description: box.description, maxCapacity: box.maxCapacity }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">แก้ไข</button>
-                          <button onClick={() => handleBoxDelete(box.pckId)} className="text-sm bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">ลบ</button>
-                        </td>
-                      </tr>
-                    ))
+                    processedBoxes.map(box => {
+                      // เช็คสถานะแจ้งเตือนเพื่อทำไฮไลท์สี
+                      const isLowStock = box.currentStock <= box.minStockLevel;
+                      
+                      return (
+                        <tr key={box.pckId} className="hover:bg-blue-50 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-blue-700">{box.pckId}</td>
+                          <td className="py-3 px-4 text-gray-600 text-sm">{box.description || '-'}</td>
+                          <td className="py-3 px-4 text-center font-medium">{box.maxCapacity}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`font-black text-lg ${isLowStock ? 'text-red-500' : 'text-green-600'}`}>
+                              {box.currentStock || 0}
+                            </span>
+                            {isLowStock && <p className="text-xs text-red-500 font-bold animate-pulse">! ถึงจุดสั่งซื้อ ({box.minStockLevel})</p>}
+                          </td>
+                          <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
+                            <button onClick={() => { setEditingBoxId(box.pckId); setBoxForm({ pckId: box.pckId, description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0, minStockLevel: box.minStockLevel || 0 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-100 text-blue-700 px-3 py-1.5 rounded hover:bg-blue-200 font-bold">แก้ไข</button>
+                            <button onClick={() => handleBoxDelete(box.pckId)} className="text-sm bg-red-100 text-red-700 px-3 py-1.5 rounded hover:bg-red-200 font-bold">ลบ</button>
+                          </td>
+                        </tr>
+                      )
+                    })
                   ) : (
-                    <tr><td colSpan="4" className="py-8 text-center text-gray-500">❌ ไม่พบกล่องที่ค้นหา</td></tr>
+                    <tr><td colSpan="5" className="py-8 text-center text-gray-500">❌ ไม่พบกล่องที่ค้นหา</td></tr>
                   )}
                 </tbody>
               </table>
@@ -344,7 +446,7 @@ export default function AdminPanel({
                   users.map(u => (
                     <tr key={u.id} className="hover:bg-indigo-50 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-gray-700">{u.username}</td>
-                      <td className="py-3 px-4 text-gray-800 font-medium">{u.firstName}</td>
+                      <td className="py-3 px-4 text-gray-800 font-medium text-sm">{u.firstName}</td>
                       <td className="py-3 px-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${u.role?.toLowerCase() === 'admin' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                           {u.role}

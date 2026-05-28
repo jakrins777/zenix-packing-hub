@@ -1,39 +1,75 @@
-export default function Dashboard({ logs, timeFilter, setTimeFilter, customDate, setCustomDate, filteredLogs }) {
+import { useState, useEffect } from 'react';
+
+export default function Dashboard() {
+  const [reports, setReports] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      const res = await fetch('/api/reports');
+      const data = await res.json();
+      if (data.success) {
+        setReports(data.reports);
+      }
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 print:shadow-none">
-      <div className="flex justify-between items-center mb-6 print:hidden">
-        <h2 className="text-2xl font-bold">📊 รายงานสรุป</h2>
-        <div className="flex gap-2">
-          <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} className="p-2 border rounded">
-            <option value="today">วันนี้</option>
-            <option value="month">เดือนนี้</option>
-            <option value="year">ปีนี้</option>
-            <option value="custom">เลือกวันที่เอง</option>
-            <option value="all">ทั้งหมด</option>
-          </select>
-          {timeFilter === 'custom' && <input type="date" onChange={(e) => setCustomDate(e.target.value)} className="p-2 border rounded"/>}
-          <button onClick={() => window.print()} className="bg-gray-800 text-white px-4 py-2 rounded">🖨️ พิมพ์</button>
+    <div className="p-6 max-w-6xl mx-auto animate-fade-in-up">
+      <h2 className="text-3xl font-black text-indigo-900 mb-6 flex items-center gap-3">
+        <span>📊</span> รายงานสรุปการวางแผน (Batch Reports)
+      </h2>
+
+      {isLoading ? (
+        <div className="text-center py-10 text-gray-500 font-bold">กำลังโหลดข้อมูล...</div>
+      ) : reports.length === 0 ? (
+        <div className="text-center py-10 bg-white rounded-xl shadow-sm border border-gray-100 text-gray-500">
+          ยังไม่มีข้อมูลประวัติการทำงาน
         </div>
-      </div>
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-blue-50 p-4 rounded">การแพ็ค: {filteredLogs.length} ครั้ง</div>
-        <div className="bg-green-50 p-4 rounded">สินค้ารวม: {filteredLogs.reduce((sum, log) => sum + log.packQty, 0)} ชิ้น</div>
-        <div className="bg-orange-50 p-4 rounded">กล่องที่ใช้: {filteredLogs.reduce((sum, log) => sum + log.boxUsed, 0).toFixed(2)} ใบ</div>
-      </div>
-      <table className="min-w-full border">
-        <thead><tr className="bg-gray-100 text-left"><th>เวลา</th><th>ผู้ทำ</th><th>สินค้า</th><th>จำนวน</th><th>กล่อง</th></tr></thead>
-        <tbody>
-          {filteredLogs.map(log => (
-            <tr key={log.logId} className="border-b">
-              <td>{new Date(log.packedAt).toLocaleString('th-TH')}</td>
-              <td>{log.user?.firstName}</td>
-              <td>{log.itemId}</td>
-              <td>{log.packQty}</td>
-              <td>{log.boxUsed.toFixed(2)}</td>
-            </tr>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {reports.map((report) => (
+            <div key={report.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
+              
+              <div className="flex justify-between items-start mb-4">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Batch #{report.id}
+                </div>
+                <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">
+                  {new Date(report.createdAt).toLocaleString('th-TH')}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                  <span className="text-sm font-bold text-gray-600">พนักงานผู้บันทึก</span>
+                  <span className="font-black text-indigo-900">{report.operator}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-xl text-center">
+                    <div className="text-xs font-bold text-blue-600 mb-1">ยอดออเดอร์</div>
+                    <div className="text-2xl font-black text-blue-900">{report.totalOrders} <span className="text-sm font-medium">รายการ</span></div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-xl text-center">
+                    <div className="text-xs font-bold text-purple-600 mb-1">กล่องที่ต้องใช้</div>
+                    <div className="text-2xl font-black text-purple-900">{report.totalBoxes} <span className="text-sm font-medium">กล่อง</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
     </div>
   );
 }

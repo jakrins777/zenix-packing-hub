@@ -6,7 +6,6 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const xlsx = require('xlsx');
 
-
 const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
 const prisma = new PrismaClient();
@@ -40,17 +39,69 @@ app.get('/api/boxes', async (req, res) => {
   }
 });
 
-// [CREATE] เพิ่มข้อมูลกล่องใหม่
-// [POST] เพิ่มกล่อง
+// 📥 API นำเข้าข้อมูลกล่องผ่าน Excel (รองรับจำนวนสต็อก)
+app.post('/api/boxes/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาเลือกไฟล์ Excel หรือ CSV' });
+
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    let allRawData = [];
+
+    workbook.SheetNames.forEach(sheetName => {
+      const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      allRawData = allRawData.concat(sheetData);
+    });
+
+    let successCount = 0;
+
+    for (const row of allRawData) {
+      const id = String(row['Item'] || row['รหัสกล่อง'] || row.pckId || '').toUpperCase().trim();
+      
+      if (id) {
+        const desc = String(row['Description'] || row['คำอธิบาย'] || row.description || '-');
+        const cap = parseInt(row['Lot Size'] || row['ความจุสูงสุด'] || row.maxCapacity || 1, 10);
+        
+        // 🌟 ดึงข้อมูลสต็อก และ จุดแจ้งเตือนสั่งซื้อจาก Excel
+        const stock = parseInt(row['Current Stock'] || row['จำนวนกล่อง'] || row['สต็อก'] || row.currentStock || 0, 10);
+        const minStock = parseInt(row['Min Stock'] || row['จุดสั่งซื้อ'] || row.minStockLevel || 0, 10);
+
+        await prisma.box.upsert({
+          where: { pckId: id },
+          update: {
+            description: desc,
+            maxCapacity: cap,
+            currentStock: stock,     // อัปเดตสต็อกถ้ามีกล่องอยู่แล้ว
+            minStockLevel: minStock
+          },
+          create: {
+            pckId: id,
+            description: desc,
+            maxCapacity: cap,
+            currentStock: stock,
+            minStockLevel: minStock
+          }
+        });
+        successCount++;
+      }
+    }
+
+    res.json({ success: true, message: `✅ นำเข้าข้อมูลกล่องและสต็อกสำเร็จ ${successCount} รายการ` });
+  } catch (error) { 
+    res.status(500).json({ success: false, message: 'รูปแบบไฟล์ไม่ถูกต้อง หรือ ' + error.message }); 
+  }
+});
+
+// 🌟 แถม: อัปเดตตอนสร้างกล่องใหม่แบบพิมพ์เอง ให้รองรับสต็อกด้วย
 app.post('/api/boxes', async (req, res) => {
   try {
-    const { pckId, description, maxCapacity } = req.body;
+    const { pckId, description, maxCapacity, currentStock, minStockLevel } = req.body;
     await prisma.box.create({
       data: { 
         pckId: pckId.toUpperCase(), 
         description, 
-        // 🌟 ครอบ parseInt เพื่อแปลงข้อความเป็นตัวเลข (ฐาน 10)
-        maxCapacity: parseInt(maxCapacity, 10) 
+        maxCapacity: parseInt(maxCapacity || 1, 10),
+        currentStock: parseInt(currentStock || 0, 10),
+        minStockLevel: parseInt(minStockLevel || 0, 10)
       }
     });
     res.json({ success: true, message: '✅ เพิ่มกล่องสำเร็จ' });
@@ -60,20 +111,21 @@ app.post('/api/boxes', async (req, res) => {
   }
 });
 
-// [PUT] แก้ไขข้อมูลกล่อง
+// ตัวอย่างตอน PUT (แก้ไขกล่อง)
 app.put('/api/boxes/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { description, maxCapacity } = req.body;
+    const { description, maxCapacity, currentStock, minStockLevel } = req.body; // 🌟 รับค่าเพิ่ม
     await prisma.box.update({
       where: { pckId: id },
       data: { 
         description, 
-        // 🌟 ครอบ parseInt ตรงนี้ด้วยเช่นกัน
-        maxCapacity: parseInt(maxCapacity, 10) 
+        maxCapacity: parseInt(maxCapacity, 10),
+        currentStock: parseInt(currentStock || 0, 10),     // 🌟 อัปเดตสต็อก
+        minStockLevel: parseInt(minStockLevel || 0, 10)  // 🌟 อัปเดตจุดแจ้งเตือน
       }
     });
-    res.json({ success: true, message: '✅ อัปเดตข้อมูลกล่องสำเร็จ' });
+    res.json({ success: true, message: '✅ อัปเดตข้อมูลกล่องและสต็อกสำเร็จ' });
   } catch (error) { 
     res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message }); 
   }
@@ -86,11 +138,9 @@ app.delete('/api/boxes/:id', async (req, res) => {
     await prisma.box.delete({ where: { pckId: id } });
     res.json({ success: true, message: 'ลบข้อมูลกล่องสำเร็จ' });
   } catch (error) {
-    // ดัก Error เผื่อว่ากล่องนี้ถูกผูกเป็นค่าเริ่มต้นให้สินค้าไปแล้ว จะห้ามลบ
     res.status(500).json({ success: false, message: 'ไม่สามารถลบได้ (อาจมีสินค้าระบุใช้กล่องไซส์นี้อยู่)' });
   }
 });
-
 
 // ==========================================
 // 🏷️ ITEMS CRUD (จัดการ Master Data สินค้า)
@@ -127,16 +177,16 @@ app.get('/api/items/:id', async (req, res) => {
   }
 });
 
-// [CREATE] เพิ่มข้อมูลสินค้าใหม่
+// [CREATE] เพิ่มข้อมูลสินค้าใหม่ (แก้บั๊กตัวแปร row ให้แล้ว)
 app.post('/api/items', async (req, res) => {
   try {
     const newItem = await prisma.item.create({ 
       data: {
         itemId: req.body.itemId,
         itemName: req.body.itemName,
-        supplier: String(row['Customer'] || row['ลูกค้า'] || row['Product Code'] || row.supplier || '-'),
-        itemWeight: Number(req.body.itemWeight),
-        requireDesiccant: Boolean(req.body.requireDesiccant), // <--- อัปเดตตรงนี้
+        supplier: req.body.supplier || '-', // 🌟 แก้จุดนี้ให้ดึงจาก body
+        itemWeight: Number(req.body.itemWeight) || 0,
+        requireDesiccant: Boolean(req.body.requireDesiccant),
         defaultPckId: req.body.defaultPckId || null
       } 
     });
@@ -155,8 +205,8 @@ app.put('/api/items/:id', async (req, res) => {
       data: {
         itemName: req.body.itemName,
         supplier: req.body.supplier,
-        itemWeight: Number(req.body.itemWeight),
-        requireDesiccant: Boolean(req.body.requireDesiccant), // <--- อัปเดตตรงนี้
+        itemWeight: Number(req.body.itemWeight) || 0,
+        requireDesiccant: Boolean(req.body.requireDesiccant),
         defaultPckId: req.body.defaultPckId || null
       }
     });
@@ -181,71 +231,71 @@ app.delete('/api/items/:id', async (req, res) => {
 // 📁 BULK UPLOAD (ระบบอัปโหลด Excel)
 // ==========================================
 
-// ฟังก์ชันช่วยแปลงคำไทย/อังกฤษ ให้เป็น Boolean (แก้ปัญหาเรื่องซองกันชื้น)
+// ฟังก์ชันช่วยแปลงคำไทย/อังกฤษ ให้เป็น Boolean
 const parseDesiccant = (val) => {
-  if (!val) return false; // ถ้าปล่อยว่าง ถือว่าไม่ใส่
+  if (!val) return false;
   const str = String(val).toLowerCase().trim();
-  // ถ้าเจอคำเหล่านี้ ถือว่า "ต้องใส่" นอกนั้นถือว่า "ไม่ใส่" ทั้งหมด
   return str === 'true' || str === '1' || str === 'yes' || str === 'มี' || str === 'ใส่';
 };
 
-
-// [POST] 1. อัปโหลด Excel/CSV เพื่อเพิ่ม "สินค้า" (รองรับไฟล์จาก Infor CSI)
+// 📥 API นำเข้าข้อมูลสินค้าผ่าน Excel (รองรับการผูกกล่องอัตโนมัติ)
 app.post('/api/items/upload', upload.single('file'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาเลือกไฟล์ Excel หรือ CSV' });
+    if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดไฟล์' });
 
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    let allRawData = [];
+    const sheetName = workbook.SheetNames[0];
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    workbook.SheetNames.forEach(sheetName => {
-      const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-      allRawData = allRawData.concat(sheetData);
-    });
+    console.log("📦 ข้อมูลบรรทัดแรกที่อ่านได้จาก Excel:", data[0]); 
 
-    const itemsToInsert = allRawData.map(row => {
-      const id = String(row['Item'] || row['รหัสสินค้า'] || row.itemId || '').toUpperCase().trim();
+    let successCount = 0;
+
+    for (const row of data) {
+      // 🌟 ดึงข้อมูลจากคอลัมน์ Excel ให้ตรงกับโปรเจคปัจจุบัน
+      const itemCode = String(row['Item'] || '').toUpperCase().trim();
+      const itemName = String(row['Description'] || '').trim();
+      const customer = String(row['Product Code'] || '-').trim();
+      const boxId = String(row['Box ID'] || row['รหัสกล่อง'] || '').toUpperCase().trim();
       
-      return {
-        itemId: id,
-        itemName: String(row['Description'] || row['ชื่อสินค้า'] || row.itemName || id),
-        supplier: String(row['Product Code'] || row['MFR'] || row['Supplier'] || row.supplier || '-'), 
-        itemWeight: parseFloat(row['Unit Weight'] || row['น้ำหนัก'] || row.itemWeight || 0),
-        defaultPckId: row['กล่องมาตรฐาน'] || row.defaultPckId || null,
-        requireDesiccant: row['กันชื้น'] === '✅' || row['กันชื้น'] === true || row['requireDesiccant'] === true || false
-      };
-    }).filter(item => item.itemId);
+      // ดึงน้ำหนัก (ถ้ามี)
+      const unitWeight = String(row['Unit Weight'] || row['น้ำหนัก'] || '').trim();
 
-    const uniqueItemsMap = new Map();
-    itemsToInsert.forEach(item => {
-      uniqueItemsMap.set(item.itemId, item); 
-    });
-    const finalUniqueItems = Array.from(uniqueItemsMap.values());
+if (itemCode) {
+        // 🌟 แปลงน้ำหนักให้เป็นตัวเลข (ถ้าใน Excel ว่างเปล่า ให้เป็น 0)
+        const parsedWeight = parseFloat(unitWeight) || 0;
 
-    // 🌟 เปลี่ยนจาก createMany เป็น Upsert (Update + Insert)
-    const upsertPromises = finalUniqueItems.map(item => {
-      return prisma.item.upsert({
-        where: { itemId: item.itemId },
-        update: {
-          itemName: item.itemName,
-          supplier: item.supplier, // 🌟 จะอัปเดต Product Code ใหม่ให้ตรงนี้
-          itemWeight: item.itemWeight,
-          defaultPckId: item.defaultPckId,
-          requireDesiccant: item.requireDesiccant
-        },
-        create: item // ถ้าไม่เคยมีสินค้านี้ ให้สร้างใหม่เลย
-      });
-    });
-
-    // รันคำสั่งอัปเดต/เพิ่ม พร้อมกันทั้งหมด
-    await prisma.$transaction(upsertPromises);
-
-    res.json({ success: true, message: `✅ อัปเดต/นำเข้าข้อมูลสินค้าสำเร็จ ${finalUniqueItems.length} รายการ` });
-  } catch (error) { 
-    res.status(500).json({ success: false, message: 'รูปแบบไฟล์ไม่ถูกต้อง หรือ ' + error.message }); 
+        await prisma.item.upsert({
+          where: { 
+            itemId: itemCode 
+          },
+          update: { 
+            itemName: itemName || undefined, 
+            supplier: customer !== '-' ? customer : undefined,
+            // 🌟 อัปเดตน้ำหนักด้วย
+            itemWeight: parsedWeight > 0 ? parsedWeight : undefined,
+            ...(boxId && { defaultPckId: boxId }) 
+          },
+          create: { 
+            itemId: itemCode, 
+            itemName: itemName || 'ไม่ระบุชื่อสินค้า', 
+            supplier: customer,
+            // 🌟 ต้องใส่ 2 ฟิลด์นี้ด้วยตอนสร้างใหม่ (กัน Prisma โวยวาย)
+            itemWeight: parsedWeight,
+            requireDesiccant: false, // ตั้งค่าเริ่มต้นเป็น false ไปก่อน
+            defaultPckId: boxId || null
+          }
+        });
+        successCount++;
+      }
+    }
+    res.json({ success: true, message: `✅ อัปโหลดและอัปเดตสำเร็จ ${successCount} รายการ` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message });
   }
 });
 
+// 📥 API นำเข้าข้อมูลกล่องผ่าน Excel
 app.post('/api/boxes/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาเลือกไฟล์ Excel หรือ CSV' });
@@ -259,15 +309,10 @@ app.post('/api/boxes/upload', upload.single('file'), async (req, res) => {
     });
 
     const boxesToInsert = allRawData.map(row => {
-      
       const id = String(row['Item'] || row['รหัสกล่อง'] || row.pckId || '').toUpperCase().trim();
-      
       return {
         pckId: id,
-        // 🌟 ดึงค่าจากคอลัมน์ 'Description' ของ Infor CSI มาเป็น คำอธิบาย
         description: String(row['Description'] || row['คำอธิบาย'] || row.description || '-'),
-        
-        // 🌟 ความจุสูงสุด: ถ้าใน CSI ใช้คอลัมน์ไหนเก็บ สามารถแก้คำว่า 'Lot Size' เป็นชื่อคอลัมน์นั้นได้เลยครับ (ถ้าไม่มีจะใช้ค่า 1 ไปก่อน)
         maxCapacity: parseInt(row['Lot Size'] || row['ความจุสูงสุด'] || row.maxCapacity || 1, 10),
       };
     }).filter(box => box.pckId);
@@ -288,26 +333,30 @@ app.post('/api/boxes/upload', upload.single('file'), async (req, res) => {
     res.status(500).json({ success: false, message: 'รูปแบบไฟล์ไม่ถูกต้อง หรือ ' + error.message }); 
   }
 });
+
 // ==========================================
 // 📝 TRANSACTION (บันทึกประวัติหน้างาน)
 // ==========================================
 
-// บันทึกประวัติการแพ็ค (ทำงานตอนพนักงานกดปุ่ม Save)
+// บันทึกประวัติการแพ็ค
 app.post('/api/pack', async (req, res) => {
   try {
-    const { userId, itemId, packQty, boxUsed, totalWeight } = req.body;
+    const { userId, itemId, packQty, boxUsed, totalWeight, boxId } = req.body; // 🌟 รับ boxId มาด้วย
     
+    // 1. บันทึกประวัติ
     const newLog = await prisma.packingLog.create({
-      data: {
-        userId: userId,
-        itemId: itemId,
-        packQty: packQty,
-        boxUsed: boxUsed,
-        totalWeight: totalWeight
-      }
+      data: { userId, itemId, packQty, boxUsed, totalWeight }
     });
+
+    // 🌟 2. หักยอดสต็อกกล่องอัตโนมัติ (ถ้ามีการใช้กล่อง)
+    if (boxUsed > 0 && boxId) {
+      await prisma.box.update({
+        where: { pckId: boxId },
+        data: { currentStock: { decrement: boxUsed } } // หักลบตามจำนวนกล่องที่เบิกไป
+      });
+    }
     
-    res.status(201).json({ success: true, message: '✅ บันทึกประวัติสำเร็จ!', data: newLog });
+    res.status(201).json({ success: true, message: '✅ บันทึกและตัดสต็อกสำเร็จ!' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -318,11 +367,10 @@ app.get('/api/logs', async (req, res) => {
   try {
     const logs = await prisma.packingLog.findMany({
       include: {
-        item: true, // ดึงข้อมูลสินค้า (ชื่อสินค้า) ติดมาด้วย
-        user: true  // ดึงข้อมูลคนแพ็คติดมาด้วย
+        item: true, 
+        user: true  
       },
-      orderBy: { packedAt: 'desc' }, // เรียงจากใหม่ล่าสุดขึ้นก่อน
-      
+      orderBy: { packedAt: 'desc' }, 
     });
     res.json({ success: true, data: logs });
   } catch (error) {
@@ -330,7 +378,7 @@ app.get('/api/logs', async (req, res) => {
   }
 });
 
-// [DELETE] ลบประวัติการแพ็คสินค้า (จากหน้า Dashboard)
+// [DELETE] ลบประวัติการแพ็คสินค้า
 app.delete('/api/logs/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -361,13 +409,12 @@ app.post('/api/login', async (req, res) => {
 
     let isMatch = false;
 
-    // 1. ลองเทียบรหัสผ่านแบบเข้ารหัสด้วย Bcrypt
+    // เทียบรหัสผ่านแบบเข้ารหัสด้วย Bcrypt
     isMatch = await bcrypt.compare(password, user.passwordHash);
 
-    // 2. 🌟 ถ้าระบบเดิมยังไม่ได้เข้ารหัส (Plaintext) ให้เทียบตรงๆ ก่อน 
+    // ถ้าระบบเดิมยังไม่ได้เข้ารหัส (Plaintext) ให้เทียบตรงๆ ก่อน 
     if (!isMatch && password === user.passwordHash) {
       isMatch = true;
-      // แอบอัปเดต Database ให้เป็นแบบเข้ารหัสทันที (Seamless Migration)
       const hashedPassword = await bcrypt.hash(password, 10);
       await prisma.user.update({
         where: { id: user.id },
@@ -386,10 +433,32 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message });
   }
 });
+
+// ==========================================
+// 👤 API สำหรับจัดการพนักงาน (User Management)
+// ==========================================
 // ==========================================
 // 👤 API สำหรับจัดการพนักงาน (User Management)
 // ==========================================
 
+// 🌟 [GET] ดึงข้อมูลพนักงานทั้งหมด (API ที่หายไป)
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      // 💡 เลือกดึงมาเฉพาะข้อมูลที่จำเป็น (ไม่ดึงรหัสผ่านที่เข้ารหัสแล้วออกไปหน้าบ้าน เพื่อความปลอดภัย)
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        role: true
+      },
+      orderBy: { id: 'asc' }
+    });
+    res.json({ success: true, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 // [POST] เพิ่มพนักงานใหม่
 app.post('/api/users', async (req, res) => {
   try {
@@ -397,13 +466,12 @@ app.post('/api/users', async (req, res) => {
     const cleanUsername = String(username).toUpperCase().trim();
     const cleanRole = role === 'admin' ? 'Admin' : 'Operator';
 
-    // 🌟 เข้ารหัสผ่านก่อนบันทึก (ความปลอดภัยระดับ 10 รอบ)
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await prisma.user.create({
       data: { 
         username: cleanUsername, 
-        passwordHash: hashedPassword, // 🌟 เซฟรหัสที่เข้ารหัสแล้ว
+        passwordHash: hashedPassword, 
         firstName: firstName, 
         role: cleanRole 
       }
@@ -425,7 +493,6 @@ app.put('/api/users/:id', async (req, res) => {
     
     const updateData = { username: cleanUsername, firstName: firstName, role: cleanRole };
     
-    // 🌟 ถ้ามีการกรอกรหัสผ่านใหม่เข้ามา ให้เข้ารหัสก่อนบันทึก
     if (password && password.trim() !== '') {
       updateData.passwordHash = await bcrypt.hash(password, 10); 
     }
@@ -440,6 +507,7 @@ app.put('/api/users/:id', async (req, res) => {
     res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message }); 
   }
 });
+
 // [DELETE] ลบพนักงาน
 app.delete('/api/users/:id', async (req, res) => {
   try {
@@ -447,8 +515,71 @@ app.delete('/api/users/:id', async (req, res) => {
     await prisma.user.delete({ where: { id: parseInt(id) } });
     res.json({ success: true, message: '✅ ลบพนักงานสำเร็จ' });
   } catch (error) { 
-    // ถ้าพนักงานคนนี้เคยแพ็คของไปแล้ว จะลบไม่ได้ (ติด Foreign Key)
     res.status(500).json({ success: false, message: 'ไม่สามารถลบได้ เนื่องจากพนักงานคนนี้มีประวัติการแพ็คสินค้าอยู่ในระบบ' }); 
+  }
+});
+
+// ==========================================
+// 📝 TRANSACTION (บันทึกประวัติหน้างาน)
+// ==========================================
+
+// 🌟 [GET] ดึงข้อมูลประวัติการแพ็ค 
+app.get('/api/logs', async (req, res) => {
+  try {
+    const logs = await prisma.packingLog.findMany({
+      include: {
+        item: true, // ดึงข้อมูลสินค้ามาด้วย
+        user: true  // ดึงข้อมูลพนักงานคนแพ็คมาด้วย
+      },
+      orderBy: { packedAt: 'desc' }, // เรียงประวัติจากล่าสุดไปเก่า
+    });
+    res.json({ success: true, data: logs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 🌟 [DELETE] ลบประวัติการแพ็ค 
+app.delete('/api/logs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.packingLog.delete({ 
+      where: { logId: parseInt(id) } 
+    });
+    res.json({ success: true, message: '✅ ลบประวัติสำเร็จ!' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'ไม่สามารถลบได้: ' + error.message });
+  }
+});
+
+// [POST] บันทึกรายงานรอบการทำงาน
+app.post('/api/reports', async (req, res) => {
+  try {
+    const { operator, totalOrders, totalBoxes, data } = req.body;
+    await prisma.report.create({
+      data: {
+        operator,
+        totalOrders,
+        totalBoxes,
+        data: JSON.stringify(data) 
+      }
+    });
+    res.json({ success: true, message: '✅ บันทึกรายงานสำเร็จ' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message });
+  }
+});
+
+// [GET] ดึงประวัติรายงาน
+app.get('/api/reports', async (req, res) => {
+  try {
+    const reports = await prisma.report.findMany({
+      orderBy: { createdAt: 'desc' }, 
+      take: 50 
+    });
+    res.json({ success: true, reports });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message });
   }
 });
 
