@@ -5,33 +5,26 @@ export default function Dashboard() {
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchReports();
-  }, []);
-
   const fetchReports = async () => {
     try {
-      // 🌟 เปลี่ยนมายิงตรงเข้า Supabase ดึงตาราง reports และเรียงจากใหม่ไปเก่า
+      // 🌟 เปลี่ยนจาก 'reports' เป็น 'Report'
       const { data, error } = await supabase
-        .from('reports')
+        .from('Report')
         .select('*')
-        .order('createdAt', { ascending: false }); // เรียงวันที่ล่าสุดขึ้นก่อน
+        .order('createdAt', { ascending: false }); 
 
-      if (error) {
-        throw error;
-      }
-
-      // ถ้ามีข้อมูล ก็เอาไปใส่ใน State ได้เลย
-      if (data) {
-        setReports(data);
-      }
+      if (error) throw error;
+      if (data) setReports(data);
     } catch (error) {
       console.error("🚨 Error fetching reports:", error.message);
     } finally {
       setIsLoading(false);
     }
   };
-
+ 
+   useEffect(() => {
+    fetchReports();
+  }, []);
   return (
     <div className="p-6 max-w-6xl mx-auto animate-fade-in-up">
       <h2 className="text-3xl font-black text-indigo-900 mb-6 flex items-center gap-3">

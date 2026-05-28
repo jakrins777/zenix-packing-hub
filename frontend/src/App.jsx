@@ -126,11 +126,11 @@ function App() {
     } catch (err) { console.error('โหลด Master Data ไม่สำเร็จ', err); }
   }, []);
 
-  const fetchLogsData = useCallback(async () => {
+ const fetchLogsData = useCallback(async () => {
     try {
-      // ใช้ Join ดึงข้อมูล user และ item มาพร้อมกัน (สมมติว่า Database มีความสัมพันธ์ Foreign Key ไว้แล้ว)
+      // 🌟 เปลี่ยนจาก 'logs' เป็น 'packing_logs'
       const { data: dataLogs, error } = await supabase
-        .from('logs')
+        .from('packing_logs') 
         .select('*, user:users(*), item:items(*)')
         .order('packedAt', { ascending: false });
         
@@ -222,7 +222,7 @@ function App() {
     try {
       const payload = { userId: currentUser.id, itemId: result.itemId, packQty: Number(qty), boxUsed: Number(calculatedBoxesUsed), totalWeight: Number(calculatedTotalWeight) };
       
-      const { error } = await supabase.from('logs').insert([payload]);
+      const { error } = await supabase.from('packing_logs').insert([payload]);
 
       if (!error) {
         setSaveMessage('✅ บันทึกประวัติการแพ็คสำเร็จ!'); playSound('success'); 
@@ -235,7 +235,7 @@ function App() {
   const handleDeleteLog = async (id) => {
     if (!confirm('🚨 ยืนยันที่จะลบประวัติการแพ็คนี้ใช่หรือไม่?')) return;
     try {
-      const { error } = await supabase.from('logs').delete().eq('logId', id); // เช็คชื่อ Primary Key ของ logs ด้วยนะครับ
+     const { error } = await supabase.from('packing_logs').delete().eq('logId', id); // เช็คชื่อ Primary Key ของ logs ด้วยนะครับ
       if (!error) fetchLogsData(); 
       else alert('ลบไม่สำเร็จ: ' + error.message);
     } catch (err) { alert('ลบไม่สำเร็จ ระบบขัดข้อง'); }
@@ -247,12 +247,12 @@ function App() {
     const totalBoxesUsed = validItems.reduce((sum, item) => sum + item.totalBoxes, 0);
 
     try {
-      const { error } = await supabase.from('reports').insert([{
-        operator: currentUser?.firstName || 'ไม่ระบุตัวตน',
-        totalOrders: validItems.length,
-        totalBoxes: totalBoxesUsed,
-        data: validItems
-      }]);
+     const { error } = await supabase.from('Report').insert([{
+    operator: currentUser?.firstName || 'ไม่ระบุตัวตน',
+    totalOrders: validItems.length,
+    totalBoxes: totalBoxesUsed,
+    data: validItems
+  }]);
 
       if (!error) {
         alert('💾 บันทึกข้อมูลสรุปเข้า Dashboard เรียบร้อยแล้ว!');
