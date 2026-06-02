@@ -1,131 +1,116 @@
 import { useState } from 'react';
-import { supabase } from '../supabaseClient'; // 🌟 อย่าลืมเช็ค Path ให้ตรงนะครับ
 
 export default function Login({ onLogin }) {
+  // 🌟 ประกาศ State สำหรับเก็บค่าต่างๆ ในหน้า Login ให้ครบถ้วน
   const [username, setUsername] = useState('');
-  const [passwordHash, setPassword] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
-  // 🌟 ฟังก์ชันจัดการตอนกดปุ่ม
+  // 🌟 ฟังก์ชันจัดการตอนกดปุ่มเข้าสู่ระบบ
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    e.preventDefault(); // ป้องกันหน้าเว็บรีเฟรช
+    setError('');       // ล้างข้อความ Error เก่าทิ้ง
+    setLoading(true);   // เปิดโหมด Loading (เพื่อให้ปุ่มหมุนๆ หรือกดซ้ำไม่ได้)
 
     try {
-      // 🌟 ยิงไปหา API หลังบ้าน แทนที่จะค้นหาผ่าน Supabase ตรงๆ
+      // 🌟 ยิง API ไปหา Backend ที่เราเขียนไว้ ปลอดภัย 100%
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.toUpperCase(), password })
+        body: JSON.stringify({ 
+          username: username.toUpperCase().trim(), // แปลงเป็นพิมพ์ใหญ่เสมอ
+          password: password 
+        })
       });
 
       const data = await res.json();
 
       if (data.success) {
-        // เซฟลง localStorage (รอบนี้จะไม่มี password หลุดไปเซฟด้วย)
+        // ถ้าสำเร็จ ให้เซฟข้อมูลลงเครื่อง และเปลี่ยนหน้า
         localStorage.setItem('zenix_user', JSON.stringify(data.user));
         onLogin(data.user);
       } else {
-        setError(data.message); // แสดงข้อความ error จากหลังบ้าน
+        // ถ้าผิดพลาด (เช่น รหัสผิด) ให้โชว์ข้อความแจ้งเตือน
+        setError(data.message);
       }
     } catch (err) {
-      setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ (กรุณาเปิด Backend)');
+      setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ (โปรดตรวจสอบ Backend)');
+      console.error(err);
     } finally {
-      setLoading(false);
+      setLoading(false); // ปิดโหมด Loading
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 p-4 font-sans relative overflow-hidden">
-      
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-
-      <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden relative z-10 transform transition-all hover:scale-[1.01]">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 to-blue-900 font-sans">
+      <div className="bg-white p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md animate-fade-in-up">
         
-        <div className="bg-indigo-50/50 p-8 text-center border-b border-indigo-100 flex flex-col items-center justify-center">
-          <img 
-            src="/logo.png" 
-            alt="Zenix Logo" 
-            className="h-16 w-auto object-contain mb-4 drop-shadow-md"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'block'; 
-            }}
-          />
-          <span className="text-5xl mb-4 hidden drop-shadow-md">📦</span>
-          <h1 className="text-3xl font-black text-indigo-950 tracking-tight">ZENIX<span className="text-indigo-600">HUB</span></h1>
-          <p className="text-indigo-600/80 mt-2 font-bold text-sm tracking-wide uppercase">Packing & Logistics System</p>
+        <div className="text-center mb-8">
+          <div className="bg-indigo-100 text-indigo-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <span className="text-3xl">📦</span>
+          </div>
+          <h2 className="text-3xl font-black text-gray-800 tracking-tight">Zenix WMS</h2>
+          <p className="text-gray-500 font-medium mt-1">Warehouse Management System</p>
         </div>
 
-        <div className="p-8">
-          <form className="space-y-6">
-            
-            {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold border border-red-200 flex items-center shadow-sm">
-                <span className="mr-2">⚠️</span> {error}
-              </div>
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md mb-6 font-bold text-sm flex items-center gap-2">
+            <span>🚨</span> {error}
+          </div>
+        )}
+
+        {/* 🌟 ฟอร์มล็อกอิน เรียกใช้ handleLogin เมื่อกด Submit */}
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">รหัสพนักงาน (Username)</label>
+            <input 
+              type="text" 
+              required 
+              value={username} 
+              onChange={(e) => setUsername(e.target.value)} 
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-mono" 
+              placeholder="เช่น D-88888"
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">รหัสผ่าน (Password)</label>
+            <input 
+              type="password" 
+              required 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" 
+              placeholder="••••••••"
+              disabled={loading}
+            />
+          </div>
+          
+          <button 
+            type="submit" 
+            disabled={loading}
+            className={`w-full text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2 ${loading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>กำลังเข้าสู่ระบบ...</span>
+              </>
+            ) : (
+              <>
+                <span>🚀</span> เข้าสู่ระบบ
+              </>
             )}
+          </button>
+        </form>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">รหัสพนักงาน</label>
-                <input 
-                  type="text" 
-                  autoFocus
-                  value={username} 
-                  onChange={(e) => setUsername(e.target.value.toUpperCase())} 
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all text-gray-800 font-medium"
-                  placeholder="เช่น D-88888"
-                  onKeyDown={(e) => e.key === 'Enter' && handleLoginClick(e)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">รหัสผ่าน</label>
-                <input 
-                  type="password" 
-                  value={passwordHash} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all text-gray-800"
-                  placeholder="••••••••"
-                  onKeyDown={(e) => e.key === 'Enter' && handleLoginClick(e)}
-                />
-              </div>
-            </div>
-
-            <button 
-              type="button" 
-              onClick={handleLoginClick}
-              disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-indigo-500/30 transition-all transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  กำลังเข้าสู่ระบบ...
-                </>
-              ) : (
-                <>
-                  เข้าสู่ระบบ
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                </>
-              )}
-            </button>
-            
-          </form>
+        <div className="mt-8 text-center text-xs text-gray-400 font-medium">
+          &copy; {new Date().getFullYear()} Zenix Aerospace. All rights reserved.
         </div>
-        
-        <div className="bg-gray-50 py-4 text-center border-t border-gray-100">
-          <p className="text-xs text-gray-400 font-medium">© 2026 Zenix Aerospace. All rights reserved.</p>
-        </div>
-
       </div>
     </div>
   );

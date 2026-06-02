@@ -207,12 +207,27 @@ app.get('/api/users', async (req, res) => {
 
 app.post('/api/users', async (req, res) => {
   try {
-    const { username, password, firstName, role } = req.body;
+    
+    const { username, password, passwordHash, firstName, role } = req.body;
     const cleanUsername = String(username).toUpperCase().trim();
-    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    
+    const rawPassword = password || passwordHash;
+
+    
+    if (!rawPassword) {
+      return res.status(400).json({ success: false, message: '❌ ไม่พบข้อมูลรหัสผ่านที่ส่งมาจากหน้าบ้าน' });
+    }
+
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
     await prisma.user.create({
-      data: { username: cleanUsername, passwordHash: hashedPassword, firstName: firstName, role: role === 'admin' ? 'Admin' : 'Operator' }
+      data: { 
+        username: cleanUsername, 
+        passwordHash: hashedPassword, 
+        firstName: firstName, 
+        role: role === 'admin' ? 'Admin' : 'Operator' 
+      }
     });
     res.json({ success: true, message: '✅ เพิ่มพนักงานใหม่สำเร็จ' });
   } catch (error) { 
@@ -223,14 +238,26 @@ app.post('/api/users', async (req, res) => {
 
 app.put('/api/users/:id', async (req, res) => {
   try {
-    const { username, password, firstName, role } = req.body;
-    const updateData = { username: String(username).toUpperCase().trim(), firstName, role: role === 'admin' ? 'Admin' : 'Operator' };
     
-    if (password && password.trim() !== '') {
-      updateData.passwordHash = await bcrypt.hash(password, 10); 
+    const { username, password, passwordHash, firstName, role } = req.body;
+    const updateData = { 
+      username: String(username).toUpperCase().trim(), 
+      firstName, 
+      role: role === 'admin' ? 'Admin' : 'Operator' 
+    };
+    
+    
+    const rawPassword = password || passwordHash;
+
+    
+    if (rawPassword && String(rawPassword).trim() !== '') {
+      updateData.passwordHash = await bcrypt.hash(rawPassword, 10); 
     }
 
-    await prisma.user.update({ where: { id: parseInt(req.params.id) }, data: updateData });
+    await prisma.user.update({ 
+      where: { id: parseInt(req.params.id) }, 
+      data: updateData 
+    });
     res.json({ success: true, message: '✅ อัปเดตข้อมูลพนักงานสำเร็จ' });
   } catch (error) { 
     if (error.code === 'P2002') return res.status(400).json({ success: false, message: '❌ รหัสพนักงานนี้มีคนใช้แล้ว' });
