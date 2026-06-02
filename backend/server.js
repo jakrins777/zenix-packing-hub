@@ -39,8 +39,6 @@ app.get('/api/boxes', async (req, res) => {
 // 📥 อัปโหลดกล่อง (รองรับหลายไฟล์ + อัปเดตสต็อก)
 app.post('/api/boxes/upload', upload.array('files', 10), async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) return res.status(400).json({ success: false, message: 'กรุณาเลือกไฟล์' });
-
     let allRawData = [];
     for (const file of req.files) {
       const workbook = xlsx.read(file.buffer, { type: 'buffer' });
@@ -53,23 +51,27 @@ app.post('/api/boxes/upload', upload.array('files', 10), async (req, res) => {
     for (const row of allRawData) {
       const rawId = String(row['Item'] || row['รหัสกล่อง'] || row.pckId || '').toUpperCase().trim();
       
-      if (rawId && rawId !== 'NAN' && rawId !== 'UNDEFINED') {
-        const desc = String(row['ชื่ออุปกรณ์-เบอร์กล่อง'] || row['Description'] || row['คำอธิบาย'] || row.description || '-');
-        const cap = parseInt(row['Max_Capacity'] || row['Lot Size'] || row['ความจุสูงสุด'] || row.maxCapacity || 1, 10);
-        const stock = parseInt(row['คงเหลือ'] || row['Current Stock'] || row['จำนวนกล่อง'] || row.currentStock || 0, 10);
-        const minStock = parseInt(row['Min Stock'] || row['จุดสั่งซื้อ'] || row.minStockLevel || 5, 10);
+      if (rawId) {
+        // 🌟 เก็บค่าเฉพาะที่ระบุในไฟล์
+        const updateData = {};
+        if (row['Description'] || row['คำอธิบาย']) updateData.description = String(row['Description'] || row['คำอธิบาย']);
+        if (row['Lot Size'] || row['ความจุสูงสุด']) updateData.maxCapacity = parseInt(row['Lot Size'] || row['ความจุสูงสุด'], 10);
+        if (row['Current Stock'] || row['สต็อก']) updateData.currentStock = parseInt(row['Current Stock'] || row['สต็อก'], 10);
+        if (row['Min Stock'] || row['จุดสั่งซื้อ']) updateData.minStockLevel = parseInt(row['Min Stock'] || row['จุดสั่งซื้อ'], 10);
 
-        await prisma.box.upsert({
-          where: { pckId: rawId },
-          update: { description: desc, maxCapacity: cap, currentStock: stock, minStockLevel: minStock },
-          create: { pckId: rawId, description: desc, maxCapacity: cap, currentStock: stock, minStockLevel: minStock }
-        });
-        successCount++;
+        // 🌟 update only when the uploaded row contains at least one valid field
+        if (Object.keys(updateData).length > 0) {
+          await prisma.box.updateMany({
+            where: { pckId: rawId },
+            data: updateData
+          });
+          successCount++;
+        }
       }
     }
-    res.json({ success: true, message: `✅ นำเข้าข้อมูลกล่องสำเร็จรวม ${successCount} รายการ` });
+    res.json({ success: true, message: `✅ อัปเดตข้อมูลกล่องสำเร็จ ${successCount} รายการ (ข้อมูลเก่าส่วนที่ไม่เกี่ยวข้องยังอยู่ครบ)` });
   } catch (error) { 
-    res.status(500).json({ success: false, message: 'รูปแบบไฟล์ไม่ถูกต้อง หรือ ' + error.message }); 
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message }); 
   }
 });
 
@@ -126,8 +128,6 @@ app.get('/api/items/:id', async (req, res) => {
 // 📥 อัปโหลดสินค้า (รองรับหลายไฟล์)
 app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดไฟล์' });
-
     let allRawData = [];
     for (const file of req.files) {
       const workbook = xlsx.read(file.buffer, { type: 'buffer' });
@@ -140,29 +140,29 @@ app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
     for (const row of allRawData) {
       const itemCode = String(row['Item'] || row['รหัสสินค้า'] || row['itemId'] || '').toUpperCase().trim();
       
-      if (itemCode && itemCode !== 'NAN' && itemCode !== 'UNDEFINED') {
-        const itemName = String(row['Description'] || row['ชื่อสินค้า'] || row['itemName'] || '').trim();
-        const customer = String(row['Product Code'] || row['ซัพพลายเออร์'] || row['supplier'] || '-').trim();
-        const boxId = String(row['Box ID'] || row['รหัสกล่อง'] || row['defaultPckId'] || '').toUpperCase().trim();
-        const unitWeight = String(row['Unit Weight'] || row['น้ำหนัก'] || row['itemWeight'] || '').trim();
+      if (itemCode) {
+        // 🌟 ดึงข้อมูลเท่าที่มีในไฟล์
+        const updateData = {};
+        if (row['Description'] || row['ชื่อสินค้า']) updateData.itemName = String(row['Description'] || row['ชื่อสินค้า']).trim();
+        if (row['Product Code'] || row['ซัพพลายเออร์']) updateData.supplier = String(row['Product Code'] || row['ซัพพลายเออร์']).trim();
+        if (row['Unit Weight'] || row['น้ำหนัก']) updateData.itemWeight = parseFloat(row['Unit Weight'] || row['น้ำหนัก']) || 0;
+        if (row['Box ID'] || row['รหัสกล่อง']) updateData.defaultPckId = String(row['Box ID'] || row['รหัสกล่อง']).toUpperCase().trim();
 
-        const parsedWeight = parseFloat(unitWeight) || 0;
-        const finalBoxId = (boxId !== '' && boxId !== 'NAN') ? boxId : null;
-
-        await prisma.item.upsert({
-          where: { itemId: itemCode },
-          update: { itemName: itemName || undefined, supplier: customer !== '-' ? customer : undefined, itemWeight: parsedWeight > 0 ? parsedWeight : undefined, defaultPckId: finalBoxId },
-          create: { itemId: itemCode, itemName: itemName || 'ไม่ระบุชื่อสินค้า', supplier: customer, itemWeight: parsedWeight, requireDesiccant: false, defaultPckId: finalBoxId }
-        });
-        successCount++;
+        // 🌟 update only when the uploaded row contains at least one valid field
+        if (Object.keys(updateData).length > 0) {
+          await prisma.item.updateMany({
+            where: { itemId: itemCode },
+            data: updateData
+          });
+          successCount++;
+        }
       }
     }
-    res.json({ success: true, message: `✅ อัปโหลดสำเร็จ ${successCount} รายการ` });
+    res.json({ success: true, message: `✅ อัปเดตข้อมูลสำเร็จ ${successCount} รายการ (ข้อมูลเก่าส่วนที่ไม่เกี่ยวข้องยังอยู่ครบ)` });
   } catch (error) {
     res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message });
   }
 });
-
 app.put('/api/items/:id', async (req, res) => {
   try {
     const isDesiccantRequired = req.body.requireDesiccant === true || req.body.requireDesiccant === 'true' || req.body.requireDesiccant === 1 || req.body.requireDesiccant === '1';

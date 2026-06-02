@@ -20,7 +20,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
         <div className="flex flex-wrap justify-center items-center gap-2 md:gap-4">
           <button 
             onClick={() => setCurrentTab('packing')} 
-            className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'packing' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'}`}
+            className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'packing' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-indigo-100'}`}
           >
             🚀 สแกนแพ็ค
           </button>
@@ -28,7 +28,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
           {/* 🌟 เพิ่มปุ่ม "เช็คสต็อกกล่อง" ตรงนี้ (เพื่อให้ทุกคนมองเห็นได้) */}
           <button 
             onClick={() => setCurrentTab('inventory')} 
-            className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'inventory' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'}`}
+            className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'inventory' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-indigo-100'}`}
           >
             📦 เช็คสต็อกกล่อง
           </button>
@@ -38,14 +38,14 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
             <>
               <button 
                 onClick={() => setCurrentTab('dashboard')} 
-                className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'}`}
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-indigo-100'}`}
               >
                 📊 Dashboard
               </button>
               
               <button 
                 onClick={() => setCurrentTab('admin')} 
-                className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'admin' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'}`}
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'admin' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-indigo-100'}`}
               >
                 ⚙️ แอดมิน
               </button>

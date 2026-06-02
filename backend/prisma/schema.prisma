@@ -12,6 +12,7 @@ datasource db {
 // 2. ตั้งค่าตัวเจนโค้ดสำหรับฝั่ง Node.js
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native","debian-openssl-3.0.x"]
 }
 
 // 3. กำหนดสิทธิ์ผู้ใช้งาน (Enum Roles)
