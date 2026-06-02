@@ -1,80 +1,69 @@
-# 🛡️ ZENIX Packing Hub
+# 📦 Zenix Packing Hub (WMS)
 
-ZENIX Packing Hub is a full-stack web application designed to optimize supply chain and warehouse packing operations. It provides an intuitive interface for operators to scan items, calculate required packaging, and maintain accurate packing logs.
+ระบบจัดการคลังสินค้าและการวางแผนบรรจุภัณฑ์ (Warehouse & Packing Management System) ที่ถูกออกแบบมาเพื่อรองรับกระบวนการทำงานของ **Zenix Aerospace** โดยเฉพาะ ช่วยให้ Operator สามารถคำนวณกล่องที่ต้องใช้ ตัดสต็อก พิมพ์ฉลาก และออกรายงานได้อย่างรวดเร็วและแม่นยำ
 
-## ✨ Key Features
+---
 
-* **📦 Smart Packing Station:** Barcode scanning integration with automated calculation for total weight, box selection, and required desiccant quantities.
-* **📊 Real-time Dashboard:** Comprehensive reporting with data filtering (daily, monthly, yearly, custom dates), visual metric cards, and printable reports.
-* **⚙️ Master Data Management:** Full CRUD (Create, Read, Update, Delete) operations for Items and Boxes master data.
-* **📁 Bulk Import:** Seamlessly upload bulk master data (Items and Boxes) using Excel/CSV files.
-* **🔐 Role-Based Access Control:** Secure login system differentiating between regular operators and admin users.
+## ✨ ฟีเจอร์หลัก (Key Features)
 
-## 🛠️ Technology Stack
+### 1. 🧮 Smart Packing Planner (วางแผนการแพ็คแบบ Bulk)
+* ก๊อปปี้ข้อมูลรหัสสินค้าและจำนวนจาก Excel มาวางเพื่อคำนวณหา "ประเภทกล่อง" และ "จำนวนกล่อง" ที่ต้องใช้ได้ทันที
+* คำนวณน้ำหนักต่อชิ้น และ น้ำหนักรวม (Total Weight) อัตโนมัติ
+* **Auto Inventory Deduction:** เมื่อกดยืนยัน ระบบจะบันทึกประวัติการแพ็คและตัดสต็อกกล่องในคลังให้อัตโนมัติ
+
+### 2. 🏷️ Barcode Label Printing (ระบบพิมพ์ฉลาก)
+* สร้างและพิมพ์ฉลากหน้ากล่องขนาดมาตรฐาน (10x10 cm) ทันทีจากหน้า Dashboard
+* รองรับการสร้าง Barcode อัตโนมัติ (Item Code) 
+* ระบุข้อมูลครบถ้วน: Part Number, Description, Qty, Box Type, Date และชื่อ Operator
+
+### 3. 📦 Box Inventory Management (จัดการสต็อกบรรจุภัณฑ์)
+* ตรวจสอบยอดสต็อกกล่องปัจจุบันแบบ Real-time
+* **Reorder Point Alert:** มีระบบแจ้งเตือนกะพริบสีแดง (🚨) ทันทีที่สต็อกกล่องลดลงถึง "จุดสั่งซื้อ (Min Stock)"
+* เมื่อทำการ "ลบ" ประวัติการแพ็ค ระบบจะ **คืนสต็อกกล่อง** กลับเข้าคลังให้อัตโนมัติ
+
+### 4. 📊 Dashboard & Export
+* สรุปยอดการแพ็ครายวัน / เดือน / ปี หรือเลือกช่วงเวลาแบบ Custom
+* ตารางประวัติการแพ็ครายชิ้น และ ตารางประวัติการบันทึกแผนรวม (Consolidation Plan)
+* Export ข้อมูลออกเป็นไฟล์ Excel (`.xlsx`) ผ่าน SheetJS
+* รองรับหน้าต่าง Print-friendly สำหรับพิมพ์รายงานส่ง Auditor
+
+### 5. 🔐 Admin Panel & Master Data
+* จัดการข้อมูลสินค้า (Items), กล่องมาตรฐาน (Boxes), และสิทธิ์พนักงาน (Users)
+* **Bulk Upload:** นำเข้าข้อมูล Master Data จำนวนมากผ่านไฟล์ Excel / CSV
+* UI/UX รองรับ Dark-mode ไร้ปัญหาตัวอักษรกลืนกับพื้นหลัง (Defensive Rendering)
+* ป้องกันข้อผิดพลาดด้วยระบบ Auto-safe guard ดักจับข้อมูล Null/Undefined
+
+---
+
+## 🛠️ เทคโนโลยีที่ใช้ (Tech Stack)
 
 **Frontend:**
-* React.js (Vite)
-* Tailwind CSS (Styling & UI)
-* React Router (Navigation)
+* **React.js** (Vite / CRA) - สำหรับสร้าง User Interface
+* **Tailwind CSS** - สำหรับจัดแต่งหน้าจอและ Responsive Design
+* **React Hot Toast** - ระบบแจ้งเตือน (Pop-up Notifications) และ Loading State
+* **SheetJS (xlsx)** - สำหรับ Export/Import ไฟล์ Excel
+* **React To Print & React Barcode** - สำหรับระบบพิมพ์ฉลากและสร้างบาร์โค้ด
 
-**Backend:**
-* Node.js & Express.js
-* Prisma (ORM)
-* PostgreSQL (Database)
-* Multer & SheetJS/xlsx (Excel File Processing)
+**Backend & Database:**
+* **Node.js / Express** (ถ้ามี) - สำหรับ API จัดการไฟล์ Upload และเข้ารหัส Password
+* **Supabase (PostgreSQL)** - ฐานข้อมูลหลัก (Database as a Service)
+* **Row Level Security (RLS)** - การจัดการสิทธิ์ความปลอดภัยระดับฐานข้อมูล
 
-## 🚀 Getting Started
+---
 
-Follow these instructions to get a copy of the project up and running on your local machine for development and testing.
+## 🗄️ โครงสร้างฐานข้อมูล (Supabase Tables)
 
-### Prerequisites
+ระบบใช้ตารางใน Supabase ทั้งหมด 5 ตารางหลัก:
+1. `items`: เก็บข้อมูล Master สินค้า (รหัส, ชื่อ, น้ำหนัก, กล่องมาตรฐาน, การใช้กันชื้น)
+2. `boxes`: เก็บข้อมูล Master กล่อง (รหัส, ความจุ, สต็อกปัจจุบัน, Min Stock)
+3. `users`: เก็บข้อมูลพนักงาน (Username, Password Hash, สิทธิ์ Operator/Admin)
+4. `packing_logs`: ประวัติการแพ็คสินค้ารายชิ้น (ใช้คำนวณสถิติและพิมพ์ฉลาก)
+5. `Report`: ประวัติการบันทึกรายงานแผนเบิกกล่อง (Bulk Calculation)
 
-* Node.js (v16.x or higher)
-* PostgreSQL installed and running
+*(หมายเหตุ: ต้องทำการ GRANT USAGE ให้ Sequence ใน Supabase เพื่อให้ระบบรัน ID อัตโนมัติได้)*
 
-### Installation
+---
 
-1.  **Clone the repository**
-    ```bash
-    git clone [https://github.com/jakrins777/zenix-packing-hub.git](https://github.com/jakrins777/zenix-packing-hub.git)
-    cd zenix-packing-hub
-    ```
 
-2.  **Backend Setup**
-    ```bash
-    cd backend
-    npm install
-    ```
-    * Create a `.env` file in the `backend` directory and add your database connection string:
-        `DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/zenix_db"`
-    * Run Prisma migrations:
-        ```bash
-        npx prisma migrate dev
-        ```
-    * Start the backend server:
-        ```bash
-        npm run dev
-        ```
-
-3.  **Frontend Setup**
-    ```bash
-    cd ../frontend
-    npm install
-    npm run dev
-    ```
-
-4.  **Access the application**
-    Open your browser and navigate to `http://localhost:5173`
-
-## 📂 Excel Upload Templates
-
-To bulk upload data via the Admin Panel, please use the following column headers in your Excel (.xlsx) files:
-
-* **Items Master:** `รหัสสินค้า` (Required), `ชื่อสินค้า`, `Supplier`, `น้ำหนัก`, `กล่องมาตรฐาน`, `กันชื้น`
-* **Boxes Master:** `รหัสกล่อง` (Required), `คำอธิบาย`, `ความจุสูงสุด`, `น้ำหนัก`
-
-## 👨‍💻 Author
-
-* **Jakrin Siriboon** - *Full-Stack Developer* ## 📄 License
-
-This project is licensed under the MIT License.
+👨‍💻 ผู้พัฒนา (Developer)
+Jakrin Siriboon / Full-Stack Developer @ Zenix Aerospace
