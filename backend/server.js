@@ -92,22 +92,49 @@ app.post('/api/boxes/upload', upload.single('file'), async (req, res) => {
 });
 
 // 🌟 แถม: อัปเดตตอนสร้างกล่องใหม่แบบพิมพ์เอง ให้รองรับสต็อกด้วย
-app.post('/api/boxes', async (req, res) => {
+// 📥 API นำเข้าข้อมูลกล่องผ่าน Excel (รองรับอัปโหลดหลายไฟล์พร้อมกัน)
+app.post('/api/boxes/upload', upload.array('files', 10), async (req, res) => {
+  // สังเกต ☝️ เปลี่ยนเป็น upload.array('files', 10) หมายถึงรับได้สูงสุด 10 ไฟล์พร้อมกัน
   try {
-    const { pckId, description, maxCapacity, currentStock, minStockLevel } = req.body;
-    await prisma.box.create({
-      data: { 
-        pckId: pckId.toUpperCase(), 
-        description, 
-        maxCapacity: parseInt(maxCapacity || 1, 10),
-        currentStock: parseInt(currentStock || 0, 10),
-        minStockLevel: parseInt(minStockLevel || 0, 10)
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'กรุณาเลือกไฟล์ Excel อย่างน้อย 1 ไฟล์' });
+    }
+
+    let allRawData = [];
+
+    // 🌟 วนลูปอ่านไฟล์ทุกไฟล์ที่ถูกอัปโหลดเข้ามา
+    for (const file of req.files) {
+      const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+      workbook.SheetNames.forEach(sheetName => {
+        const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        allRawData = allRawData.concat(sheetData); // เอาข้อมูลมาต่อกันเรื่อยๆ
+      });
+    }
+
+    let successCount = 0;
+
+    // 🌟 วนลูปบันทึกข้อมูลทั้งหมดลงฐานข้อมูล (โค้ดเดิม)
+    for (const row of allRawData) {
+      const rawId = String(row['Item'] || row['รหัสกล่อง'] || row.pckId || '').toUpperCase().trim();
+      
+      if (rawId && rawId !== 'NAN' && rawId !== 'UNDEFINED') {
+        const desc = String(row['ชื่ออุปกรณ์-เบอร์กล่อง'] || row['Description'] || row['description'] || '-');
+        const cap = parseInt(row['Max_Capacity'] || row['Lot Size'] || row.maxCapacity || 1, 10);
+        const stock = parseInt(row['คงเหลือ'] || row['Current Stock'] || row.currentStock || 0, 10);
+        const minStock = 5; 
+
+        await prisma.box.upsert({
+          where: { pckId: rawId },
+          update: { description: desc, maxCapacity: cap, currentStock: stock, minStockLevel: minStock },
+          create: { pckId: rawId, description: desc, maxCapacity: cap, currentStock: stock, minStockLevel: minStock }
+        });
+        successCount++;
       }
-    });
-    res.json({ success: true, message: '✅ เพิ่มกล่องสำเร็จ' });
+    }
+
+    res.json({ success: true, message: `✅ นำเข้าข้อมูลกล่องสำเร็จรวม ${successCount} รายการ จาก ${req.files.length} ไฟล์` });
   } catch (error) { 
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'รหัสกล่องนี้มีอยู่แล้ว' });
-    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message }); 
+    res.status(500).json({ success: false, message: 'รูปแบบไฟล์ไม่ถูกต้อง หรือ ' + error.message }); 
   }
 });
 
@@ -177,22 +204,68 @@ app.get('/api/items/:id', async (req, res) => {
   }
 });
 
-// [CREATE] เพิ่มข้อมูลสินค้าใหม่ (แก้บั๊กตัวแปร row ให้แล้ว)
-app.post('/api/items', async (req, res) => {
+// 📥 API นำเข้าข้อมูลสินค้าผ่าน Excel (รองรับอัปโหลดหลายไฟล์พร้อมกัน)
+app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
+  // ☝️ เปลี่ยนเป็น upload.array รับได้สูงสุด 10 ไฟล์
   try {
-    const newItem = await prisma.item.create({ 
-      data: {
-        itemId: req.body.itemId,
-        itemName: req.body.itemName,
-        supplier: req.body.supplier || '-', // 🌟 แก้จุดนี้ให้ดึงจาก body
-        itemWeight: Number(req.body.itemWeight) || 0,
-        requireDesiccant: Boolean(req.body.requireDesiccant),
-        defaultPckId: req.body.defaultPckId || null
-      } 
-    });
-    res.status(201).json({ success: true, data: newItem, message: 'เพิ่มสินค้าใหม่สำเร็จ' });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดไฟล์อย่างน้อย 1 ไฟล์' });
+    }
+
+    let allRawData = [];
+
+    // 🌟 วนลูปอ่านทุกไฟล์ที่ถูกอัปโหลดเข้ามา
+    for (const file of req.files) {
+      const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+      // อ่านข้อมูลจากทุกชีทในไฟล์
+      workbook.SheetNames.forEach(sheetName => {
+        const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        allRawData = allRawData.concat(sheetData);
+      });
+    }
+
+    let successCount = 0;
+
+    // 🌟 วนลูปบันทึกข้อมูลลงฐานข้อมูล
+    for (const row of allRawData) {
+      // ดึงข้อมูลและตัดช่องว่าง
+      const itemCode = String(row['Item'] || row['รหัสสินค้า'] || row['itemId'] || '').toUpperCase().trim();
+      
+      // ถ้ามีรหัสสินค้า และไม่ใช่ขยะที่เกิดจากช่องว่างใน Excel
+      if (itemCode && itemCode !== 'NAN' && itemCode !== 'UNDEFINED') {
+        
+        const itemName = String(row['Description'] || row['ชื่อสินค้า'] || row['itemName'] || '').trim();
+        const customer = String(row['Product Code'] || row['ซัพพลายเออร์'] || row['supplier'] || '-').trim();
+        const boxId = String(row['Box ID'] || row['รหัสกล่อง'] || row['defaultPckId'] || '').toUpperCase().trim();
+        const unitWeight = String(row['Unit Weight'] || row['น้ำหนัก'] || row['itemWeight'] || '').trim();
+
+        const parsedWeight = parseFloat(unitWeight) || 0;
+        const finalBoxId = (boxId !== '' && boxId !== 'NAN') ? boxId : null;
+
+        await prisma.item.upsert({
+          where: { itemId: itemCode },
+          update: { 
+            itemName: itemName || undefined, 
+            supplier: customer !== '-' ? customer : undefined,
+            itemWeight: parsedWeight > 0 ? parsedWeight : undefined,
+            defaultPckId: finalBoxId 
+          },
+          create: { 
+            itemId: itemCode, 
+            itemName: itemName || 'ไม่ระบุชื่อสินค้า', 
+            supplier: customer,
+            itemWeight: parsedWeight,
+            requireDesiccant: false, // ค่าเริ่มต้น
+            defaultPckId: finalBoxId 
+          }
+        });
+        successCount++;
+      }
+    }
+
+    res.json({ success: true, message: `✅ อัปโหลดและอัปเดตสำเร็จ ${successCount} รายการ จาก ${req.files.length} ไฟล์` });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด: รหัสสินค้าอาจซ้ำกัน' });
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message });
   }
 });
 
@@ -200,18 +273,28 @@ app.post('/api/items', async (req, res) => {
 app.put('/api/items/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // แปลงค่า requireDesiccant ให้ชัวร์ว่าถ้าเป็น "false" หรือ "0" จะได้ค่า false จริงๆ
+    const isDesiccantRequired = 
+      req.body.requireDesiccant === true || 
+      req.body.requireDesiccant === 'true' || 
+      req.body.requireDesiccant === 1 || 
+      req.body.requireDesiccant === '1';
+
     const updatedItem = await prisma.item.update({
-      where: { itemId: id },
+      where: { itemId: id }, // อ้างอิง itemId ตรงตาม schema
       data: {
         itemName: req.body.itemName,
         supplier: req.body.supplier,
         itemWeight: Number(req.body.itemWeight) || 0,
-        requireDesiccant: Boolean(req.body.requireDesiccant),
+        requireDesiccant: isDesiccantRequired, // ใช้ค่าที่แปลงแล้ว
         defaultPckId: req.body.defaultPckId || null
       }
     });
+    
     res.json({ success: true, data: updatedItem, message: 'อัปเดตข้อมูลสินค้าสำเร็จ' });
   } catch (error) {
+    console.error("Update Item Error:", error); // แนะนำให้ log error ไว้ดูใน Terminal ด้วยครับ
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -252,38 +335,36 @@ app.post('/api/items/upload', upload.single('file'), async (req, res) => {
     let successCount = 0;
 
     for (const row of data) {
-      // 🌟 ดึงข้อมูลจากคอลัมน์ Excel ให้ตรงกับโปรเจคปัจจุบัน
-      const itemCode = String(row['Item'] || '').toUpperCase().trim();
-      const itemName = String(row['Description'] || '').trim();
-      const customer = String(row['Product Code'] || '-').trim();
-      const boxId = String(row['Box ID'] || row['รหัสกล่อง'] || '').toUpperCase().trim();
+// 🌟 ดึงข้อมูลจากคอลัมน์ Excel (รองรับทั้งชื่อเก่าและชื่อใหม่ที่ตรงกับ DB)
+      const itemCode = String(row['Item'] || row['รหัสสินค้า'] || row['itemId'] || '').toUpperCase().trim();
+      const itemName = String(row['Description'] || row['ชื่อสินค้า'] || row['itemName'] || '').trim();
+      const customer = String(row['Product Code'] || row['ซัพพลายเออร์'] || row['supplier'] || '-').trim();
       
-      // ดึงน้ำหนัก (ถ้ามี)
-      const unitWeight = String(row['Unit Weight'] || row['น้ำหนัก'] || '').trim();
+      // ดึงรหัสกล่อง
+      const boxId = String(row['Box ID'] || row['รหัสกล่อง'] || row['defaultPckId'] || '').toUpperCase().trim();
+      
+      // ดึงน้ำหนัก
+      const unitWeight = String(row['Unit Weight'] || row['น้ำหนัก'] || row['itemWeight'] || '').trim();
 
-if (itemCode) {
-        // 🌟 แปลงน้ำหนักให้เป็นตัวเลข (ถ้าใน Excel ว่างเปล่า ให้เป็น 0)
+      if (itemCode) { // ถ้าเจอรหัสสินค้า ค่อยบันทึกลงฐานข้อมูล
         const parsedWeight = parseFloat(unitWeight) || 0;
+        const finalBoxId = boxId !== '' ? boxId : null;
 
         await prisma.item.upsert({
-          where: { 
-            itemId: itemCode 
-          },
+          where: { itemId: itemCode },
           update: { 
             itemName: itemName || undefined, 
             supplier: customer !== '-' ? customer : undefined,
-            // 🌟 อัปเดตน้ำหนักด้วย
             itemWeight: parsedWeight > 0 ? parsedWeight : undefined,
-            ...(boxId && { defaultPckId: boxId }) 
+            defaultPckId: finalBoxId 
           },
           create: { 
             itemId: itemCode, 
             itemName: itemName || 'ไม่ระบุชื่อสินค้า', 
             supplier: customer,
-            // 🌟 ต้องใส่ 2 ฟิลด์นี้ด้วยตอนสร้างใหม่ (กัน Prisma โวยวาย)
             itemWeight: parsedWeight,
-            requireDesiccant: false, // ตั้งค่าเริ่มต้นเป็น false ไปก่อน
-            defaultPckId: boxId || null
+            requireDesiccant: false, 
+            defaultPckId: finalBoxId 
           }
         });
         successCount++;
@@ -396,7 +477,7 @@ app.delete('/api/logs/:id', async (req, res) => {
 // ==========================================
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, passwordHash } = req.body;
     const cleanUsername = String(username).toUpperCase().trim();
 
     const user = await prisma.user.findUnique({
@@ -410,12 +491,12 @@ app.post('/api/login', async (req, res) => {
     let isMatch = false;
 
     // เทียบรหัสผ่านแบบเข้ารหัสด้วย Bcrypt
-    isMatch = await bcrypt.compare(password, user.passwordHash);
+    isMatch = await bcrypt.compare(passwordHash, user.passwordHash);
 
     // ถ้าระบบเดิมยังไม่ได้เข้ารหัส (Plaintext) ให้เทียบตรงๆ ก่อน 
-    if (!isMatch && password === user.passwordHash) {
+    if (!isMatch && passwordHash === user.passwordHash) {
       isMatch = true;
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(passwordHash, 10);
       await prisma.user.update({
         where: { id: user.id },
         data: { passwordHash: hashedPassword }
@@ -462,11 +543,11 @@ app.get('/api/users', async (req, res) => {
 // [POST] เพิ่มพนักงานใหม่
 app.post('/api/users', async (req, res) => {
   try {
-    const { username, password, firstName, role } = req.body;
+    const { username, passwordHash, firstName, role } = req.body;
     const cleanUsername = String(username).toUpperCase().trim();
     const cleanRole = role === 'admin' ? 'Admin' : 'Operator';
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(passwordHash, 10);
 
     await prisma.user.create({
       data: { 
@@ -487,14 +568,14 @@ app.post('/api/users', async (req, res) => {
 app.put('/api/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password, firstName, role } = req.body;
+    const { username, passwordHash, firstName, role } = req.body;
     const cleanUsername = String(username).toUpperCase().trim();
     const cleanRole = role === 'admin' ? 'Admin' : 'Operator';
     
     const updateData = { username: cleanUsername, firstName: firstName, role: cleanRole };
     
-    if (password && password.trim() !== '') {
-      updateData.passwordHash = await bcrypt.hash(password, 10); 
+    if (passwordHash && passwordHash.trim() !== '') {
+      updateData.passwordHash = await bcrypt.hash(passwordHash, 10); 
     }
 
     await prisma.user.update({

@@ -51,6 +51,7 @@ function App() {
   const [boxForm, setBoxForm] = useState({ pckId: '', description: '', maxCapacity: '' });
   const [editingBoxId, setEditingBoxId] = useState(null);
 
+  // 🌟 ตรงนี้ใช้ password ถูกต้องแล้ว
   const [userForm, setUserForm] = useState({ username: '', password: '', firstName: '', role: 'operator' });
   const [editingUserId, setEditingUserId] = useState(null);
 
@@ -128,7 +129,6 @@ function App() {
 
  const fetchLogsData = useCallback(async () => {
     try {
-      // 🌟 เปลี่ยนจาก 'logs' เป็น 'packing_logs'
       const { data: dataLogs, error } = await supabase
         .from('packing_logs') 
         .select('*, user:users(*), item:items(*)')
@@ -178,7 +178,7 @@ function App() {
     if (currentUser?.role?.toLowerCase() === 'admin') {
       if (currentTab === 'admin') fetchAdminData();
       if (currentTab === 'dashboard') fetchLogsData();
-      if (currentTab === 'inventory') fetchAdminData(); // อัปเดตข้อมูลกล่องสำหรับหน้า Inventory
+      if (currentTab === 'inventory') fetchAdminData();
     }
   }, [currentTab, currentUser, fetchAdminData, fetchLogsData]);
 
@@ -204,13 +204,11 @@ function App() {
   // 4. CORE FEATURES (เปลี่ยนเป็น Supabase)
   // ==========================================
   
-
- 
   useEffect(() => {
     if (!barcode.trim()) { setResult(null); setError(''); return; }
     const delayDebounceFn = setTimeout(() => { fetchItemData(barcode.trim()); }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [barcode]);
+  }, [barcode, fetchItemData]);
 
   const handleScan = (e) => {
     if (e.key === 'Enter' && barcode.trim() !== '') fetchItemData(barcode.trim());
@@ -235,7 +233,7 @@ function App() {
   const handleDeleteLog = async (id) => {
     if (!confirm('🚨 ยืนยันที่จะลบประวัติการแพ็คนี้ใช่หรือไม่?')) return;
     try {
-     const { error } = await supabase.from('packing_logs').delete().eq('logId', id); // เช็คชื่อ Primary Key ของ logs ด้วยนะครับ
+     const { error } = await supabase.from('packing_logs').delete().eq('logId', id); 
       if (!error) fetchLogsData(); 
       else alert('ลบไม่สำเร็จ: ' + error.message);
     } catch (err) { alert('ลบไม่สำเร็จ ระบบขัดข้อง'); }
@@ -264,7 +262,7 @@ function App() {
   };
 
   // ==========================================
-  // 🌟 5. ADMIN FEATURES (เปลี่ยนเป็น Supabase)
+  // 🌟 5. ADMIN FEATURES 
   // ==========================================
   const handleItemSubmit = async (e) => {
     e.preventDefault();
@@ -320,22 +318,59 @@ function App() {
     } catch (err) { alert('ลบไม่สำเร็จ ระบบขัดข้อง'); }
   };
 
+  // 🌟 ฟังก์ชันบันทึกข้อมูลพนักงาน (ใช้ passwordHash ให้ตรงกับ DB)
   const handleUserSubmit = async (e) => {
     e.preventDefault();
+
+    // ดักจับ Error: ถ้าเป็นการ "เพิ่มพนักงานใหม่" ต้องบังคับกรอกรหัสผ่าน
+    if (!editingUserId && (!userForm.passwordHash || userForm.passwordHash.trim() === '')) {
+      alert('❌ กรุณากรอกรหัสผ่านสำหรับพนักงานใหม่');
+      return;
+    }
+
+    // จัดเตรียมข้อมูล (คีย์ฝั่งซ้ายต้องตรงกับ Database เป๊ะๆ)
+    const payload = {
+      username: userForm.username,
+      passwordHash: userForm.passwordHash || '',  
+      firstName: userForm.firstName, 
+      role: userForm.role
+    };
+
     try {
-      let error;
+      let res;
+      
+      // เช็คว่าเป็นการ "แก้ไข" หรือ "เพิ่มใหม่"
       if (editingUserId) {
-        const { error: updateError } = await supabase.from('users').update(userForm).eq('id', editingUserId); // ตรวจสอบ Primary Key 'id'
-        error = updateError;
+        res = await fetch(`/api/users/${editingUserId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
       } else {
-        const { error: insertError } = await supabase.from('users').insert([userForm]);
-        error = insertError;
+        res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
       }
 
-      if (!error) { 
-        alert('บันทึกพนักงานเรียบร้อย'); setUserForm({ username: '', password: '', firstName: '', role: 'operator' }); setEditingUserId(null); fetchAdminData(); 
-      } else { alert('บันทึกไม่สำเร็จ: ' + error.message); }
-    } catch (err) { alert('เกิดข้อผิดพลาดในการบันทึกพนักงาน'); }
+      const data = await res.json();
+
+      if (data.success) {
+        alert(data.message); 
+        
+        // ล้างฟอร์มและรีเฟรชข้อมูล
+        setEditingUserId(null);
+        setUserForm({ username: '', passwordHash: '', firstName: '', role: 'operator' }); 
+        fetchAdminData(); 
+      } else {
+        alert('บันทึกไม่สำเร็จ: ' + data.message);
+      }
+
+    } catch (err) {
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับ Backend!');
+      console.error(err);
+    }
   };
 
   const handleUserDelete = async (id) => {
@@ -346,28 +381,45 @@ function App() {
     } catch (err) { alert('ลบไม่สำเร็จ ระบบขัดข้อง'); }
   };
 
-  // ⚠️ ข้อควรระวัง: การอัปโหลดไฟล์ (Excel) ไม่สามารถยิงตรงเข้า Supabase ง่ายๆ ผมเลยคงรูปแบบ fetch ไปหา Backend ไว้ให้เหมือนเดิมครับ
+  // 🌟 อัปโหลด "มาสเตอร์สินค้า" (หลายไฟล์)
   const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData(); formData.append('file', file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const formData = new FormData(); 
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+
     try {
       const res = await fetch('/api/items/upload', { method: 'POST', body: formData });
-      const data = await res.json(); alert(data.message);
+      const data = await res.json(); 
+      alert(data.message);
       if (data.success) fetchAdminData();
-    } catch (err) { alert('เกิดข้อผิดพลาด (ถ้า Backend ปิดอยู่ ฟังก์ชันนี้จะใช้งานไม่ได้ครับ)'); }
+    } catch (err) { 
+      alert('เกิดข้อผิดพลาด (ถ้า Backend ปิดอยู่ ฟังก์ชันนี้จะใช้งานไม่ได้ครับ)'); 
+    }
     e.target.value = null; 
   };
 
+  // 🌟 อัปโหลด "มาสเตอร์กล่อง" (หลายไฟล์)
   const handleBoxFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData(); formData.append('file', file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const formData = new FormData(); 
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+
     try {
       const res = await fetch('/api/boxes/upload', { method: 'POST', body: formData });
-      const data = await res.json(); alert(data.message);
+      const data = await res.json(); 
+      alert(data.message);
       if (data.success) fetchAdminData();
-    } catch (err) { alert('เกิดข้อผิดพลาด (ถ้า Backend ปิดอยู่ ฟังก์ชันนี้จะใช้งานไม่ได้ครับ)'); }
+    } catch (err) { 
+      alert('เกิดข้อผิดพลาด (ถ้า Backend ปิดอยู่ ฟังก์ชันนี้จะใช้งานไม่ได้ครับ)'); 
+    }
     e.target.value = null; 
   };
 

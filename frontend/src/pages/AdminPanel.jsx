@@ -21,6 +21,7 @@ export default function AdminPanel({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50; 
   const [filterCustomer, setFilterCustomer] = useState('All');
+  
   // ฟังก์ชันจัดการข้อมูลสินค้า (Items)
   const processedItems = items
     .filter(item => {
@@ -60,7 +61,8 @@ export default function AdminPanel({
       if (boxSortBy === 'cap_desc') return Number(b.maxCapacity) - Number(a.maxCapacity);
       return 0;
     });
-// ==========================================
+
+  // ==========================================
   // 🔍 ระบบ Filter และ Pagination (สำหรับสินค้า)
   // ==========================================
   // 1. ดึงรายชื่อลูกค้าทั้งหมดจากข้อมูลหลัก (เพื่อทำ Dropdown)
@@ -142,7 +144,8 @@ export default function AdminPanel({
               <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
                 <h3 className="text-lg font-bold text-purple-800 mb-2">📁 นำเข้าสินค้าด้วย Excel / CSV</h3>
                 <p className="text-xs text-purple-600 mb-4">รองรับไฟล์ Export จาก <strong>Infor CSI</strong> คอลัมน์ที่ระบบอ่าน: <br/><span className="font-mono bg-purple-100 px-1 rounded">Item</span>, <span className="font-mono bg-purple-100 px-1 rounded ml-1">Description</span>, <span className="font-mono bg-purple-100 px-1 rounded ml-1">Unit Weight</span></p>
-                <input type="file" accept=".xlsx, .xls, .csv" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer" />
+                {/* 🌟 เติม multiple ตรงนี้แล้ว */}
+                <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer" />
               </div>
             )}
           </div>
@@ -301,7 +304,8 @@ export default function AdminPanel({
                   <span className="font-mono bg-blue-100 px-1 rounded mt-1 inline-block">จำนวนกล่อง</span> (สต็อกปัจจุบัน), 
                   <span className="font-mono bg-blue-100 px-1 rounded ml-1 mt-1 inline-block">จุดสั่งซื้อ</span> (Min)
                 </p>
-                <input type="file" accept=".xlsx, .xls, .csv" onChange={handleBoxFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" />
+                {/* 🌟 เติม multiple ตรงนี้แล้ว */}
+                <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleBoxFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" />
               </div>
             )}
           </div>
@@ -391,7 +395,7 @@ export default function AdminPanel({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           <div className="space-y-6 h-fit">
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
               <h3 className="text-xl font-bold text-gray-800 mb-4">{editingUserId ? '✏️ แก้ไขข้อมูลพนักงาน' : '➕ เพิ่มพนักงานใหม่'}</h3>
               <form onSubmit={handleUserSubmit} className="space-y-4">
                 <div>
@@ -409,7 +413,7 @@ export default function AdminPanel({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{editingUserId ? 'ตั้งรหัสผ่านใหม่ (ปล่อยว่างถ้าใช้รหัสเดิม)' : 'รหัสผ่าน *'}</label>
-                  <input type="password" required={!editingUserId} value={userForm.password || ''} onChange={(e) => setUserForm({...userForm, password: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="******" />
+                  <input type="password" required={!editingUserId} value={userForm.passwordHash || ''} onChange={(e) => setUserForm({...userForm, passwordHash: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="******" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล / ชื่อเล่น *</label>
@@ -425,7 +429,7 @@ export default function AdminPanel({
                 
                 <div className="flex space-x-2 pt-4">
                   <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg shadow-md transition-colors">💾 บันทึกข้อมูล</button>
-                  {editingUserId && <button type="button" onClick={() => { setEditingUserId(null); setUserForm({ username: '', password: '', firstName: '', role: 'operator' }); }} className="bg-gray-400 hover:bg-gray-500 text-white font-bold p-3 rounded-lg transition-colors">ยกเลิก</button>}
+                  {editingUserId && <button type="button" onClick={() => { setEditingUserId(null); setUserForm({ username: '', passwordHash: '', firstName: '', role: 'operator' }); }} className="bg-gray-400 hover:bg-gray-500 text-white font-bold p-3 rounded-lg transition-colors">ยกเลิก</button>}
                 </div>
               </form>
             </div>
@@ -453,7 +457,8 @@ export default function AdminPanel({
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
-                        <button onClick={() => { setEditingUserId(u.id); setUserForm({ username: u.username, password: '', firstName: u.firstName, role: u.role?.toLowerCase() }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-100 text-blue-700 px-3 py-1.5 rounded-md hover:bg-blue-200 font-bold">แก้ไข</button>
+                        {/* 🌟 แก้ไขปุ่ม Edit ให้ใช้ตัวแปร password: '' และไม่ต้องดึงตัวแปรที่ไม่ได้ใช้อย่าง last_name หรือ passwordHash */}
+                        <button onClick={() => { setEditingUserId(u.id); setUserForm({ username: u.username, passwordHash: '', firstName: u.firstName, role: u.role?.toLowerCase() }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-100 text-blue-700 px-3 py-1.5 rounded-md hover:bg-blue-200 font-bold">แก้ไข</button>
                         {currentUser.id !== u.id && (
                           <button onClick={() => handleUserDelete(u.id)} className="text-sm bg-red-100 text-red-700 px-3 py-1.5 rounded-md hover:bg-red-200 font-bold">ลบ</button>
                         )}

@@ -3,7 +3,7 @@
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
-  // 1. ตั้งค่าการเชื่อมต่อฐานข้อมูล (PostgreSQL)
+// 1. ตั้งค่าการเชื่อมต่อฐานข้อมูล (PostgreSQL)
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -22,36 +22,37 @@ enum UserRole {
 
 // 4. ตารางผู้ใช้งาน (Users)
 model User {
-  id           Int          @id @default(autoincrement())
-  username     String       @unique
-  passwordHash String       @map("password_hash")
-  firstName    String       @map("first_name")
-  lastName     String?      @map("last_name")
-  role         UserRole     @default(Operator)
-  isActive     Boolean      @default(true) @map("is_active")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
+  id           Int        @id @default(autoincrement())
+  username     String     @unique
+  passwordHash String     // 🌟 เอา @map ออกแล้ว
+  firstName    String     
+  lastName     String?    
+  role         UserRole   @default(Operator)
+  isActive     Boolean    @default(true) 
+  createdAt    DateTime   @default(now()) 
+  updatedAt    DateTime   @updatedAt 
   
   // Relation: ผู้ใช้งาน 1 คน สามารถมีประวัติการแพ็คได้หลายรายการ
   packingLogs  PackingLog[]
 
-  @@map("users") // บังคับให้ชื่อตารางในฐานข้อมูลเป็นตัวพิมพ์เล็กตามมาตรฐาน SQL
+  @@map("users") // ชื่อตารางยังคงเป็น users เหมือนเดิม
 }
 
 // 5. ตารางฐานข้อมูลกล่องบรรจุภัณฑ์ (Boxes Master Data)
 model Box {
-  pckId        String   @id @map("pck_id") // รหัสกล่อง เช่น 'PCK0000022'
+  pckId        String   @id // รหัสกล่อง เช่น 'PCK0000022'
   description  String
-  maxCapacity  Int      @map("max_capacity")
+  maxCapacity  Int      
   width        Float?
   length       Float?
   height       Float?
-  boxWeight    Float    @default(0.0) @map("box_weight")
-  desiccantQty Int      @default(0) @map("desiccant_qty")
-  currentStock Int      @default(0) @map("current_stock")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  minStockLevel Int          @default(0) // จุดแจ้งเตือนสั่งซื้อ (ถ้าสต็อกต่ำกว่านี้จะแจ้งเตือน)
+  boxWeight    Float    @default(0.0) 
+  desiccantQty Int      @default(0) 
+  currentStock Int      @default(0) 
+  createdAt    DateTime @default(now()) 
+  updatedAt    DateTime @updatedAt 
+  minStockLevel Int     @default(0) // จุดแจ้งเตือนสั่งซื้อ (ถ้าสต็อกต่ำกว่านี้จะแจ้งเตือน)
+  
   // Relation: กล่อง 1 ไซส์ สามารถถูกผูกเป็นกล่องมาตรฐานให้กับสินค้าได้หลายชิ้น
   items        Item[]
 
@@ -60,32 +61,33 @@ model Box {
 
 // 6. ตารางฐานข้อมูลสินค้า (Items Master Data)
 model Item {
-  itemId       String   @id @map("item_id") // รหัสสินค้า
-  itemName     String   @map("item_name")
-  supplier     String
-  itemWeight   Float    @map("item_weight")
-  defaultPckId String?  @map("default_pck_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  requireDesiccant Boolean  @default(false) @map("require_desiccant")
+  itemId         String   @id // รหัสสินค้า
+  itemName       String   
+  supplier       String
+  itemWeight     Float    
+  defaultPckId   String?  
+  createdAt      DateTime @default(now()) 
+  updatedAt      DateTime @updatedAt 
+  requireDesiccant Boolean  @default(false) 
+  
   // Relation Link: เชื่อมไปหาตารางกล่องบรรจุภัณฑ์
-  defaultBox   Box?     @relation(fields: [defaultPckId], references: [pckId], onDelete: SetNull)
+  defaultBox     Box?     @relation(fields: [defaultPckId], references: [pckId], onDelete: SetNull)
   
   // Relation: สินค้า 1 ชิ้น สามารถมีประวัติการถูกแพ็คได้หลายครั้ง
-  packingLogs  PackingLog[]
+  packingLogs    PackingLog[]
 
   @@map("items")
 }
 
 // 7. ตารางบันทึกประวัติการแพ็คจริงหน้างาน (Packing Logs Transaction)
 model PackingLog {
-  logId       BigInt   @id @default(autoincrement()) @map("log_id")
-  packedAt    DateTime @default(now()) @map("packed_at")
-  userId      Int      @map("user_id")
-  itemId      String   @map("item_id")
-  packQty     Int      @map("pack_qty")
-  boxUsed     Float    @map("box_used")    // รองรับจำนวนกล่องแบบทศนิยม เช่น 1.5
-  totalWeight Float    @map("total_weight")
+  logId       BigInt   @id @default(autoincrement()) 
+  packedAt    DateTime @default(now()) 
+  userId      Int      
+  itemId      String   
+  packQty     Int      
+  boxUsed     Float    // รองรับจำนวนกล่องแบบทศนิยม เช่น 1.5
+  totalWeight Float    
 
   // Relation Links: เชื่อมโยงประวัติกลับไปหาคนแพ็คและตัวสินค้า
   user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -103,4 +105,3 @@ model Report {
   totalBoxes  Int      // จำนวนกล่องรวมที่ต้องใช้ในรอบนั้น
   data        String   // เก็บข้อมูลตารางรายก้อน (แปลงเป็น JSON String)
 }
-
