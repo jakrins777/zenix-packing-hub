@@ -8,46 +8,32 @@ export default function Login({ onLogin }) {
   const [isLoading, setIsLoading] = useState(false);
 
   // 🌟 ฟังก์ชันจัดการตอนกดปุ่ม
-  const handleLoginClick = async (e) => {
-    e.preventDefault(); // ป้องกันหน้ารีเฟรช
-    
-    // ดักเช็คตรงนี้เลยว่ากรอกครบไหม ถ้าไม่ครบให้โชว์ Error สีแดง
-    if (!username.trim() || !passwordHash.trim()) {
-      setError('⚠️ กรุณากรอกรหัสพนักงานและรหัสผ่านให้ครบถ้วน');
-      return;
-    }
-
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setError('');
-    setIsLoading(true);
-    console.log("👉 กำลังพยายามล็อกอินด้วย:", username); // พิมพ์บอกใน Console
+    setLoading(true);
 
     try {
-      // 🌟 ใช้ Supabase ยิงตรงเข้า Database ค้นหา Username และ Password
-      const { data, error: supabaseError } = await supabase
-        .from('users') // 💡 อย่าลืมเช็คว่าใน Supabase ตารางชื่อ users นะครับ
-        .select('*')
-        .eq('username', username.trim())
-        .eq('passwordHash', passwordHash)
-        .single(); // บังคับให้คืนค่ามาแค่ 1 แถว (เพราะถ้าหาไม่เจอ มันจะคืนค่า Error ออกมา)
+      // 🌟 ยิงไปหา API หลังบ้าน แทนที่จะค้นหาผ่าน Supabase ตรงๆ
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.toUpperCase(), password })
+      });
 
-      // ดักกรณีหาไม่เจอ (รหัสผิด หรือ ไม่มี User นี้)
-      if (supabaseError || !data) {
-        console.error("🚨 ข้อมูลไม่ถูกต้อง:", supabaseError?.message);
-        setError('❌ รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
-        return; // จบการทำงานตรงนี้เลย
+      const data = await res.json();
+
+      if (data.success) {
+        // เซฟลง localStorage (รอบนี้จะไม่มี password หลุดไปเซฟด้วย)
+        localStorage.setItem('zenix_user', JSON.stringify(data.user));
+        onLogin(data.user);
+      } else {
+        setError(data.message); // แสดงข้อความ error จากหลังบ้าน
       }
-
-      console.log("📦 ข้อมูลที่ได้จาก Database:", data); 
-
-      // ล็อกอินสำเร็จ! เก็บลง LocalStorage และส่งค่ากลับไปให้ App.jsx
-      localStorage.setItem('zenix_user', JSON.stringify(data));
-      onLogin(data);
-
     } catch (err) {
-      console.error("🚨 ระบบขัดข้อง:", err);
-      setError(`❌ ขัดข้อง: ไม่สามารถเชื่อมต่อฐานข้อมูลได้ (${err.message})`);
+      setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ (กรุณาเปิด Backend)');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 

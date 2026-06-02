@@ -6,7 +6,7 @@ import Login from './pages/Login';
 import PackingStation from './pages/PackingStation';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
-
+import * as XLSX from 'xlsx';
 function App() {
   // ==========================================
   // 1. STATE & REFS
@@ -214,6 +214,7 @@ function App() {
     if (e.key === 'Enter' && barcode.trim() !== '') fetchItemData(barcode.trim());
   };
 
+  // 🌟 ฟังก์ชันบันทึกการแพ็ค (และตัดสต็อกกล่องอัตโนมัติ)
   const handleSavePack = async () => {
     if (!result || !qty || qty <= 0) return;
     setLoading(true);
@@ -223,21 +224,51 @@ function App() {
       const { error } = await supabase.from('packing_logs').insert([payload]);
 
       if (!error) {
-        setSaveMessage('✅ บันทึกประวัติการแพ็คสำเร็จ!'); playSound('success'); 
-        setTimeout(() => { setBarcode(''); setQty(''); setResult(null); setSaveMessage(''); barcodeInputRef.current?.focus(); }, 1000); 
+        // 🌟 [ระบบใหม่] ตัดสต็อกกล่องอัตโนมัติ 🌟
+        if (result.defaultBox) {
+          const boxToUpdate = boxes.find(b => b.pckId === result.defaultBox.pckId);
+          if (boxToUpdate) {
+            // คำนวณสต็อกใหม่ (ห้ามติดลบ)
+            const newStock = Math.max(0, boxToUpdate.currentStock - Number(calculatedBoxesUsed));
+            await supabase.from('boxes').update({ currentStock: newStock }).eq('pckId', boxToUpdate.pckId);
+            fetchAdminData(); // รีเฟรชตารางกล่องให้ตัวเลขเป็นปัจจุบัน
+          }
+        }
+
+        setSaveMessage('✅ บันทึกประวัติการแพ็คและตัดสต็อกสำเร็จ!'); playSound('success'); 
+        setTimeout(() => { setBarcode(''); setQty(''); setResult(null); setSaveMessage(''); barcodeInputRef.current?.focus(); }, 1500); 
       } else { setError('❌ บันทึกไม่สำเร็จ: ' + error.message); playSound('error'); }
     } catch (err) { setError('❌ ขัดข้อง: ไม่สามารถบันทึกข้อมูลได้'); playSound('error'); } 
     finally { setLoading(false); }
   };
 
+  // 🌟 ฟังก์ชันลบประวัติ (และคืนสต็อกกล่องกลับเข้าคลัง)
   const handleDeleteLog = async (id) => {
-    if (!confirm('🚨 ยืนยันที่จะลบประวัติการแพ็คนี้ใช่หรือไม่?')) return;
+    if (!confirm('🚨 ยืนยันที่จะลบประวัติการแพ็คนี้ใช่หรือไม่? (ระบบจะคืนสต็อกกล่องให้ด้วย)')) return;
     try {
-     const { error } = await supabase.from('packing_logs').delete().eq('logId', id); 
-      if (!error) fetchLogsData(); 
+      // 🌟 [ระบบใหม่] 1. ดึงข้อมูล Log ก่อนลบ เพื่อรู้ว่าต้องคืนกล่องกี่ใบ
+      const logToDelete = logs.find(l => l.logId === id);
+
+      const { error } = await supabase.from('packing_logs').delete().eq('logId', id); 
+      
+      if (!error) { 
+        // 🌟 [ระบบใหม่] 2. คืนสต็อกกล่อง
+        if (logToDelete && logToDelete.item?.defaultPckId) {
+           const boxToUpdate = boxes.find(b => b.pckId === logToDelete.item.defaultPckId);
+           if (boxToUpdate) {
+              const newStock = boxToUpdate.currentStock + logToDelete.boxUsed;
+              await supabase.from('boxes').update({ currentStock: newStock }).eq('pckId', boxToUpdate.pckId);
+              fetchAdminData(); // รีเฟรชตารางกล่อง
+           }
+        }
+        alert('ลบประวัติและคืนสต็อกกล่องสำเร็จ');
+        fetchLogsData(); 
+      } 
       else alert('ลบไม่สำเร็จ: ' + error.message);
     } catch (err) { alert('ลบไม่สำเร็จ ระบบขัดข้อง'); }
   };
+
+  
 
   const handleSaveReport = async () => {
     const validItems = calcResults.filter(r => !r.error);
@@ -259,6 +290,36 @@ function App() {
         alert('บันทึกไม่สำเร็จ: ' + error.message);
       }
     } catch (error) { alert('❌ ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้'); }
+  };
+
+  // 🌟 ฟังก์ชันดาวน์โหลดประวัติการแพ็คเป็น Excel
+  const handleExportExcel = () => {
+    if (filteredLogs.length === 0) {
+      alert('ไม่มีข้อมูลในช่วงเวลาที่เลือกให้ Export ครับ');
+      return;
+    }
+
+    // 1. จัดรูปแบบข้อมูลให้สวยงามก่อนลง Excel
+    const exportData = filteredLogs.map((log, index) => ({
+      'ลำดับ': index + 1,
+      'วัน-เวลาที่แพ็ค': new Date(log.packedAt).toLocaleString('th-TH'),
+      'ผู้ทำรายการ': log.user?.firstName || 'ไม่ระบุ',
+      'รหัสสินค้า': log.itemId,
+      'ชื่อสินค้า': log.item?.itemName || '-',
+      'ลูกค้า (Supplier)': log.item?.supplier || '-',
+      'จำนวนแพ็ค (ชิ้น)': log.packQty,
+      'กล่องที่เบิก (ใบ)': log.boxUsed,
+      'น้ำหนักรวม (kg)': log.totalWeight
+    }));
+
+    // 2. สร้างไฟล์ Excel (Workbook & Worksheet)
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Packing History");
+
+    // 3. กำหนดชื่อไฟล์ (ใช้วันที่ปัจจุบัน) และสั่งดาวน์โหลด
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `Zenix_PackingReport_${dateStr}.xlsx`);
   };
 
   // ==========================================
@@ -578,6 +639,12 @@ function App() {
                 </select>
                 {timeFilter === 'custom' && <input type="date" value={customDate} onChange={(e) => setCustomDate(e.target.value)} className="p-2 border-2 border-blue-400 rounded-lg font-semibold text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"/>}
                 <button onClick={() => window.print()} className="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg font-bold flex items-center transition-colors shadow-md">🖨️ พิมพ์รายงาน</button>
+                <button 
+  onClick={handleExportExcel} 
+  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold flex items-center transition-colors shadow-md gap-2"
+>
+  <span>📊</span> Export Excel
+</button>
               </div>
             </div>
 
