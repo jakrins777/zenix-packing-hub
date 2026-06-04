@@ -45,7 +45,7 @@
 * **React To Print & React Barcode** - สำหรับระบบพิมพ์ฉลากและสร้างบาร์โค้ด
 
 **Backend & Database:**
-* **Node.js / Express** (ถ้ามี) - สำหรับ API จัดการไฟล์ Upload และเข้ารหัส Password
+* **Node.js / Express** - สำหรับ API จัดการไฟล์ Upload และเข้ารหัส Password
 * **Supabase (PostgreSQL)** - ฐานข้อมูลหลัก (Database as a Service)
 * **Row Level Security (RLS)** - การจัดการสิทธิ์ความปลอดภัยระดับฐานข้อมูล
 
