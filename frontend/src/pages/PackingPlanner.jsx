@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
@@ -131,7 +132,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
           
           <div className="flex gap-4">
             <button onClick={handleBulkCalculate} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all transform active:scale-95 text-lg">🧮 คำนวณจำนวนกล่อง</button>
-            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast('ล้างข้อมูลเรียบร้อย', {icon: '🧹'}); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-4 px-8 rounded-xl transition-all">ล้างข้อมูล</button>
+            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast('ล้างข้อมูลเรียบร้อย', {icon: '🧹'}); }} className="bg-gray-200 hover:bg-white-10 text-gray-700 font-bold py-4 px-8 rounded-xl transition-all">ล้างข้อมูล</button>
           </div>
         </div>
       </div>
@@ -191,7 +192,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {calcResults.map((res) => (
-                    <tr key={res.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={res.id} className="hover:bg-white-10 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-gray-800">{res.itemCode}</td>
                       {res.error ? (
                         <td colSpan="5" className="py-3 px-4 text-red-500 font-bold bg-red-50">{res.error}</td>

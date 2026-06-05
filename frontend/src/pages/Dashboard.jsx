@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import PrintLabelButton from '../components/PrintLabelButton';

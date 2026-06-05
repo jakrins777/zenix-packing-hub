@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import Barcode from 'react-barcode';
