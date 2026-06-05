@@ -1,6 +1,11 @@
 import React from 'react';
 
 export default function Inventory({ boxes }) {
+  // 🌟 จัดเรียงรหัสกล่อง A-Z ก่อนนำไปแสดงผล
+  const sortedBoxes = [...(boxes || [])].sort((a, b) => 
+    (a.pckId || a.pckid || '').localeCompare(b.pckId || b.pckid || '')
+  );
+
   return (
     <div className="bg-transparent rounded-xl p-2 md:p-6 animate-fade-in-up">
       <div className="flex justify-between items-center mb-6 print:hidden">
@@ -27,16 +32,28 @@ export default function Inventory({ boxes }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700/50 print:divide-gray-300">
-            {boxes.map((box) => {
-              const isLowStock = !box.isConsignment && box.currentStock <= box.minStockLevel;
+            {sortedBoxes.map((box) => {
+              const stock = box.currentStock || 0;
+              const minStock = box.minStockLevel || 0;
+              
+              // 🌟 แยกเงื่อนไขสถานะให้ชัดเจน
+              const isOutOfStock = stock <= 0;
+              const isLowStock = stock > 0 && stock <= minStock;
+
+              // กำหนดสีตัวเลขสต็อก
+              let stockColorClass = 'text-green-400';
+              if (!box.isConsignment) {
+                if (isOutOfStock) stockColorClass = 'text-red-500';
+                else if (isLowStock) stockColorClass = 'text-orange-400';
+              }
+
               return (
                 <tr key={box.pckId} className="hover:bg-white/5 print:hover:bg-transparent">
                   <td className="py-3 px-4 font-mono font-bold text-blue-400 print:text-black">{box.pckId}</td>
                   <td className="py-3 px-4 text-slate-300 print:text-black">{box.description}</td>
                   
-                  {/* 🌟 แสดงเฉพาะยอดสต็อกปัจจุบัน */}
-                  <td className={`py-3 px-4 text-center font-black text-lg ${isLowStock ? 'text-red-400' : 'text-green-400'} print:text-black`}>
-                    {box.currentStock || 0}
+                  <td className={`py-3 px-4 text-center font-black text-lg ${stockColorClass} print:text-black`}>
+                    {stock}
                   </td>
                   
                   <td className="py-3 px-4 text-center font-bold">
@@ -44,11 +61,18 @@ export default function Inventory({ boxes }) {
                       <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-xs print:border print:border-black print:bg-white print:text-black">
                         🔄 โควต้า Consignment
                       </span>
+                    ) : isOutOfStock ? (
+                      // 🌟 แจ้งเตือนเมื่อสต็อก = 0
+                      <span className="bg-red-600/20 text-red-500 px-3 py-1 rounded-full text-xs font-black animate-pulse print:border print:border-black print:bg-white print:text-black">
+                        ❌ กล่องหมด!
+                      </span>
                     ) : isLowStock ? (
-                      <span className="bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-xs animate-pulse print:border print:border-black print:bg-white print:text-black">
-                        🚨 ใกล้จะหมด!
+                      // 🌟 แจ้งเตือนเมื่อสต็อกเหลือน้อย
+                      <span className="bg-orange-500/20 text-orange-400 px-3 py-1 rounded-full text-xs font-bold print:border print:border-black print:bg-white print:text-black">
+                        ⚠️ ใกล้จะหมด!
                       </span>
                     ) : (
+                      // 🌟 สถานะปกติ
                       <span className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs print:border print:border-black print:bg-white print:text-black">
                         ✅ สต็อกปกติ
                       </span>

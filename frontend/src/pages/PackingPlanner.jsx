@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 
+
 export default function PackingPlanner({ items, boxes, currentUser, fetchReportsData, fetchLogsData, fetchAdminData }) {
   const [bulkText, setBulkText] = useState('');
   const [calcResults, setCalcResults] = useState([]);
   const [boxSummary, setBoxSummary] = useState([]);
-
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
   const handleBulkCalculate = () => {
     if (!bulkText.trim()) return;
 
@@ -141,7 +142,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         <div className="space-y-6 animate-fade-in-up">
           {boxSummary.length > 0 && (
             <div className="bg-gradient-to-r from-indigo-900 to-purple-900 rounded-2xl shadow-xl overflow-hidden text-white border border-indigo-800">
-              <div className="p-4 bg-black/20 font-black text-lg flex items-center gap-2"><span>📦</span> สรุปการเบิกกล่องรวม (Consolidation Plan)</div>
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 print:hidden">
+          <h3 className="text-xl font-bold text-white">📦 สรุปการเบิกกล่องรวม (Consolidation Plan)</h3>
+          <button 
+            onClick={() => setShowSummaryModal(true)} 
+            className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all flex items-center gap-2"
+          >
+            📋 ดูใบสรุปเบิกกล่อง / พิมพ์
+          </button>
+        </div>
               <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {boxSummary.map((sum, idx) => (
                   <div key={idx} className="bg-white/10 rounded-xl p-4 border border-white/20">
@@ -208,6 +217,70 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                           <td className="py-3 px-4 text-center"><span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md">{res.boxType}</span></td>
                         </>
                       )}
+                      {showSummaryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 print:bg-white print:block">
+          
+          {/* 💡 CSS ลับ: สั่งให้ตอนปริ้นท์ ซ่อนทุกอย่างบนเว็บ ยกเว้น Popup ตัวนี้ */}
+          <style type="text/css" media="print">
+            {`
+              body * { visibility: hidden; }
+              #print-modal, #print-modal * { visibility: visible; }
+              #print-modal { position: absolute; left: 0; top: 0; width: 100%; height: 100%; padding: 20px; box-shadow: none; background: white; }
+            `}
+          </style>
+
+          <div id="print-modal" className="bg-slate-800 rounded-xl p-6 md:p-8 w-full max-w-2xl shadow-2xl print:bg-white print:text-black">
+            <div className="flex justify-between items-center mb-6 print:hidden">
+              <h2 className="text-2xl font-black text-white">📋 สรุปรายการเบิกกล่อง</h2>
+              <button onClick={() => setShowSummaryModal(false)} className="text-red-400 hover:text-red-300 font-bold text-2xl">✕</button>
+            </div>
+
+            {/* ส่วนหัวกระดาษตอนปริ้นท์ */}
+            <div className="hidden print:block text-center mb-8">
+              <h1 className="text-3xl font-black text-black mb-2">ใบเบิกบรรจุภัณฑ์ (Box Requisition)</h1>
+              <p className="text-gray-600">วันที่พิมพ์: {new Date().toLocaleDateString('th-TH')} เวลา {new Date().toLocaleTimeString('th-TH')}</p>
+            </div>
+
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-slate-700 text-slate-200 print:bg-gray-200 print:text-black">
+                <tr>
+                  <th className="p-4 border border-slate-600 print:border-gray-400 font-bold text-lg w-20 text-center">ลำดับ</th>
+                  <th className="p-4 border border-slate-600 print:border-gray-400 font-bold text-lg">รหัสกล่อง (Box Type)</th>
+                  <th className="p-4 border border-slate-600 print:border-gray-400 font-bold text-center text-lg">จำนวนที่ต้องเบิก</th>
+                </tr>
+              </thead>
+             <tbody className="text-slate-200 print:text-black">
+                {boxSummary.map((sum, idx) => {
+                  // 🌟 ค้นหารายละเอียดกล่องจากข้อมูลมาสเตอร์
+                  const boxDetail = boxes.find(b => b.pckId === sum.boxType || b.pckid === sum.boxType);
+                  const description = boxDetail?.description || '-';
+
+                  return (
+                    <tr key={idx} className="hover:bg-slate-700/50 print:hover:bg-transparent">
+                      <td className="p-4 border border-slate-600 print:border-gray-400 text-center text-lg align-top">{idx + 1}</td>
+                      <td className="p-4 border border-slate-600 print:border-gray-400 align-top">
+                        <div className="font-mono font-black text-xl text-blue-400 print:text-black">{sum.boxType}</div>
+                        {/* 🌟 เพิ่มคำอธิบายกล่องโชว์ด้านล่างรหัส */}
+                        <div className="text-sm font-medium text-slate-400 print:text-gray-600 mt-1">{description}</div>
+                      </td>
+                      <td className="p-4 border border-slate-600 print:border-gray-400 font-black text-center text-2xl text-emerald-400 print:text-black align-top">
+                        {sum.totalBoxes} <span className="text-sm font-medium text-slate-400 print:text-gray-600">ใบ</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div className="mt-8 flex justify-end gap-4 print:hidden">
+              <button onClick={() => setShowSummaryModal(false)} className="px-6 py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-bold transition-colors">ย้อนกลับ</button>
+              <button onClick={() => window.print()} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg">
+                🖨️ พิมพ์ใบเบิกกล่อง (Print)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
                     </tr>
                   ))}
                 </tbody>

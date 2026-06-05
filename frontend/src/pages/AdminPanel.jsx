@@ -132,13 +132,16 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 <div><label className="block text-sm font-medium mb-1">น้ำหนัก (kg) *</label><input type="number" step="0.001" required value={itemForm.itemWeight || ''} onChange={(e) => setItemForm({...itemForm, itemWeight: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white" /></div>
                 
                 {/* 🌟 1. แก้บัคพื้นหลัง Dropdown: กล่องมาตรฐาน */}
-                <div>
+               <div>
                   <label className="block text-sm font-medium mb-1">กล่องมาตรฐาน</label>
                   <select value={itemForm.defaultPckId || ''} onChange={(e) => setItemForm({...itemForm, defaultPckId: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white outline-none">
                     <option value="" className="bg-slate-800 text-white">-- เลือกกล่อง --</option>
-                    {(boxes || []).map(b => { 
-                      const id = b.pckId || b.pckid; 
-                      return id ? <option key={id} value={id} className="bg-slate-800 text-white">{id}</option> : null; 
+                    {/* 👇 ก๊อปปี้ทับส่วนนี้: เพิ่มคำสั่ง .sort() ก่อน .map() */}
+                    {[...(boxes || [])]
+                      .sort((a, b) => (a.pckId || a.pckid || '').localeCompare(b.pckId || b.pckid || ''))
+                      .map(b => { 
+                        const id = b.pckId || b.pckid; 
+                        return id ? <option key={id} value={id} className="bg-slate-800 text-white">{id}</option> : null; 
                     })}
                   </select>
                 </div>
