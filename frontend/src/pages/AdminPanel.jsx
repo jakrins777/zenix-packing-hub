@@ -130,7 +130,19 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 <div><label className="block text-sm font-medium mb-1">ชื่อสินค้า (ไม่บังคับ)</label><input type="text" value={itemForm.itemName || ''} onChange={(e) => setItemForm({...itemForm, itemName: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white" /></div>
                 <div><label className="block text-sm font-medium mb-1">Customer</label><input type="text" value={itemForm.supplier || ''} onChange={(e) => setItemForm({...itemForm, supplier: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white" /></div>
                 <div><label className="block text-sm font-medium mb-1">น้ำหนัก (kg) *</label><input type="number" step="0.001" required value={itemForm.itemWeight || ''} onChange={(e) => setItemForm({...itemForm, itemWeight: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white" /></div>
-                <div><label className="block text-sm font-medium mb-1">กล่องมาตรฐาน</label><select value={itemForm.defaultPckId || ''} onChange={(e) => setItemForm({...itemForm, defaultPckId: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white outline-none"><option value="" className="bg-slate-700">-- เลือกกล่อง --</option>{(boxes || []).map(b => { const id = b.pckId || b.pckid; return id ? <option key={id} value={id}>{id}</option> : null; })}</select></div>
+                
+                {/* 🌟 1. แก้บัคพื้นหลัง Dropdown: กล่องมาตรฐาน */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">กล่องมาตรฐาน</label>
+                  <select value={itemForm.defaultPckId || ''} onChange={(e) => setItemForm({...itemForm, defaultPckId: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white outline-none">
+                    <option value="" className="bg-slate-800 text-white">-- เลือกกล่อง --</option>
+                    {(boxes || []).map(b => { 
+                      const id = b.pckId || b.pckid; 
+                      return id ? <option key={id} value={id} className="bg-slate-800 text-white">{id}</option> : null; 
+                    })}
+                  </select>
+                </div>
+
                 <div className="pt-2"><label className="flex items-center space-x-2 cursor-pointer bg-slate-700/50 p-3 rounded border border-slate-600 hover:bg-slate-700 transition-colors"><input type="checkbox" checked={itemForm.requireDesiccant || false} onChange={(e) => setItemForm({...itemForm, requireDesiccant: e.target.checked})} className="w-5 h-5 text-blue-500 rounded" /><span className="text-sm font-bold text-blue-300">💧 สินค้านี้ต้องใส่ซองกันชื้น</span></label></div>
                 <div className="flex space-x-2 pt-2"><button type="submit" className="flex-1 bg-green-600 text-white font-bold p-2 rounded hover:bg-green-500">💾 บันทึก</button>{editingItemId && <button type="button" onClick={() => { setEditingItemId(null); setItemForm({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', requireDesiccant: false }); }} className="bg-slate-600 text-white font-bold p-2 rounded hover:bg-slate-500">ยกเลิก</button>}</div>
               </form>
@@ -154,16 +166,25 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 {searchTerm && <button onClick={() => { setSearchTerm(''); setCurrentPage(1); }} className="text-slate-400 hover:text-red-400 font-bold ml-2">✕</button>}
               </div>
               <div className="w-full md:w-2/3 flex flex-wrap md:flex-nowrap items-center justify-end gap-3 text-slate-200">
+                
+                {/* 🌟 2. แก้บัคพื้นหลัง Dropdown: ลูกค้า */}
                 <div className="flex items-center gap-2 w-full md:w-auto">
                   <label className="font-bold text-sm whitespace-nowrap">ลูกค้า:</label>
-                  <select value={filterCustomer} onChange={(e) => { setFilterCustomer(e.target.value); setCurrentPage(1); }} className="p-2 w-full md:w-36 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-slate-700">
-                    {uniqueCustomers.map((cust, idx) => <option key={idx} value={cust}>{cust === 'All' ? '📦 ทั้งหมด' : cust}</option>)}
+                  <select value={filterCustomer} onChange={(e) => { setFilterCustomer(e.target.value); setCurrentPage(1); }} className="p-2 w-full md:w-36 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-slate-700 text-white">
+                    {uniqueCustomers.map((cust, idx) => (
+                      <option key={idx} value={cust} className="bg-slate-800 text-white">{cust === 'All' ? '📦 ทั้งหมด' : cust}</option>
+                    ))}
                   </select>
                 </div>
+
+                {/* 🌟 3. แก้บัคพื้นหลัง Dropdown: เรียงตาม (สินค้า) */}
                 <div className="flex items-center gap-2 w-full md:w-auto">
                   <label className="font-bold text-sm whitespace-nowrap">เรียงตาม:</label>
-                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="p-2 w-full md:w-36 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-slate-700">
-                    <option value="id_asc">รหัส (A-Z)</option><option value="id_desc">รหัส (Z-A)</option><option value="name_asc">ชื่อ (A-Z)</option><option value="name_desc">ชื่อ (Z-A)</option>
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="p-2 w-full md:w-36 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-slate-700 text-white">
+                    <option value="id_asc" className="bg-slate-800 text-white">รหัส (A-Z)</option>
+                    <option value="id_desc" className="bg-slate-800 text-white">รหัส (Z-A)</option>
+                    <option value="name_asc" className="bg-slate-800 text-white">ชื่อ (A-Z)</option>
+                    <option value="name_desc" className="bg-slate-800 text-white">ชื่อ (Z-A)</option>
                   </select>
                 </div>
               </div>
@@ -223,29 +244,21 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
              <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-sm text-slate-200">
               <h3 className="text-xl font-bold mb-4">{editingBoxId ? '✏️ แก้ไขข้อมูลกล่อง' : '➕ เพิ่มกล่องใหม่'}</h3>
               <form onSubmit={handleBoxSubmit} className="space-y-4">
-                
-                {/* 🌟 [ระบบใหม่] คงปุ่ม Consignment ไว้ แต่ตั้งค่าให้ไม่ต้องซ่อนสต็อก */}
                 <div className="col-span-2">
                   <label className="flex items-center space-x-2 cursor-pointer bg-blue-900/30 p-3 rounded-lg border border-blue-500/30 hover:bg-blue-900/50 transition-colors">
                     <input type="checkbox" checked={boxForm.isConsignment || false} onChange={(e) => { const isChecked = e.target.checked; setBoxForm({...boxForm, isConsignment: isChecked, minStockLevel: isChecked ? 0 : boxForm.minStockLevel}); }} className="w-5 h-5 text-blue-500 rounded" />
                     <span className="text-sm font-black text-blue-300">🔄 กล่อง Consignment (ต้องใช้ตามโควต้า)</span>
                   </label>
                 </div>
-
                 <div><label className="block text-sm font-bold mb-1">รหัสกล่อง *</label><input type="text" required disabled={!!editingBoxId} value={boxForm.pckId || ''} onChange={(e) => setBoxForm(prev => ({ ...prev, pckId: String(e.target.value).toUpperCase() }))} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none" /></div>
                 <div><label className="block text-sm font-bold mb-1">คำอธิบาย</label><input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({...boxForm, description: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none" /></div>
-                
                 <div className="grid grid-cols-2 gap-4">
                   <div><label className="block text-sm font-bold mb-1">จุได้กี่ชิ้น</label><input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({...boxForm, maxCapacity: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none" /></div>
-                  {/* 🌟 [ระบบใหม่] ปล่อยให้กรอกสต็อกได้แม้จะเป็นกล่อง Consignment */}
                   <div><label className="block text-sm font-bold mb-1">สต็อกที่มี (ใบ)</label><input type="number" required value={boxForm.currentStock || 0} onChange={(e) => setBoxForm({...boxForm, currentStock: e.target.value})} className="w-full p-2 border border-slate-600 rounded outline-none font-bold bg-slate-700 text-blue-400" /></div>
                 </div>
-                
-                {/* 🌟 [ระบบใหม่] ซ่อนช่อง Min Stock ถ้าเป็น Consignment */}
                 {!boxForm.isConsignment && (
                   <div><label className="block text-sm font-bold mb-1">จุดสั่งซื้อ (Min)</label><input type="number" required value={boxForm.minStockLevel || 0} onChange={(e) => setBoxForm({...boxForm, minStockLevel: e.target.value})} className="w-full p-2 border border-slate-600 rounded outline-none font-bold bg-slate-700 text-red-400" /></div>
                 )}
-                
                 <div className="flex space-x-2 pt-2">
                   <button type="submit" className="flex-1 bg-green-600 hover:bg-green-500 transition-colors text-white font-bold p-2 rounded shadow">💾 บันทึก</button>
                   {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', description: '', maxCapacity: '', currentStock: 0, minStockLevel: 0, isConsignment: false }); }} className="bg-slate-600 hover:bg-slate-500 text-white font-bold p-2 rounded">ยกเลิก</button>}
@@ -261,6 +274,18 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 <input type="text" placeholder="ค้นหารหัสกล่อง หรือ คำอธิบาย..." value={boxSearchTerm} onChange={(e) => setBoxSearchTerm(e.target.value)} className="w-full outline-none text-sm text-white bg-transparent" />
                 {boxSearchTerm && <button onClick={() => setBoxSearchTerm('')} className="text-slate-400 hover:text-red-400 font-bold ml-2">✕</button>}
               </div>
+
+              {/* 🌟 4. แก้บัคพื้นหลัง Dropdown: เรียงตาม (กล่อง) */}
+              <div className="flex items-center gap-2 w-full md:w-auto text-slate-200">
+                <label className="font-bold text-sm whitespace-nowrap">เรียงตาม:</label>
+                <select value={boxSortBy} onChange={(e) => setBoxSortBy(e.target.value)} className="p-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-slate-700 text-white">
+                  <option value="id_asc" className="bg-slate-800 text-white">รหัสกล่อง (A-Z)</option>
+                  <option value="id_desc" className="bg-slate-800 text-white">รหัสกล่อง (Z-A)</option>
+                  <option value="desc_asc" className="bg-slate-800 text-white">คำอธิบาย (A-Z)</option>
+                  <option value="desc_desc" className="bg-slate-800 text-white">คำอธิบาย (Z-A)</option>
+                </select>
+              </div>
+
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-slate-700 flex-1 shadow-sm">
@@ -278,15 +303,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                           <td className="py-3 px-4 font-mono font-black text-blue-400">{id}</td>
                           <td className="py-3 px-4 text-gray-200 font-medium text-sm">{box?.description || '-'}</td>
                           <td className="py-3 px-4 text-center">
-                            {/* 🌟 [ระบบใหม่] แสดงตัวเลขโควต้าแทนอินฟินิตี้ */}
                             <span className={`font-black text-lg ${isLowStock ? 'text-red-400' : 'text-green-400'}`}>{box?.currentStock || 0}</span>
-                            
-                            {/* แสดงสถานะแยกกันระหว่างกล่องใกล้หมด กับกล่องโควต้า */}
-                            {isLowStock ? (
-                              <p className="text-xs text-red-400 font-bold animate-pulse">! ใกล้จะหมด ({box?.minStockLevel})</p>
-                            ) : box?.isConsignment ? (
-                              <p className="text-xs text-blue-400 font-bold mt-1">🔄 โควต้า Consignment</p>
-                            ) : null}
+                            {isLowStock ? ( <p className="text-xs text-red-400 font-bold animate-pulse">! ถึงจุดสั่งซื้อ ({box?.minStockLevel})</p> ) : box?.isConsignment ? ( <p className="text-xs text-blue-400 font-bold mt-1">🔄 โควต้า Consignment</p> ) : null}
                           </td>
                           <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
                             <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0, minStockLevel: box.minStockLevel || 0, isConsignment: box.isConsignment || false }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-500/20 text-blue-300 px-3 py-1.5 rounded-md hover:bg-blue-500/40 font-bold shadow-sm">แก้ไข</button>
@@ -314,10 +332,19 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-sm text-slate-200">
               <h3 className="text-xl font-bold mb-4">{editingUserId ? '✏️ แก้ไขข้อมูลพนักงาน' : '➕ เพิ่มพนักงานใหม่'}</h3>
               <form onSubmit={handleUserSubmit} className="space-y-4">
-                <div><label className="block text-sm font-medium mb-1">รหัสพนักงาน (Username) *</label><input type="text" required disabled={!!editingUserId} value={userForm.username || ''} onChange={(e) => setUserForm(prev => ({ ...prev, username: String(e.target.value).toUpperCase() }))} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none" /></div>
-                <div><label className="block text-sm font-medium mb-1">{editingUserId ? 'ตั้งรหัสผ่านใหม่ (ปล่อยว่างถ้าใช้รหัสเดิม)' : 'รหัสผ่าน *'}</label><input type="password" required={!editingUserId} value={userForm.passwordHash || ''} onChange={(e) => setUserForm({...userForm, passwordHash: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none" /></div>
-                <div><label className="block text-sm font-medium mb-1">ชื่อ-นามสกุล / ชื่อเล่น *</label><input type="text" required value={userForm.firstName || ''} onChange={(e) => setUserForm({...userForm, firstName: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none" /></div>
-                <div><label className="block text-sm font-medium mb-1">ระดับสิทธิ์ (Role)</label><select value={userForm.role || 'operator'} onChange={(e) => setUserForm({...userForm, role: e.target.value})} className="w-full p-2 border border-slate-600 rounded font-bold bg-slate-700 outline-none"><option value="operator">Operator (พนักงานสแกนแพ็ค)</option><option value="admin">Admin (ผู้ดูแลระบบ)</option></select></div>
+                <div><label className="block text-sm font-medium mb-1">รหัสพนักงาน (Username) *</label><input type="text" required disabled={!!editingUserId} value={userForm.username || ''} onChange={(e) => setUserForm(prev => ({ ...prev, username: String(e.target.value).toUpperCase() }))} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
+                <div><label className="block text-sm font-medium mb-1">{editingUserId ? 'ตั้งรหัสผ่านใหม่ (ปล่อยว่างถ้าใช้รหัสเดิม)' : 'รหัสผ่าน *'}</label><input type="password" required={!editingUserId} value={userForm.passwordHash || ''} onChange={(e) => setUserForm({...userForm, passwordHash: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
+                <div><label className="block text-sm font-medium mb-1">ชื่อ-นามสกุล / ชื่อเล่น *</label><input type="text" required value={userForm.firstName || ''} onChange={(e) => setUserForm({...userForm, firstName: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
+                
+                {/* 🌟 5. แก้บัคพื้นหลัง Dropdown: เลือกสิทธิ์พนักงาน */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">ระดับสิทธิ์ (Role)</label>
+                  <select value={userForm.role || 'operator'} onChange={(e) => setUserForm({...userForm, role: e.target.value})} className="w-full p-2 border border-slate-600 rounded font-bold bg-slate-700 outline-none text-white">
+                    <option value="operator" className="bg-slate-800 text-white">Operator (พนักงานสแกนแพ็ค)</option>
+                    <option value="admin" className="bg-slate-800 text-white">Admin (ผู้ดูแลระบบ)</option>
+                  </select>
+                </div>
+
                 <div className="flex space-x-2 pt-4"><button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold p-3 rounded-lg shadow-md transition-colors">💾 บันทึกข้อมูล</button>{editingUserId && <button type="button" onClick={() => { setEditingUserId(null); setUserForm({ username: '', passwordHash: '', firstName: '', role: 'operator' }); }} className="bg-slate-600 hover:bg-slate-500 text-white font-bold p-3 rounded-lg transition-colors">ยกเลิก</button>}</div>
               </form>
             </div>
