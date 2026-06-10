@@ -67,6 +67,7 @@ model Item {
   supplier       String
   itemWeight     Float    
   defaultPckId   String?  
+  stdPackQty     Int      @default(1)
   createdAt      DateTime @default(now()) 
   updatedAt      DateTime @updatedAt 
   requireDesiccant Boolean  @default(false) 

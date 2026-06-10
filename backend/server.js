@@ -141,14 +141,20 @@ app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
       const itemCode = String(row['Item'] || row['รหัสสินค้า'] || row['itemId'] || '').toUpperCase().trim();
       
       if (itemCode) {
-        // 🌟 ดึงข้อมูลเท่าที่มีในไฟล์
+        // ดึงข้อมูลเท่าที่มีในไฟล์
         const updateData = {};
         if (row['Description'] || row['ชื่อสินค้า']) updateData.itemName = String(row['Description'] || row['ชื่อสินค้า']).trim();
         if (row['Product Code'] || row['ซัพพลายเออร์']) updateData.supplier = String(row['Product Code'] || row['ซัพพลายเออร์']).trim();
         if (row['Unit Weight'] || row['น้ำหนัก']) updateData.itemWeight = parseFloat(row['Unit Weight'] || row['น้ำหนัก']) || 0;
         if (row['Box ID'] || row['รหัสกล่อง']) updateData.defaultPckId = String(row['Box ID'] || row['รหัสกล่อง']).toUpperCase().trim();
+       
+        const rawBox = row['Box ID'] || row['รหัสกล่อง'] || row['defaultPckId'] || row['DefaultPckId'] || row['defaultpckid'] || row['pckId'];
+        if (rawBox !== undefined) updateData.defaultPckId = String(rawBox).toUpperCase().trim();
 
-        // 🌟 update only when the uploaded row contains at least one valid field
+       
+        const rawStdPack = row['Std Pack'] || row['จำนวนจุต่อกล่อง'] || row['บรรจุ/กล่อง'] || row['stdPackQty'];
+        if (rawStdPack !== undefined) updateData.stdPackQty = parseInt(rawStdPack, 10) || 1;
+        // update only when the uploaded row contains at least one valid field
         if (Object.keys(updateData).length > 0) {
           await prisma.item.updateMany({
             where: { itemId: itemCode },
@@ -173,7 +179,10 @@ app.put('/api/items/:id', async (req, res) => {
         supplier: req.body.supplier,
         itemWeight: Number(req.body.itemWeight) || 0,
         requireDesiccant: isDesiccantRequired, 
-        defaultPckId: req.body.defaultPckId || null
+        defaultPckId: req.body.defaultPckId || null,
+        
+        // 🌟 เพิ่มบรรทัดนี้เข้าไป เพื่อให้หลังบ้านรับค่าความจุไปบันทึก
+        stdPackQty: Number(req.body.stdPackQty) || 1 
       }
     });
     res.json({ success: true, data: updatedItem, message: 'อัปเดตข้อมูลสินค้าสำเร็จ' });
