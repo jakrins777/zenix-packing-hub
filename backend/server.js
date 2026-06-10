@@ -125,7 +125,7 @@ app.get('/api/items/:id', async (req, res) => {
   }
 });
 
-// 📥 อัปโหลดสินค้า (รองรับหลายไฟล์)
+// 📥 อัปโหลดสินค้า (รองรับหลายไฟล์ + Upsert + ดักความจุกล่อง)
 app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
   try {
     let allRawData = [];
@@ -138,37 +138,60 @@ app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
 
     let successCount = 0;
     for (const row of allRawData) {
-      const itemCode = String(row['Item'] || row['รหัสสินค้า'] || row['itemId'] || '').toUpperCase().trim();
+      // 🌟 1. ดักจับรหัสสินค้า
+      const rawItemCode = row['itemId'] || row['ItemId'] || row['itemid'] || row['Item'] || row['รหัสสินค้า'] || '';
+      const itemCode = String(rawItemCode).toUpperCase().trim();
       
       if (itemCode) {
-        // ดึงข้อมูลเท่าที่มีในไฟล์
         const updateData = {};
-        if (row['Description'] || row['ชื่อสินค้า']) updateData.itemName = String(row['Description'] || row['ชื่อสินค้า']).trim();
-        if (row['Product Code'] || row['ซัพพลายเออร์']) updateData.supplier = String(row['Product Code'] || row['ซัพพลายเออร์']).trim();
-        if (row['Unit Weight'] || row['น้ำหนัก']) updateData.itemWeight = parseFloat(row['Unit Weight'] || row['น้ำหนัก']) || 0;
-        if (row['Box ID'] || row['รหัสกล่อง']) updateData.defaultPckId = String(row['Box ID'] || row['รหัสกล่อง']).toUpperCase().trim();
-       
-        const rawBox = row['Box ID'] || row['รหัสกล่อง'] || row['defaultPckId'] || row['DefaultPckId'] || row['defaultpckid'] || row['pckId'];
+        
+        // 🌟 2. ดักชื่อลูกค้า และ น้ำหนัก
+        const rawName = row['Description'] || row['ชื่อสินค้า'] || row['itemName'];
+        if (rawName !== undefined) updateData.itemName = String(rawName).trim();
+        
+        const rawSupplier = row['Product Code'] || row['ซัพพลายเออร์'] || row['supplier'] || row['Customer'];
+        if (rawSupplier !== undefined) updateData.supplier = String(rawSupplier).trim();
+        
+        const rawWeight = row['Unit Weight'] || row['น้ำหนัก'] || row['itemWeight'];
+        if (rawWeight !== undefined) updateData.itemWeight = parseFloat(rawWeight) || 0;
+        
+        // 🌟 3. ดักรหัสกล่อง
+        const rawBox = row['Box ID'] || row['รหัสกล่อง'] || row['defaultPckId'] || row['pckId'];
         if (rawBox !== undefined) updateData.defaultPckId = String(rawBox).toUpperCase().trim();
 
-       
-        const rawStdPack = row['Std Pack'] || row['จำนวนจุต่อกล่อง'] || row['บรรจุ/กล่อง'] || row['stdPackQty'];
+        // 🌟 4. ดักจำนวนจุต่อกล่อง (จุดที่หายไป!)
+        const rawStdPack = row['stdPackQty'] || row['Std Pack'] || row['จำนวนจุต่อกล่อง'];
         if (rawStdPack !== undefined) updateData.stdPackQty = parseInt(rawStdPack, 10) || 1;
-        // update only when the uploaded row contains at least one valid field
+
+        // 🌟 5. บันทึกลงฐานข้อมูล (มีอยู่แล้วอัปเดต, ไม่มีให้สร้างใหม่)
         if (Object.keys(updateData).length > 0) {
-          await prisma.item.updateMany({
-            where: { itemId: itemCode },
-            data: updateData
+          const existingItem = await prisma.item.findUnique({
+            where: { itemId: itemCode }
           });
+
+          if (existingItem) {
+            await prisma.item.update({
+              where: { itemId: itemCode },
+              data: updateData
+            });
+          } else {
+            await prisma.item.create({
+              data: {
+                itemId: itemCode,
+                ...updateData
+              }
+            });
+          }
           successCount++;
         }
       }
     }
-    res.json({ success: true, message: `✅ อัปเดตข้อมูลสำเร็จ ${successCount} รายการ (ข้อมูลเก่าส่วนที่ไม่เกี่ยวข้องยังอยู่ครบ)` });
+    res.json({ success: true, message: `✅ อัปเดตข้อมูลสำเร็จ ${successCount} รายการ` });
   } catch (error) {
     res.status(500).json({ success: false, message: 'ระบบขัดข้อง: ' + error.message });
   }
 });
+
 app.put('/api/items/:id', async (req, res) => {
   try {
     const isDesiccantRequired = req.body.requireDesiccant === true || req.body.requireDesiccant === 'true' || req.body.requireDesiccant === 1 || req.body.requireDesiccant === '1';
