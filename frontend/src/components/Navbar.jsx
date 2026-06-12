@@ -3,8 +3,8 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
   const isAdmin = user?.role?.toLowerCase() === 'admin';
 
   return (
-    <nav className="bg-indigo-900 text-white shadow-lg">
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+    <nav className="bg-indigo-900 text-white shadow-lg print:hidden" >
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden" >
         
         {/* 🌟 โลโก้แบบรูปภาพกลับมาแล้วครับ! */}
         <div className="flex items-center space-x-3">
@@ -17,7 +17,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
         </div>
 
         {/* ปุ่มเมนูต่างๆ */}
-        <div className="flex flex-wrap justify-center items-center gap-2 md:gap-4">
+        <div className="flex flex-wrap justify-center items-center gap-2 md:gap-4 print:hidden" >
           <button 
             onClick={() => setCurrentTab('packing')} 
             className={`px-4 py-2 rounded-lg font-bold transition-all ${currentTab === 'packing' ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-200 hover:bg-indigo-800 hover:text-indigo-100'}`}
@@ -54,7 +54,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
         </div>
 
         {/* โปรไฟล์พนักงาน และปุ่มออก */}
-        <div className="flex items-center space-x-4 bg-indigo-950 px-4 py-2 rounded-xl border border-indigo-800">
+        <div className="flex items-center space-x-4 bg-indigo-950 px-4 py-2 rounded-xl border border-indigo-800 print:hidden" >
           <div className="flex flex-col text-right">
             <span className="text-xs text-indigo-400 font-bold uppercase">{user?.role}</span>
             <span className="text-sm font-black text-white">{user?.firstName}</span>

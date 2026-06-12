@@ -70,7 +70,7 @@ model Item {
   stdPackQty     Int      @default(1)
   createdAt      DateTime @default(now()) 
   updatedAt      DateTime @updatedAt 
-  requireDesiccant Boolean  @default(false) 
+ 
   
   // Relation Link: เชื่อมไปหาตารางกล่องบรรจุภัณฑ์
   defaultBox     Box?     @relation(fields: [defaultPckId], references: [pckId], onDelete: SetNull)

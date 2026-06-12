@@ -194,14 +194,14 @@ app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
 
 app.put('/api/items/:id', async (req, res) => {
   try {
-    const isDesiccantRequired = req.body.requireDesiccant === true || req.body.requireDesiccant === 'true' || req.body.requireDesiccant === 1 || req.body.requireDesiccant === '1';
+   
     const updatedItem = await prisma.item.update({
       where: { itemId: req.params.id },
       data: {
         itemName: req.body.itemName,
         supplier: req.body.supplier,
         itemWeight: Number(req.body.itemWeight) || 0,
-        requireDesiccant: isDesiccantRequired, 
+        
         defaultPckId: req.body.defaultPckId || null,
         
         // 🌟 เพิ่มบรรทัดนี้เข้าไป เพื่อให้หลังบ้านรับค่าความจุไปบันทึก
