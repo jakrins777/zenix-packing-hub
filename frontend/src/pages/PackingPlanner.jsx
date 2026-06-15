@@ -9,7 +9,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const [boxSummary, setBoxSummary] = useState([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   
-  const [packingMode, setPackingMode] = useState('strict-po'); 
+  const [packingMode, setPackingMode] = useState('consolidate'); // Default เป็นโหมดรวมมิตรเพื่อประหยัดกล่อง
   const [moveConfig, setMoveConfig] = useState(null);
 
   const handleBulkCalculate = () => {
@@ -84,6 +84,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         return;
       }
 
+      // ยึดความจุตามสเปกสินค้า (stdPackQty) เป็นหลักสูงสุดในการคำนวณจำนวนชิ้นจริง
       let boxCap = 1; 
       if (foundItem.stdPackQty && Number(foundItem.stdPackQty) > 1) {
         boxCap = Number(foundItem.stdPackQty);
@@ -93,13 +94,14 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
       let groupKey = '';
       if (packingMode === 'consolidate') {
-        groupKey = 'ALL_MIXED'; 
+        groupKey = 'ALL_MIXED'; // โหมดรวมมิตร: ทุกรหัสสินค้าในกลุ่มความจุเดียวกันจะถูกเทรวมกันเพื่อแพ็คต่อเนื่อง
       } else if (packingMode === 'strict-item') {
         groupKey = lotNo ? `${itemCode}_${lotNo}` : itemCode; 
       } else {
         groupKey = `${orderNo}_${poNumber}_${lineNo}_${itemCode}${lotNo ? `_${lotNo}` : ''}`; 
       }
 
+      // จัดกลุ่มคาร์ดแยกตาม ชนิดกล่อง + ความจุสเปกสินค้า เพื่อให้ของสเปกเดียวกันรวมมิตรกันได้อย่างถูกต้อง ไม่ปนข้ามไซส์
       const cardGroupKey = `${foundBox.pckId}_CAP${boxCap}`;
 
       validItemsList.push({
@@ -447,7 +449,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                   <div key={groupIdx} className="bg-white/10 rounded-xl p-4 border border-white/20 flex flex-col h-full relative">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        {/* 🌟 1. ยัดความจุเข้าไปในชื่อกล่องหัวการ์ดเลย จะได้แยกออกชัดเจนว่าเป็นกล่องสเปกไหน */}
                         <div className="font-black text-xl text-yellow-300">
                           {sum.boxCodename || sum.boxType}
                           <span className="text-base text-emerald-300 ml-2 border border-emerald-500/50 bg-emerald-500/20 px-2 py-0.5 rounded-lg whitespace-nowrap">
@@ -497,7 +498,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                   </div>
                                   
                                   {item.lotNo && (
-                                    <div className="text-[10px] text-yellow-400 font-mono mt-0.5 ml-2">Lot/PO: {item.lotNo}</div>
+                                    <div className="text-[10px] text-yellow-400 font-mono mt-0.5 ml-2">Lot: {item.lotNo}</div>
                                   )}
 
                                   {(item.poNumber !== 'ไม่ระบุ PO' || item.orderNo !== 'ไม่ระบุ Order') && (
@@ -557,7 +558,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                           </td>
                           <td className="py-3 px-4 text-center font-black text-gray-700">{res.qty}</td>
                           <td className="py-3 px-4 text-center">
-                            {/* 🌟 2. แนบความจุในตารางรายการด้านล่างด้วย เผื่อต้องดูเทียบกัน */}
                             <div className="font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md mb-1 inline-block">
                               {res.boxCodename || res.boxType} <span className="text-indigo-500 text-xs ml-1">({res.boxCap} Pcs.)</span>
                             </div>
@@ -673,7 +673,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
               {boxSummary.map((sum, idx) => (
                 <div key={idx} className="avoid-break bg-slate-700/30 p-4 rounded-lg print:border print:border-gray-400 print:p-2 print:bg-transparent">
                   <div className="font-bold text-yellow-300 print:text-black mb-3 border-b border-white/20 print:border-gray-300 pb-2 flex justify-between">
-                    {/* 🌟 3. แนบความจุในหัวข้อกล่องใบปริ้นท์ด้วย เพื่อให้คนแพ็คดูง่ายๆ */}
                     <span>📦 {sum.boxCodename || sum.boxType} <span className="text-emerald-300 print:text-black">({sum.boxCap} Pcs.)</span></span>
                     <span className="text-sm font-normal text-slate-300 print:text-gray-600">(ใช้ทั้งหมด <span className="font-bold">{sum.totalBoxes}</span> ใบ)</span>
                   </div>
@@ -698,7 +697,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                 <div className="text-[11px] text-yellow-400 print:text-gray-600 font-mono ml-3 mt-0.5">Lot/PO: {item.lotNo}</div>
                               )}
 
-                              {(item.poNumber !== 'ไม่ระบุ PO' || item.orderNo !== 'ไม่ระบุ Order') && (
+                              {(item.orderNo !== 'ไม่ระบุ Order' || item.poNumber !== 'ไม่ระบุ PO') && (
                                 <span className="text-[10px] text-slate-400 print:text-gray-600 ml-3 leading-tight">
                                   {item.orderNo !== 'ไม่ระบุ Order' ? item.orderNo : ''} {item.lineNo !== '-' ? `(L:${item.lineNo}) ` : ' '} 
                                   {item.poNumber !== 'ไม่ระบุ PO' && item.poNumber !== item.lotNo ? `| ${item.poNumber}` : ''}
