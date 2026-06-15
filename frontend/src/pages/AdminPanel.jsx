@@ -2,16 +2,17 @@
 import { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
+import BoxCodenameUpdater from './BoxCodenameUpdater';
 
 export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, items, boxes, users, refreshAdminData }) {
-  // 🌟 เพิ่ม stdPackQty ใน State เริ่มต้น (ไม่มี requireDesiccant แล้ว)
   const [itemForm, setItemForm] = useState({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1 });
   const [editingItemId, setEditingItemId] = useState(null);
 
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [bulkForm, setBulkForm] = useState({ defaultPckId: '', supplier: '' });
   
-  const [boxForm, setBoxForm] = useState({ pckId: '', description: '', maxCapacity: '', currentStock: 0, minStockLevel: 0, isConsignment: true });
+  // 🌟 Cleaned: เอา isConsignment และ minStockLevel ออกจาก State เริ่มต้น
+  const [boxForm, setBoxForm] = useState({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 });
   const [editingBoxId, setEditingBoxId] = useState(null);
 
   const [userForm, setUserForm] = useState({ username: '', passwordHash: '', firstName: '', role: 'operator' });
@@ -127,17 +128,25 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
   const handleBoxSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...boxForm,isConsignment: true, 
-      minStockLevel: 0, updatedAt: new Date().toISOString()
-      };
-   const toastId = toast.loading('กำลังบันทึกกล่อง...');
+    
+    // 🌟 Cleaned: ส่งเฉพาะฟิลด์ที่มีอยู่จริงในฐานข้อมูล ป้องกัน Error Schema Cache
+    const payload = { 
+      pckId: boxForm.pckId,
+      codename: boxForm.codename,
+      description: boxForm.description,
+      maxCapacity: boxForm.maxCapacity,
+      currentStock: boxForm.currentStock,
+      updatedAt: new Date().toISOString() 
+    };
+
+    const toastId = toast.loading('กำลังบันทึกกล่อง...');
     try {
       let error;
       if (editingBoxId) { const { error: updateError } = await supabase.from('boxes').update(payload).eq('pckId', editingBoxId); error = updateError; } 
       else { const { error: insertError } = await supabase.from('boxes').insert([payload]); error = insertError; }
       if (!error) { 
         toast.success('บันทึกกล่องเรียบร้อย', { id: toastId }); 
-        setBoxForm({ pckId: '', description: '', maxCapacity: '', currentStock: 0, minStockLevel: 0, isConsignment: true }); 
+        setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 }); 
         setEditingBoxId(null); 
         if (refreshAdminData) refreshAdminData(); 
       } 
@@ -151,10 +160,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     try { const { error } = await supabase.from('boxes').delete().eq('pckId', id); if (!error) { toast.success('ลบกล่องสำเร็จ', { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error('ลบไม่สำเร็จ: ' + error.message, { id: toastId }); } } catch (err) { toast.error('ลบไม่สำเร็จ ระบบขัดข้อง', { id: toastId }); }
   };
 
-  // 🌟 ฟังก์ชัน Export สินค้า (ซ่อม Syntax Error ตรงวงเล็บแล้ว)
   const handleExportItems = () => {
     const headers = ["itemId", "itemName", "Customer", "itemWeight", "defaultPckId", "stdPackQty"];
-    
     const csvRows = [
       headers.join(','), 
       ...(items || []).map(item => [
@@ -166,7 +173,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         item.stdPackQty || 1
       ].join(','))
     ];
-    
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -179,20 +185,18 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   };
 
   const handleExportBoxes = () => {
-    const headers = ["pckId", "description", "maxCapacity", "currentStock", "minStockLevel", "isConsignment"];
-    
+    // 🌟 Cleaned: ถอดฟิลด์ minStockLevel และ isConsignment ออกจาก Template Export
+    const headers = ["pckId", "codename", "description", "maxCapacity", "currentStock"];
     const csvRows = [
       headers.join(','), 
       ...(boxes || []).map(box => [
         box.pckId || '',
+        `"${(box.codename || '').replace(/"/g, '""')}"`,
         `"${(box.description || '').replace(/"/g, '""')}"`,
         box.maxCapacity || 1,
-        box.currentStock || 0,
-        box.minStockLevel || 0,
-        box.isConsignment ? 'TRUE' : 'FALSE'
+        box.currentStock || 0
       ].join(','))
     ];
-    
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -264,9 +268,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   });
 
   const processedBoxes = (boxes || []).filter(box => { 
-    const id = box.pckId || box.pckid; if (!id) return false; const term = boxSearchTerm.toLowerCase(); return ((id || '').toLowerCase().includes(term) || (box.description || '').toLowerCase().includes(term)); 
+    const id = box.pckId || box.pckid; if (!id) return false; 
+    const term = boxSearchTerm.toLowerCase(); 
+    return ((id || '').toLowerCase().includes(term) || (box.description || '').toLowerCase().includes(term) || (box.codename || '').toLowerCase().includes(term)); 
   }).sort((a, b) => { 
-    if (!a || !b) return 0; const idA = a.pckId || a.pckid || ''; const idB = b.pckId || b.pckid || ''; if (boxSortBy === 'id_asc') return idA.localeCompare(idB); if (boxSortBy === 'id_desc') return idB.localeCompare(idA); return 0; 
+    if (!a || !b) return 0; const idA = String(a.pckId || a.pckid || ''); const idB = String(b.pckId || b.pckid || ''); if (boxSortBy === 'id_asc') return idA.localeCompare(idB, undefined, {numeric: true}); if (boxSortBy === 'id_desc') return idB.localeCompare(idA, undefined, {numeric: true}); return 0; 
   });
 
   const uniqueCustomers = ['All', ...new Set((items || []).map(item => item.supplier || '-').filter(sup => sup !== '-'))];
@@ -319,10 +325,10 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                   <select value={itemForm.defaultPckId || ''} onChange={(e) => setItemForm({...itemForm, defaultPckId: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 text-white outline-none">
                     <option value="" className="bg-slate-800 text-white">-- เลือกกล่อง --</option>
                     {[...(boxes || [])]
-                      .sort((a, b) => (a.pckId || a.pckid || '').localeCompare(b.pckId || b.pckid || ''))
+                      .sort((a, b) => String(a.pckId || a.pckid || '').localeCompare(String(b.pckId || b.pckid || ''), undefined, {numeric: true}))
                       .map(b => { 
                         const id = b.pckId || b.pckid; 
-                        return id ? <option key={id} value={id} className="bg-slate-800 text-white">{id}</option> : null; 
+                        return id ? <option key={id} value={id} className="bg-slate-800 text-white">{id} {b.codename ? `(${b.codename})` : ''}</option> : null; 
                     })}
                   </select>
                 </div>
@@ -345,8 +351,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           </div>
 
           <div className="lg:col-span-2 flex flex-col h-full">
-            
-            {/* แถบเครื่องมือ ค้นหา / จัดเรียง / ปุ่ม Export */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-800 p-4 mb-4 rounded-xl border border-slate-700 shadow-sm">
               <div className="lg:col-span-4 w-full flex items-center bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500">
                 <span className="text-slate-400 mr-2">🔍</span>
@@ -388,7 +392,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
               </div>
             </div>
 
-            {/* 🌟 ⚡ แถบเครื่องมือลอยสำหรับจัดการแบบกลุ่ม (Bulk Edit Action Bar) */}
             {selectedItemIds.length > 0 && (
               <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-4 mb-4 text-slate-200 shadow-md transition-all animate-fadeIn">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -399,11 +402,13 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                   <div className="flex flex-wrap items-center gap-3">
                     <input type="text" placeholder="เปลี่ยนชื่อลูกค้ากลุ่ม..." value={bulkForm.supplier} onChange={(e) => setBulkForm({...bulkForm, supplier: e.target.value})} className="p-1.5 border border-slate-600 rounded bg-slate-700 text-xs text-white outline-none w-36" />
                     
-                   <select value={bulkForm.defaultPckId} onChange={(e) => setBulkForm({...bulkForm, defaultPckId: e.target.value})} className="p-1.5 border border-slate-600 rounded bg-slate-700 text-xs text-white outline-none w-36">
+                   <select value={bulkForm.defaultPckId} onChange={(e) => setBulkForm({...bulkForm, defaultPckId: e.target.value})} className="p-1.5 border border-slate-600 rounded bg-slate-700 text-xs text-white outline-none w-auto max-w-[250px]">
                       <option value="" className="bg-slate-800 text-white">-- เปลี่ยนกล่องกลุ่ม --</option>
-                      {boxes.map(b => {
-                        const id = b.pckId || b.pckid;
-                        return id ? <option key={id} value={id} className="bg-slate-800 text-white">{id}</option> : null;
+                      {[...(boxes || [])]
+                        .sort((a, b) => String(a.pckId || a.pckid || '').localeCompare(String(b.pckId || b.pckid || ''), undefined, {numeric: true}))
+                        .map(b => {
+                          const id = b.pckId || b.pckid;
+                          return id ? <option key={id} value={id} className="bg-slate-800 text-white">{id} {b.codename ? `(${b.codename})` : ''}</option> : null;
                       })}
                     </select>
 
@@ -475,7 +480,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
               </table>
             </div>
 
-       {filteredData.length > 0 && (
+            {filteredData.length > 0 && (
               <div className="flex justify-between items-center mt-4 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm text-slate-300">
                 <div className="text-sm font-medium">แสดงผล <span className="font-bold text-blue-400">{indexOfFirstItem + 1}</span> ถึง <span className="font-bold text-blue-400">{Math.min(indexOfLastItem, filteredData.length)}</span> จาก <span className="font-bold">{filteredData.length}</span> รายการ</div>
                 <div className="flex gap-2">
@@ -488,134 +493,147 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           </div>
         </div>
       )}
-{/* ========================================== */}
+
+      {/* ========================================== */}
       {/* 📦 แท็บที่ 2: หน้าจัดการมาสเตอร์กล่อง */}
       {/* ========================================== */}
       {adminSubTab === 'boxes' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
+        <div className="flex flex-col space-y-8 print:hidden">
           
-          {/* 🌟 ฝั่งซ้าย: ฟอร์มเพิ่มกล่อง & อัปโหลด */}
-          <div className="space-y-6 h-fit print:hidden">
-             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-sm text-slate-200">
-              <h3 className="text-xl font-bold mb-4">{editingBoxId ? '✏️ แก้ไขข้อมูลกล่อง' : '➕ เพิ่มกล่องใหม่'}</h3>
-              <form onSubmit={handleBoxSubmit} className="space-y-4">
-                <div><label className="block text-sm font-bold mb-1">รหัสกล่อง *</label><input type="text" required disabled={!!editingBoxId} value={boxForm.pckId || ''} onChange={(e) => setBoxForm(prev => ({ ...prev, pckId: String(e.target.value).toUpperCase() }))} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
-                <div><label className="block text-sm font-bold mb-1">คำอธิบาย</label><input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({...boxForm, description: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-bold mb-1">จุได้กี่ชิ้น</label><input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({...boxForm, maxCapacity: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
-                  <div><label className="block text-sm font-bold mb-1">สต็อกที่มี (ใบ)</label><input type="number" required value={boxForm.currentStock || 0} onChange={(e) => setBoxForm({...boxForm, currentStock: e.target.value})} className="w-full p-2 border border-slate-600 rounded outline-none font-bold bg-slate-700 text-blue-400" /></div>
-                </div>
+          <BoxCodenameUpdater 
+            boxes={boxes} 
+            fetchAdminData={refreshAdminData} 
+          />
 
-                <div className="flex space-x-2 pt-2">
-                  <button type="submit" className="flex-1 bg-green-600 hover:bg-green-500 transition-colors text-white font-bold p-2 rounded shadow">💾 บันทึก</button>
-                  {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', description: '', maxCapacity: '', currentStock: 0, minStockLevel: 0, isConsignment: true }); }} className="bg-slate-600 hover:bg-slate-500 text-white font-bold p-2 rounded">ยกเลิก</button>}
-                </div>
-              </form>
-            </div>
-
-            {!editingBoxId && (
-              <div className="bg-emerald-900/30 p-6 rounded-xl border border-emerald-500/30">
-                <h3 className="text-lg font-bold text-emerald-300 mb-2">📥 นำเข้า/อัปเดตสต็อกด้วย Excel</h3>
-                <div className="space-y-3">
-                  <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleBoxFileUpload} className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 🌟 ฝั่งขวา: ตารางโชว์สต็อก */}
-          <div className="lg:col-span-2 flex flex-col h-full print:block print:h-auto print:w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
             
-           {/* 🌟 ปรับปรุง CSS สำหรับการปริ้นท์โดยเฉพาะ (ตัดหน้าเปล่า + บีบตาราง) */}
-            <style type="text/css" media="print">
-              {`
-                /* ตั้งค่าหน้ากระดาษ A4 ขอบ 1 ซม. */
-                @page { size: A4 portrait; margin: 10mm; }
-                
-                /* ปลดล็อคความสูง ลบพื้นหลัง ป้องกันหน้าเปล่า */
-                html, body, #root { height: auto !important; min-height: auto !important; overflow: visible !important; background: white !important; }
-                
-                /* ยกเลิกการยืดของ Flexbox ที่ทำให้เกิดหน้ากระดาษเปล่า */
-                .flex-1, .h-full, .min-h-screen { flex: none !important; height: auto !important; min-height: auto !important; }
-                
-                /* ปรับตารางให้เหมาะกับการปริ้นท์ (บีบตัวอักษรและช่องไฟ) */
-                table { width: 100% !important; font-size: 13px !important; border-collapse: collapse !important; }
-                th, td { padding: 6px 8px !important; border-bottom: 1px solid #ddd !important; }
-                
-                /* บังคับหัวตารางให้ปรินท์ซ้ำทุกหน้า & ห้ามตัดครึ่งบรรทัด */
-                thead { display: table-header-group !important; }
-                tr { page-break-inside: avoid !important; page-break-after: auto !important; }
-              `}
-            </style>
+            {/* 🌟 ฝั่งซ้าย: ฟอร์มเพิ่ม/แก้ไขกล่อง */}
+            <div className="space-y-6 h-fit print:hidden">
+               <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-sm text-slate-200">
+                <h3 className="text-xl font-bold mb-4">{editingBoxId ? '✏️ แก้ไขข้อมูลกล่อง' : '➕ เพิ่มกล่องใหม่'}</h3>
+                <form onSubmit={handleBoxSubmit} className="space-y-4">
+                  <div><label className="block text-sm font-bold mb-1">รหัสกล่อง *</label><input type="text" required disabled={!!editingBoxId} value={boxForm.pckId || ''} onChange={(e) => setBoxForm(prev => ({ ...prev, pckId: String(e.target.value).toUpperCase() }))} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
+                  
+                  <div>
+                    <label className="block text-sm font-bold mb-1 text-indigo-300">ชื่อเรียกหน้างาน (Codename)</label>
+                    <input 
+                      type="text" 
+                      value={boxForm.codename || ''} 
+                      onChange={(e) => setBoxForm({...boxForm, codename: e.target.value})} 
+                      className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" 
+                      placeholder="เช่น D2P ใหญ่" 
+                    />
+                  </div>
 
-            <div className="hidden print:block mb-8 text-center text-black pt-4">
-              <h1 className="text-3xl font-black mb-2">รายงานสต็อกกล่องบรรจุภัณฑ์ (Box Inventory)</h1>
-              <p className="text-gray-600 font-medium">วันที่อัปเดตข้อมูล: {new Date().toLocaleDateString('th-TH')} เวลา {new Date().toLocaleTimeString('th-TH')}</p>
-            </div>
+                  <div><label className="block text-sm font-bold mb-1">คำอธิบาย / ขนาด</label><input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({...boxForm, description: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="block text-sm font-bold mb-1">จุได้กี่ชิ้น</label><input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({...boxForm, maxCapacity: e.target.value})} className="w-full p-2 border border-slate-600 rounded bg-slate-700 outline-none text-white" /></div>
+                    <div><label className="block text-sm font-bold mb-1">สต็อกที่มี (ใบ)</label><input type="number" required value={boxForm.currentStock || 0} onChange={(e) => setBoxForm({...boxForm, currentStock: e.target.value})} className="w-full p-2 border border-slate-600 rounded outline-none font-bold bg-slate-700 text-blue-400" /></div>
+                  </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-800 p-4 mb-4 rounded-xl border border-slate-700 shadow-sm print:hidden">
-              <div className="lg:col-span-5 w-full flex items-center bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 shadow-sm">
-                <span className="text-slate-400 mr-2">🔍</span>
-                <input type="text" placeholder="ค้นหารหัสกล่อง หรือ คำอธิบาย..." value={boxSearchTerm} onChange={(e) => setBoxSearchTerm(e.target.value)} className="w-full outline-none text-sm text-white bg-transparent" />
-                {boxSearchTerm && <button onClick={() => setBoxSearchTerm('')} className="text-slate-400 hover:text-red-400 font-bold ml-2">✕</button>}
+                  <div className="flex space-x-2 pt-2">
+                    <button type="submit" className="flex-1 bg-green-600 hover:bg-green-500 transition-colors text-white font-bold p-2 rounded shadow">💾 บันทึก</button>
+                    {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 }); }} className="bg-slate-600 hover:bg-slate-500 text-white font-bold p-2 rounded">ยกเลิก</button>}
+                  </div>
+                </form>
               </div>
 
-              <div className="lg:col-span-7 flex flex-wrap items-center justify-start lg:justify-end gap-3 w-full text-slate-200">
-                <div className="flex items-center gap-2">
-                  <label className="font-bold text-sm whitespace-nowrap">เรียงตาม:</label>
-                  <select value={boxSortBy} onChange={(e) => setBoxSortBy(e.target.value)} className="p-2 w-auto min-w-[140px] border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-slate-700 text-white">
-                    <option value="id_asc" className="bg-slate-800 text-white">รหัสกล่อง (A-Z)</option>
-                    <option value="id_desc" className="bg-slate-800 text-white">รหัสกล่อง (Z-A)</option>
-                    <option value="desc_asc" className="bg-slate-800 text-white">คำอธิบาย (A-Z)</option>
-                    <option value="desc_desc" className="bg-slate-800 text-white">คำอธิบาย (Z-A)</option>
-                  </select>
+              {!editingBoxId && (
+                <div className="bg-emerald-900/30 p-6 rounded-xl border border-emerald-500/30">
+                  <h3 className="text-lg font-bold text-emerald-300 mb-2">📥 นำเข้า/อัปเดตสต็อกด้วย Excel</h3>
+                  <div className="space-y-3">
+                    <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleBoxFileUpload} className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer" />
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center gap-2 whitespace-nowrap">
-                    🖨️ พิมพ์สต็อก
-                  </button>
-                  <button onClick={handleExportBoxes} className="bg-emerald-900/40 hover:bg-emerald-600 text-emerald-200 font-bold py-2 px-4 rounded-lg border border-emerald-500/50 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm">
-                    📥 โหลด Template (CSV)
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-slate-700 flex-1 shadow-sm print:overflow-visible print:border-gray-400 print:shadow-none print:block">
-              <table className="min-w-full bg-slate-800 print:bg-white print:text-black">
-                <thead className="bg-slate-900/50 border-b border-slate-700 print:bg-gray-200 print:border-gray-400">
-                  <tr>
-                    <th className="py-3 px-4 text-left text-slate-300 print:text-black font-bold border-r border-transparent print:border-gray-300">รหัสกล่อง</th>
-                    <th className="py-3 px-4 text-left text-slate-300 print:text-black font-bold border-r border-transparent print:border-gray-300">คำอธิบาย / ขนาด</th>
-                    <th className="py-3 px-4 text-center text-slate-300 print:text-black font-bold border-r border-transparent print:border-gray-300">สต็อกคงเหลือ</th>
-                    <th className="py-3 px-4 text-center text-slate-300 print:hidden font-bold">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/50 print:divide-gray-300">
-                  {processedBoxes.length > 0 ? (
-                    processedBoxes.map(box => {
-                      const id = box?.pckId || box?.pckid;
-                      return (
-                        <tr key={id} className="hover:bg-white/10 print:hover:bg-transparent transition-colors print:break-inside-avoid">
-                          <td className="py-3 px-4 font-mono font-black text-blue-400 print:text-black border-r border-transparent print:border-gray-300">{id}</td>
-                          <td className="py-3 px-4 text-gray-200 print:text-black font-medium text-sm border-r border-transparent print:border-gray-300">{box?.description || '-'}</td>
-                          <td className="py-3 px-4 text-center border-r border-transparent print:border-gray-300">
-                            <span className="font-black text-lg text-blue-400 print:text-black">{box?.currentStock || 0}</span>
-                            <p className="text-xs text-slate-400 print:text-gray-500 font-bold mt-0.5">🔄 กล่อง Consignment</p>
-                          </td>
-                          <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap print:hidden">
-                            <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0, minStockLevel: 0, isConsignment: true }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-500/20 text-blue-300 px-3 py-1.5 rounded-md hover:bg-blue-500/40 font-bold shadow-sm">แก้ไข</button>
-                            <button onClick={() => handleBoxDelete(id)} className="text-sm bg-red-500/20 text-red-400 px-3 py-1.5 rounded-md hover:bg-red-500/40 font-bold shadow-sm">ลบ</button>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  ) : (
-                    <tr><td colSpan="4" className="py-8 text-center text-slate-400 font-bold">❌ ไม่พบกล่องที่ค้นหา</td></tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="lg:col-span-2 flex flex-col h-full print:block print:h-auto print:w-full">
+              
+              <style type="text/css" media="print">
+                {`
+                  @page { size: A4 portrait; margin: 10mm; }
+                  html, body, #root { height: auto !important; min-height: auto !important; overflow: visible !important; background: white !important; }
+                  .flex-1, .h-full, .min-h-screen { flex: none !important; height: auto !important; min-height: auto !important; }
+                  table { width: 100% !important; font-size: 13px !important; border-collapse: collapse !important; }
+                  th, td { padding: 6px 8px !important; border-bottom: 1px solid #ddd !important; }
+                  thead { display: table-header-group !important; }
+                  tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+                `}
+              </style>
+
+              <div className="hidden print:block mb-8 text-center text-black pt-4">
+                <h1 className="text-3xl font-black mb-2">รายงานสต็อกกล่องบรรจุภัณฑ์ (Box Inventory)</h1>
+                <p className="text-gray-600 font-medium">วันที่อัปเดตข้อมูล: {new Date().toLocaleDateString('th-TH')} เวลา {new Date().toLocaleTimeString('th-TH')}</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-800 p-4 mb-4 rounded-xl border border-slate-700 shadow-sm print:hidden">
+                <div className="lg:col-span-5 w-full flex items-center bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 shadow-sm">
+                  <span className="text-slate-400 mr-2">🔍</span>
+                  <input type="text" placeholder="ค้นหารหัสกล่อง หรือ คำอธิบาย..." value={boxSearchTerm} onChange={(e) => setBoxSearchTerm(e.target.value)} className="w-full outline-none text-sm text-white bg-transparent" />
+                  {boxSearchTerm && <button onClick={() => setBoxSearchTerm('')} className="text-slate-400 hover:text-red-400 font-bold ml-2">✕</button>}
+                </div>
+
+                <div className="lg:col-span-7 flex flex-wrap items-center justify-start lg:justify-end gap-3 w-full text-slate-200">
+                  <div className="flex items-center gap-2">
+                    <label className="font-bold text-sm whitespace-nowrap">เรียงตาม:</label>
+                    <select value={boxSortBy} onChange={(e) => setBoxSortBy(e.target.value)} className="p-2 w-auto min-w-[140px] border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium bg-slate-700 text-white">
+                      <option value="id_asc" className="bg-slate-800 text-white">รหัสกล่อง (A-Z)</option>
+                      <option value="id_desc" className="bg-slate-800 text-white">รหัสกล่อง (Z-A)</option>
+                      <option value="desc_asc" className="bg-slate-800 text-white">คำอธิบาย (A-Z)</option>
+                      <option value="desc_desc" className="bg-slate-800 text-white">คำอธิบาย (Z-A)</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center gap-2 whitespace-nowrap">
+                      🖨️ พิมพ์สต็อก
+                    </button>
+                    <button onClick={handleExportBoxes} className="bg-emerald-900/40 hover:bg-emerald-600 text-emerald-200 font-bold py-2 px-4 rounded-lg border border-emerald-500/50 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm">
+                      📥 โหลด Template (CSV)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-slate-700 flex-1 shadow-sm print:overflow-visible print:border-gray-400 print:shadow-none print:block">
+                <table className="min-w-full bg-slate-800 print:bg-white print:text-black">
+                  <thead className="bg-slate-900/50 border-b border-slate-700 print:bg-gray-200 print:border-gray-400">
+                    <tr>
+                      <th className="py-3 px-4 text-left text-slate-300 print:text-black font-bold border-r border-transparent print:border-gray-300">รหัสกล่อง</th>
+                      <th className="py-3 px-4 text-left text-slate-300 print:text-black font-bold border-r border-transparent print:border-gray-300">คำอธิบาย / ขนาด</th>
+                      <th className="py-3 px-4 text-center text-slate-300 print:text-black font-bold border-r border-transparent print:border-gray-300">สต็อกคงเหลือ</th>
+                      <th className="py-3 px-4 text-center text-slate-300 print:hidden font-bold">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50 print:divide-gray-300">
+                    {processedBoxes.length > 0 ? (
+                      processedBoxes.map(box => {
+                        const id = box?.pckId || box?.pckid;
+                        return (
+                          <tr key={id} className="hover:bg-white/10 print:hover:bg-transparent transition-colors print:break-inside-avoid">
+                            <td className="py-3 px-4 font-mono font-black text-blue-400 print:text-black border-r border-transparent print:border-gray-300">{id}</td>
+                            <td className="py-3 px-4 text-gray-200 print:text-black font-medium text-sm border-r border-transparent print:border-gray-300">
+                              {box?.description || '-'}
+                              {box?.codename && <div className="text-xs text-indigo-300 font-bold mt-1">🏷️ ชื่อเรียก: {box.codename}</div>}
+                            </td>
+                            <td className="py-3 px-4 text-center border-r border-transparent print:border-gray-300">
+                              <span className="font-black text-lg text-blue-400 print:text-black">{box?.currentStock || 0}</span>
+                              <p className="text-xs text-slate-400 print:text-gray-500 font-bold mt-0.5">🔄 กล่องบรรจุภัณฑ์</p>
+                            </td>
+                            <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap print:hidden">
+                              <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, codename: box.codename || '', description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-500/20 text-blue-300 px-3 py-1.5 rounded-md hover:bg-blue-500/40 font-bold shadow-sm">แก้ไข</button>
+                              <button onClick={() => handleBoxDelete(id)} className="text-sm bg-red-500/20 text-red-400 px-3 py-1.5 rounded-md hover:bg-red-500/40 font-bold shadow-sm">ลบ</button>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    ) : (
+                      <tr><td colSpan="4" className="py-8 text-center text-slate-400 font-bold">❌ ไม่พบกล่องที่ค้นหา</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
