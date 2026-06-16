@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next'; // 🌟 Import เครื่องมือแปลภาษา
 
 export default function Login({ onLogin }) {
+  const { t } = useTranslation(); // 🌟 เรียกใช้งาน Hook แปลภาษา
   // 🌟 ประกาศ State สำหรับเก็บค่าต่างๆ ในหน้า Login ให้ครบถ้วน
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +37,7 @@ export default function Login({ onLogin }) {
         setError(data.message);
       }
     } catch (err) {
-      setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ (โปรดตรวจสอบ Backend)');
+      setError(t('login.error_server'));
       console.error(err);
     } finally {
       setLoading(false); // ปิดโหมด Loading
@@ -63,19 +65,19 @@ export default function Login({ onLogin }) {
         {/* 🌟 ฟอร์มล็อกอิน เรียกใช้ handleLogin เมื่อกด Submit */}
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">รหัสพนักงาน (Username)</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">{t('login.username_label')}</label>
             <input 
               type="text" 
               required 
               value={username} 
               onChange={(e) => setUsername(e.target.value)} 
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-mono" 
-              placeholder="เช่น D-88888"
+              placeholder={t('login.username_placeholder')}
               disabled={loading}
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">รหัสผ่าน (Password)</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">{t('login.password_label')}</label>
             <input 
               type="password" 
               required 
@@ -98,11 +100,11 @@ export default function Login({ onLogin }) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>กำลังเข้าสู่ระบบ...</span>
+                <span>{t('login.loading_text')}</span>
               </>
             ) : (
               <>
-                <span>🚀</span> เข้าสู่ระบบ
+                <span>🚀</span> {t('login.submit_btn')}
               </>
             )}
           </button>
