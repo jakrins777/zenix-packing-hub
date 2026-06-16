@@ -9,7 +9,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const [boxSummary, setBoxSummary] = useState([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   
-  const [packingMode, setPackingMode] = useState('consolidate'); // Default เป็นโหมดรวมมิตรเพื่อประหยัดกล่อง
+  const [packingMode, setPackingMode] = useState('consolidate'); // 🌟 บังคับ Default รวมมิตร (25 กล่อง)
   const [moveConfig, setMoveConfig] = useState(null);
 
   const handleBulkCalculate = () => {
@@ -84,7 +84,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         return;
       }
 
-      // ยึดความจุตามสเปกสินค้า (stdPackQty) เป็นหลักสูงสุดในการคำนวณจำนวนชิ้นจริง
       let boxCap = 1; 
       if (foundItem.stdPackQty && Number(foundItem.stdPackQty) > 1) {
         boxCap = Number(foundItem.stdPackQty);
@@ -94,15 +93,17 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
       let groupKey = '';
       if (packingMode === 'consolidate') {
-        groupKey = 'ALL_MIXED'; // โหมดรวมมิตร: ทุกรหัสสินค้าในกลุ่มความจุเดียวกันจะถูกเทรวมกันเพื่อแพ็คต่อเนื่อง
+        groupKey = 'ALL_MIXED'; 
       } else if (packingMode === 'strict-item') {
         groupKey = lotNo ? `${itemCode}_${lotNo}` : itemCode; 
       } else {
         groupKey = `${orderNo}_${poNumber}_${lineNo}_${itemCode}${lotNo ? `_${lotNo}` : ''}`; 
       }
 
-      // จัดกลุ่มคาร์ดแยกตาม ชนิดกล่อง + ความจุสเปกสินค้า เพื่อให้ของสเปกเดียวกันรวมมิตรกันได้อย่างถูกต้อง ไม่ปนข้ามไซส์
-      const cardGroupKey = `${foundBox.pckId}_CAP${boxCap}`;
+      // 🌟 พระเอกที่ทำให้เหลือ 25 กล่อง! ทุบกำแพงความจุทิ้ง เอาของกล่องแบบเดียวกันมากองรวมกันหมด
+      const cardGroupKey = packingMode === 'consolidate' 
+        ? foundBox.pckId 
+        : `${foundBox.pckId}_CAP${boxCap}`;
 
       validItemsList.push({
         id: index, orderNo, poNumber, lineNo, itemCode, itemName: foundItem.itemName, customer: foundItem.supplier, qty, 
@@ -132,24 +133,45 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const summaryArray = Object.values(boxTypesObj).map(boxGroup => {
       boxGroup.items.sort((a, b) => a.groupKey.localeCompare(b.groupKey));
 
-      let currentBoxIndex = 0;
-      let currentBoxSpace = 0;
+      let currentBoxIndex = 1;
+      let currentBoxUsedSpace = 0; // 🌟 คำนวณเป็นปริมาตร %
       let currentGroupKey = null;
-      let boxesBreakdown = [];
+      let boxesBreakdown = [{ boxNo: 1, items: [], spaceLeftPct: 100, spaceLeft: boxGroup.boxCap }];
 
       boxGroup.items.forEach(item => {
         let remainingQty = item.qty;
-        
+        let spacePerPiece = 1 / item.boxCap; // 🌟 1 ชิ้นกินที่กี่ % ของกล่อง
+
         while (remainingQty > 0) {
-          if (currentBoxSpace === 0 || (packingMode !== 'consolidate' && currentGroupKey !== item.groupKey)) {
+          if (packingMode !== 'consolidate' && currentBoxUsedSpace > 0 && currentGroupKey !== item.groupKey) {
             currentBoxIndex++;
-            currentBoxSpace = boxGroup.boxCap;
-            currentGroupKey = item.groupKey;
-            boxesBreakdown.push({ boxNo: currentBoxIndex, items: [], spaceLeft: boxGroup.boxCap });
+            currentBoxUsedSpace = 0;
+            boxesBreakdown.push({ boxNo: currentBoxIndex, items: [], spaceLeftPct: 100, spaceLeft: item.boxCap });
           }
-          
-          let takeQty = Math.min(remainingQty, currentBoxSpace);
-          
+
+          currentGroupKey = item.groupKey;
+          let availableSpace = 1 - currentBoxUsedSpace;
+
+          if (availableSpace < 0.0001) {
+            currentBoxIndex++;
+            currentBoxUsedSpace = 0;
+            availableSpace = 1;
+            boxesBreakdown.push({ boxNo: currentBoxIndex, items: [], spaceLeftPct: 100, spaceLeft: item.boxCap });
+          }
+
+          // คำนวณว่าจะยัดได้อีกกี่ชิ้นจาก % พื้นที่ที่เหลือ
+          let fitQty = Math.floor(availableSpace / spacePerPiece + 0.0001);
+
+          if (fitQty === 0) {
+            currentBoxIndex++;
+            currentBoxUsedSpace = 0;
+            availableSpace = 1;
+            boxesBreakdown.push({ boxNo: currentBoxIndex, items: [], spaceLeftPct: 100, spaceLeft: item.boxCap });
+            fitQty = Math.floor(availableSpace / spacePerPiece + 0.0001);
+          }
+
+          let takeQty = Math.min(remainingQty, fitQty);
+
           boxesBreakdown[currentBoxIndex - 1].items.push({
             orderNo: item.orderNo,
             poNumber: item.poNumber,
@@ -157,12 +179,17 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             itemCode: item.itemCode,
             itemName: item.itemName,
             qty: takeQty,
+            cap: item.boxCap,
             lotNo: item.lotNo 
           });
-          
+
           remainingQty -= takeQty;
-          currentBoxSpace -= takeQty;
-          boxesBreakdown[currentBoxIndex - 1].spaceLeft = currentBoxSpace;
+          currentBoxUsedSpace += (takeQty * spacePerPiece);
+          
+          boxesBreakdown[currentBoxIndex - 1].spaceLeftPct = Math.max(0, Math.round((1 - currentBoxUsedSpace) * 100));
+          if (packingMode !== 'consolidate') {
+            boxesBreakdown[currentBoxIndex - 1].spaceLeft = Math.round((1 - currentBoxUsedSpace) / spacePerPiece);
+          }
         }
       });
 
@@ -185,7 +212,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         const newBreakdown = [...box.boxesBreakdown];
         
         if (amount > 0) {
-          newBreakdown.push({ boxNo: newTotal, items: [], spaceLeft: box.boxCap });
+          newBreakdown.push({ boxNo: newTotal, items: [], spaceLeftPct: 100, spaceLeft: box.boxCap });
         } else if (amount < 0 && newBreakdown.length > newTotal) {
           if (newBreakdown[newBreakdown.length - 1].items.length === 0) {
             newBreakdown.pop();
@@ -210,6 +237,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       lineNo: item.lineNo,
       lotNo: item.lotNo || '', 
       maxQty: item.qty,
+      cap: item.cap,
       moveQty: 1,
       toBoxNo: boxSummary[groupIndex].boxesBreakdown.length > 1 ? (boxNo === 1 ? 2 : 1) : 1
     });
@@ -217,7 +245,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
   const confirmMove = () => {
     if (!moveConfig) return;
-    const { groupIndex, fromBoxNo, toBoxNo, itemCode, orderNo, poNumber, lineNo, moveQty, lotNo } = moveConfig;
+    const { groupIndex, fromBoxNo, toBoxNo, itemCode, orderNo, poNumber, lineNo, moveQty, lotNo, cap } = moveConfig;
     
     if (fromBoxNo === Number(toBoxNo) || moveQty <= 0) {
       setMoveConfig(null);
@@ -249,7 +277,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             fromItems[itemIndex].qty -= actualMoveQty;
           }
           fromBox.items = fromItems;
-          fromBox.spaceLeft += actualMoveQty;
+          
+          const spacePerPiece = 1 / movingItem.cap;
+          fromBox.spaceLeftPct = Math.min(100, fromBox.spaceLeftPct + Math.round((actualMoveQty * spacePerPiece) * 100));
+          if (packingMode !== 'consolidate') fromBox.spaceLeft += actualMoveQty;
 
           const toItems = [...toBox.items];
           const toItemIndex = toItems.findIndex(i => i.itemCode === itemCode && i.orderNo === orderNo && i.poNumber === poNumber && i.lineNo === lineNo && (i.lotNo || '') === lotNo);
@@ -259,7 +290,9 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             toItems.push({ ...movingItem, qty: actualMoveQty });
           }
           toBox.items = toItems;
-          toBox.spaceLeft -= actualMoveQty;
+          
+          toBox.spaceLeftPct = Math.max(0, toBox.spaceLeftPct - Math.round((actualMoveQty * spacePerPiece) * 100));
+          if (packingMode !== 'consolidate') toBox.spaceLeft -= actualMoveQty;
 
           breakdown[fromBoxIndex] = fromBox;
           breakdown[toBoxIndex] = toBox;
@@ -332,6 +365,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     }
   };
 
+  // 🌟 รวมยอดกล่องสำหรับใบเบิก (ดึงความจุที่ผสมกันออกมาโชว์ให้หน้างานดูง่ายๆ)
   const aggregatedBoxRequisition = Object.values(boxSummary.reduce((acc, curr) => {
     if (!acc[curr.boxType]) {
       acc[curr.boxType] = {
@@ -343,7 +377,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     }
     acc[curr.boxType].totalBoxes += curr.totalBoxes;
     
-    const capKey = `${curr.boxCap} Pcs.`;
+    const capKey = packingMode === 'consolidate' ? 'รวมสเปก (คำนวณตามปริมาตร)' : `${curr.boxCap} Pcs.`;
     if (!acc[curr.boxType].subCaps[capKey]) {
       acc[curr.boxType].subCaps[capKey] = 0;
     }
@@ -432,7 +466,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                       <div className="font-black text-lg text-blue-300">{sum.boxCodename || sum.boxType}</div>
                       <div className="text-xs text-gray-400 space-y-1 mt-1.5 pl-2 border-l border-white/20">
                         {sum.subCaps.map((sub, sIdx) => (
-                          <div key={sIdx}>• สเปกจุ <span className="text-white font-bold">{sub.cap}</span> ใช้จำนวน <span className="text-yellow-400 font-bold">{sub.boxesCount} ใบ</span></div>
+                          <div key={sIdx}>• {sub.cap} ใช้ <span className="text-yellow-400 font-bold">{sub.boxesCount} ใบ</span></div>
                         ))}
                       </div>
                     </div>
@@ -451,12 +485,17 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                       <div>
                         <div className="font-black text-xl text-yellow-300">
                           {sum.boxCodename || sum.boxType}
-                          <span className="text-base text-emerald-300 ml-2 border border-emerald-500/50 bg-emerald-500/20 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                            {sum.boxCap} Pcs.
-                          </span>
+                          {packingMode !== 'consolidate' && (
+                            <span className="text-base text-emerald-300 ml-2 border border-emerald-500/50 bg-emerald-500/20 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                              {sum.boxCap} Pcs.
+                            </span>
+                          )}
                         </div>
                         <div className="text-[10px] text-indigo-300 mt-2 font-mono">System ID: {sum.boxType}</div>
                       </div>
+                      {packingMode === 'consolidate' && (
+                        <div className="bg-emerald-500/20 text-emerald-300 text-xs px-2 py-1 rounded font-bold border border-emerald-500/30">จุ: รวมมิตร (ปริมาตร)</div>
+                      )}
                     </div>
                     
                     <div className="mt-2 pt-2 border-t border-white/20 grid grid-cols-2 gap-2 text-center mb-2">
@@ -481,7 +520,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                           <div key={b.boxNo} className="bg-black/30 rounded p-2 border border-white/5">
                             <div className="flex justify-between items-center mb-1 pb-1 border-b border-white/5">
                               <span className="text-[11px] font-bold text-emerald-300">กล่องใบที่ {b.boxNo}</span>
-                              {b.spaceLeft > 0 && <span className="text-[10px] text-gray-400">ว่าง {b.spaceLeft} ชิ้น</span>}
+                              {packingMode === 'consolidate' 
+                                ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-gray-400">ว่าง {b.spaceLeftPct}%</span>)
+                                : (b.spaceLeft > 0 && <span className="text-[10px] text-gray-400">ว่าง {b.spaceLeft} ชิ้น</span>)
+                              }
                             </div>
                             <div className="space-y-1">
                               {b.items.length === 0 && <div className="text-xs text-gray-500 text-center italic py-1">กล่องเปล่า</div>}
@@ -491,6 +533,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                     <span className="font-bold text-gray-200">- {item.itemCode}</span>
                                     <div className="flex items-center gap-2">
                                       <span className="font-bold text-emerald-400 min-w-max">{item.qty} ชิ้น</span>
+                                      {packingMode === 'consolidate' && <span className="text-gray-400 text-[9px] ml-1">(สเปก: {item.cap})</span>}
                                       {sum.boxesBreakdown.length > 1 && (
                                         <button onClick={() => openMoveModal(groupIdx, b.boxNo, item)} className="text-[9px] bg-blue-500/20 text-blue-300 px-1 rounded hover:bg-blue-500 hover:text-white transition-colors">🔄</button>
                                       )}
@@ -593,7 +636,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 <label className="block text-xs font-bold text-gray-500 mb-1">ย้ายไปปลายทาง</label>
                 <select value={moveConfig.toBoxNo} onChange={(e) => setMoveConfig({...moveConfig, toBoxNo: Number(e.target.value)})} className="w-full p-2 border rounded font-bold text-indigo-700 bg-indigo-50 focus:outline-indigo-500">
                   {boxSummary[moveConfig.groupIndex].boxesBreakdown.map(b => (
-                    <option key={b.boxNo} value={b.boxNo} disabled={b.boxNo === moveConfig.fromBoxNo}>กล่องใบที่ {b.boxNo} (ว่าง {b.spaceLeft} ชิ้น)</option>
+                    <option key={b.boxNo} value={b.boxNo} disabled={b.boxNo === moveConfig.fromBoxNo}>กล่องใบที่ {b.boxNo} ({packingMode === 'consolidate' ? `ว่าง ${b.spaceLeftPct}%` : `ว่าง ${b.spaceLeft} ชิ้น`})</option>
                   ))}
                 </select>
               </div>
@@ -628,7 +671,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
             <div className="hidden print:block text-center mb-6">
               <h1 className="text-3xl font-black text-black mb-2">ใบเบิกกล่องและสั่งแพ็ค (Packing Instruction)</h1>
-              <p className="text-gray-600">โหมดคำนวณ: {packingMode === 'consolidate' ? 'โหมดรวมมิตร' : packingMode === 'strict-item' ? 'โหมดแยกรหัส' : 'โหมดแยก PO'}</p>
+              <p className="text-gray-600">โหมดคำนวณ: {packingMode === 'consolidate' ? 'โหมดรวมมิตร (ตามปริมาตร)' : packingMode === 'strict-item' ? 'โหมดแยกรหัส' : 'โหมดแยก PO'}</p>
             </div>
 
             <h3 className="text-lg font-bold text-emerald-400 print:text-black mb-2 mt-4 flex items-center gap-2">
@@ -653,7 +696,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                       <div className="pl-3 border-l-2 border-indigo-500 text-xs space-y-1 text-slate-300 print:text-gray-700 font-medium">
                         {sum.subCaps.map((sub, sIdx) => (
                           <div key={sIdx}>
-                            • สเปกจุ <span className="font-bold text-white print:text-black">{sub.cap}</span> = <span className="font-bold text-yellow-400 print:text-black">{sub.boxesCount} ใบ</span>
+                            • {sub.cap} = <span className="font-bold text-yellow-400 print:text-black">{sub.boxesCount} ใบ</span>
                           </div>
                         ))}
                       </div>
@@ -667,14 +710,20 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </table>
 
             <h3 className="text-lg font-bold text-white print:text-black mb-4 flex items-center gap-2">
-              <span>📦</span> 2. รายละเอียดการแพ็ค (แยกกล่องตามสเปก)
+              <span>📦</span> 2. รายละเอียดการแพ็ค
             </h3>
             <div className="space-y-6">
               {boxSummary.map((sum, idx) => (
                 <div key={idx} className="avoid-break bg-slate-700/30 p-4 rounded-lg print:border print:border-gray-400 print:p-2 print:bg-transparent">
                   <div className="font-bold text-yellow-300 print:text-black mb-3 border-b border-white/20 print:border-gray-300 pb-2 flex justify-between">
-                    <span>📦 {sum.boxCodename || sum.boxType} <span className="text-emerald-300 print:text-black">({sum.boxCap} Pcs.)</span></span>
-                    <span className="text-sm font-normal text-slate-300 print:text-gray-600">(ใช้ทั้งหมด <span className="font-bold">{sum.totalBoxes}</span> ใบ)</span>
+                    <span>
+                      📦 {sum.boxCodename || sum.boxType} 
+                      {packingMode !== 'consolidate' && <span className="text-emerald-300 print:text-black ml-2">({sum.boxCap} Pcs.)</span>}
+                    </span>
+                    <span className="text-sm font-normal text-slate-300 print:text-gray-600">
+                      {packingMode === 'consolidate' && <span className="text-emerald-300 mr-2">[รวมมิตร]</span>}
+                      (ใช้ <span className="font-bold">{sum.totalBoxes}</span> ใบ)
+                    </span>
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -682,7 +731,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                       <div key={b.boxNo} className="bg-slate-800 p-3 rounded border border-slate-600 print:bg-gray-50 print:border-gray-300 avoid-break">
                         <div className="flex justify-between items-center mb-2 pb-1 border-b border-slate-600 print:border-gray-300">
                           <span className="font-bold text-emerald-400 print:text-black">กล่องใบที่ {b.boxNo}</span>
-                          {b.spaceLeft > 0 && <span className="text-[10px] text-gray-400 print:text-gray-500">ว่าง {b.spaceLeft} ชิ้น</span>}
+                          {packingMode === 'consolidate' 
+                            ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-gray-400 print:text-gray-500">ว่าง {b.spaceLeftPct}%</span>)
+                            : (b.spaceLeft > 0 && <span className="text-[10px] text-gray-400 print:text-gray-500">ว่าง {b.spaceLeft} ชิ้น</span>)
+                          }
                         </div>
                         <ul className="space-y-1">
                           {b.items.length === 0 && <div className="text-xs text-gray-500 text-center italic">กล่องเปล่า (ใส่ของเพิ่มได้)</div>}
@@ -690,14 +742,17 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                             <li key={i} className="flex flex-col text-sm text-slate-200 print:text-black mb-1.5">
                               <div className="flex justify-between items-start">
                                 <span className="font-bold pr-2">- {item.itemCode}</span>
-                                <span className="font-bold text-emerald-300 print:text-black min-w-max">{item.qty} ชิ้น</span>
+                                <div>
+                                  <span className="font-bold text-emerald-300 print:text-black min-w-max">{item.qty} ชิ้น</span>
+                                  {packingMode === 'consolidate' && <span className="text-gray-400 print:text-gray-600 text-[10px] ml-1">(สเปก: {item.cap})</span>}
+                                </div>
                               </div>
                               
                               {item.lotNo && (
                                 <div className="text-[11px] text-yellow-400 print:text-gray-600 font-mono ml-3 mt-0.5">Lot/PO: {item.lotNo}</div>
                               )}
 
-                              {(item.orderNo !== 'ไม่ระบุ Order' || item.poNumber !== 'ไม่ระบุ PO') && (
+                              {(item.poNumber !== 'ไม่ระบุ PO' || item.orderNo !== 'ไม่ระบุ Order') && (
                                 <span className="text-[10px] text-slate-400 print:text-gray-600 ml-3 leading-tight">
                                   {item.orderNo !== 'ไม่ระบุ Order' ? item.orderNo : ''} {item.lineNo !== '-' ? `(L:${item.lineNo}) ` : ' '} 
                                   {item.poNumber !== 'ไม่ระบุ PO' && item.poNumber !== item.lotNo ? `| ${item.poNumber}` : ''}
