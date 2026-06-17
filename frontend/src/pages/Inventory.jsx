@@ -17,7 +17,7 @@ export default function Inventory({ boxes }) {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-5 mb-6 gap-4 print:border-gray-400">
           <div>
             <h2 className="text-2xl font-black text-[#0066CC] flex items-center gap-3 print:text-black">
-              <span className="text-3xl">📦</span> {t('inventory.title')}
+              <span className="text-3xl"></span> {t('inventory.title')}
             </h2>
             <p className="text-sm font-medium text-gray-500 mt-1 print:text-gray-700">{t('inventory.subtitle')}</p>
           </div>
@@ -26,7 +26,7 @@ export default function Inventory({ boxes }) {
             onClick={() => window.print()}
             className="bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-colors flex items-center gap-2 print:hidden"
           >
-            🖨️ {t('inventory.print_summary')}
+           {t('inventory.print_summary')}
           </button>
         </div>
 
@@ -79,20 +79,20 @@ export default function Inventory({ boxes }) {
                       <td className="py-4 px-6 text-center">
                         {box.isConsignment ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#0066CC] border border-blue-200 print:border-none print:bg-white print:text-black">
-                            📦 {t('inventory.status_consignment')}
+                             {t('inventory.status_consignment')}
                           </span>
                         ) : isOutOfStock ? (
                           // 🌟 แจ้งเตือนเมื่อสต็อก = 0
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-red-50 text-red-600 border border-red-200 animate-pulse print:border-none print:bg-white print:text-black print:animate-none">
-                            ❌ {t('inventory.status_out_of_stock')}
+                             {t('inventory.status_out_of_stock')}
                           </span>
                         ) : isLowStock ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200 print:border-none print:bg-white print:text-black">
-                            ⚠️ {t('inventory.status_low_stock')}
+                             {t('inventory.status_low_stock')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 print:border-none print:bg-white print:text-black">
-                            ✅ {t('inventory.status_normal')}
+                             {t('inventory.status_normal')}
                           </span>
                         )}
                       </td>

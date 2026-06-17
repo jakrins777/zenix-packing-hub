@@ -52,15 +52,15 @@ export default function Dashboard({ logs, reports, handleDeleteLog, handleDelete
       <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-gray-200 print:shadow-none print:border-none print:p-0">
         <div className="flex flex-col md:flex-row justify-between items-center border-b border-gray-200 pb-4 mb-6 print:border-gray-300">
           <h2 className="text-2xl font-black text-[#0066CC] print:text-black flex items-center gap-2">
-            <span>📊</span> {t('dashboard.title')}
+            <span></span> {t('dashboard.title')}
           </h2>
           <div className="flex flex-wrap gap-2 mt-4 md:mt-0 print:hidden">
             <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} className="p-2.5 border border-gray-300 rounded-lg font-bold text-gray-700 focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] bg-white">
-              <option value="today">📅 {t('filter.today')}</option>
-              <option value="month">📆 {t('filter.month')}</option>
-              <option value="year">🗓️ {t('filter.year')}</option>
-              <option value="custom">🔍 {t('filter.custom')}</option>
-              <option value="all">♾️ {t('filter.all')}</option>
+              <option value="today"> {t('filter.today')}</option>
+              <option value="month"> {t('filter.month')}</option>
+              <option value="year"> {t('filter.year')}</option>
+              <option value="custom"> {t('filter.custom')}</option>
+              <option value="all"> {t('filter.all')}</option>
             </select>
             {timeFilter === 'custom' && <input type="date" value={customDate} onChange={(e) => setCustomDate(e.target.value)} className="p-2.5 border border-[#0066CC] rounded-lg font-bold text-[#0066CC] focus:outline-none focus:ring-1 focus:ring-[#0066CC] bg-white" />}
             <button onClick={() => window.print()} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-4 py-2.5 rounded-lg font-bold flex items-center transition-colors shadow-sm gap-2">🖨️ {t('dashboard.print_report')}</button>
@@ -83,7 +83,7 @@ export default function Dashboard({ logs, reports, handleDeleteLog, handleDelete
             <div className="flex-1 space-y-2 overflow-y-auto max-h-32 mb-3 pr-2 custom-scrollbar">
               {Object.entries(filteredLogs.reduce((acc, log) => { const boxId = log.item?.defaultPckId || t('dashboard.unspecified_box'); acc[boxId] = (acc[boxId] || 0) + log.boxUsed; return acc; }, {})).map(([boxId, count]) => (
                 <div key={boxId} className="flex justify-between items-center text-sm border-b border-amber-200/50 pb-1.5">
-                  <span className="font-bold text-amber-900">📦 {boxId}</span>
+                  <span className="font-bold text-amber-900"> {boxId}</span>
                   <span className="font-black text-amber-700">{count.toFixed(2)} {t('dashboard.unit_boxes')}</span>
                 </div>
               ))}

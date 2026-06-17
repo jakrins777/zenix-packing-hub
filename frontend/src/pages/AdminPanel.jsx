@@ -295,21 +295,21 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   
   return (
     <div className="bg-transparent rounded-xl p-2 md:p-6 ">
-      {/* 🌟 เมนูแท็บด้านบน */}
+      {/* Menu Tabs */}
       <div className="flex space-x-6 border-b-2 border-gray-200 pb-4 mb-6 print:hidden">
-        <button onClick={() => setAdminSubTab('items')} className={`text-lg font-bold pb-2 transition-all ${adminSubTab === 'items' ? 'text-[#0066CC] border-b-4 border-[#0066CC]' : 'text-gray-500 hover:text-[#0066CC]'}`}>{t('tabs.items')}</button>
-        <button onClick={() => setAdminSubTab('boxes')} className={`text-lg font-bold pb-2 transition-all ${adminSubTab === 'boxes' ? 'text-[#0066CC] border-b-4 border-[#0066CC]' : 'text-gray-500 hover:text-[#0066CC]'}`}>{t('tabs.boxes')}</button>
-        <button onClick={() => setAdminSubTab('users')} className={`text-lg font-bold pb-2 transition-all ${adminSubTab === 'users' ? 'text-[#0066CC] border-b-4 border-[#0066CC]' : 'text-gray-500 hover:text-[#0066CC]'}`}>{t('tabs.users')}</button>
+        <button onClick={() => setAdminSubTab('items')} className={`text-lg font-bold pb-2 transition-colors ${adminSubTab === 'items' ? 'text-[#0066CC] border-b-4 border-[#0066CC]' : 'text-gray-500 hover:text-[#0066CC]'}`}>{t('tabs.items')}</button>
+        <button onClick={() => setAdminSubTab('boxes')} className={`text-lg font-bold pb-2 transition-colors ${adminSubTab === 'boxes' ? 'text-[#0066CC] border-b-4 border-[#0066CC]' : 'text-gray-500 hover:text-[#0066CC]'}`}>{t('tabs.boxes')}</button>
+        <button onClick={() => setAdminSubTab('users')} className={`text-lg font-bold pb-2 transition-colors ${adminSubTab === 'users' ? 'text-[#0066CC] border-b-4 border-[#0066CC]' : 'text-gray-500 hover:text-[#0066CC]'}`}>{t('tabs.users')}</button>
       </div>
 
       {/* ========================================== */}
-      {/* 🏷️ แท็บที่ 1: หน้าจัดการมาสเตอร์สินค้า */}
+      {/* Tab 1: Item Master */}
       {/* ========================================== */}
       {adminSubTab === 'items' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="space-y-6 h-fit">
 
-            {/* ฟอร์มเพิ่ม/แก้ไข */}
+            {/* Add/Edit Form */}
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg text-gray-800">
               <h3 className="text-xl font-black text-[#0066CC] mb-4">{editingItemId ? t('item.edit_title') : t('item.add_title')}</h3>
               <form onSubmit={handleItemSubmit} className="space-y-4">
@@ -342,10 +342,10 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
               </form>
             </div>
 
-            {/* นำเข้า Excel */}
+            {/* Import Excel */}
             {!editingItemId && (
               <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
-                <h3 className="text-lg font-black text-[#0066CC] mb-3 flex items-center gap-2">📁 {t('item.import_excel')}</h3>
+                <h3 className="text-lg font-black text-[#0066CC] mb-3 flex items-center gap-2">{t('item.import_excel')}</h3>
                 <input type="file" id="items-file-input" accept=".xlsx, .xls, .csv" multiple onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all" />
               </div>
             )}
@@ -353,12 +353,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
           <div className="lg:col-span-2 flex flex-col h-full">
 
-            {/* แถบค้นหาและตัวกรอง */}
+            {/* Search & Filter */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-5 mb-6 rounded-2xl border border-gray-200 shadow-sm">
               <div className="lg:col-span-4 w-full flex items-center bg-gray-50 border border-gray-300 rounded-lg px-4 py-2.5 focus-within:border-[#0066CC] focus-within:ring-1 focus-within:ring-[#0066CC] transition-all">
-                <span className="text-gray-400 mr-2">🔍</span>
                 <input type="text" placeholder={t('item.search_placeholder')} value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full outline-none text-sm text-gray-800 bg-transparent placeholder-gray-400" />
-                {searchTerm && <button onClick={() => { setSearchTerm(''); setCurrentPage(1); }} className="text-gray-400 hover:text-red-500 font-bold ml-2">✕</button>}
+                {searchTerm && <button onClick={() => { setSearchTerm(''); setCurrentPage(1); }} className="text-gray-400 hover:text-red-500 font-bold ml-2">X</button>}
               </div>
 
               <div className="lg:col-span-8 flex flex-wrap items-center justify-start lg:justify-end gap-3 text-gray-700 w-full">
@@ -373,9 +372,9 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 <div className="flex items-center gap-2">
                   <label className="font-bold text-sm whitespace-nowrap">{t('item.filter_box')}</label>
                   <select value={filterBoxStatus} onChange={(e) => { setFilterBoxStatus(e.target.value); setCurrentPage(1); }} className="p-2.5 w-auto min-w-[120px] border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC] outline-none text-sm font-medium bg-white text-gray-800">
-                    <option value="All">📦 {t('item.filter_all')}</option>
-                    <option value="NoBox">❌ {t('item.filter_no_box')}</option>
-                    <option value="HasBox">✅ {t('item.filter_has_box')}</option>
+                    <option value="All">{t('item.filter_all')}</option>
+                    <option value="NoBox">{t('item.filter_no_box')}</option>
+                    <option value="HasBox">{t('item.filter_has_box')}</option>
                   </select>
                 </div>
 
@@ -390,18 +389,18 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 </div>
 
                 <button onClick={handleExportItems} className="bg-white hover:bg-gray-50 text-[#0066CC] font-bold py-2.5 px-4 rounded-lg border border-[#0066CC] transition-all flex items-center gap-2 whitespace-nowrap shadow-sm">
-                  📥 {t('common.download_template')}
+                  {t('common.download_template')}
                 </button>
               </div>
             </div>
 
-            {/* แถบการจัดการหมู่ (Bulk) */}
+            {/* Bulk Actions */}
             {selectedItemIds.length > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-gray-800 shadow-sm transition-all animate-fadeIn">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-amber-900">{t('bulk.selected')} <span className="text-xl font-black text-amber-600">{selectedItemIds.length}</span> {t('bulk.items')}</p>
-                    <p className="text-xs text-amber-700/70 mt-0.5">* {t('bulk.hint')}</p>
+                    <p className="text-xs text-amber-700/70 mt-0.5">{t('bulk.hint')}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <input type="text" placeholder={t('bulk.change_customer')} value={bulkForm.supplier} onChange={(e) => setBulkForm({ ...bulkForm, supplier: e.target.value })} className="p-2 border border-amber-300 rounded-lg bg-white text-sm text-gray-800 outline-none w-40 focus:ring-1 focus:ring-amber-500 focus:border-amber-500" />
@@ -418,14 +417,14 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                     <div className="flex gap-2">
                       <button onClick={handleBulkUpdateSubmit} className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.update_btn')}</button>
                       <button onClick={handleBulkDeleteSubmit} className="bg-red-100 hover:bg-red-500 text-red-600 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.delete_btn')}</button>
-                      <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">✕ {t('bulk.cancel_btn')}</button>
+                      <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ตารางแสดงข้อมูล */}
+            {/* Data Table */}
             <div className="overflow-x-auto rounded-xl border border-gray-200 flex-1 shadow-sm bg-white">
               <table className="min-w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
@@ -459,7 +458,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       )
                     })
                   ) : (
-                    <tr><td colSpan="6" className="py-8 text-center text-gray-400 font-bold">❌ {t('table.no_data')}</td></tr>
+                    <tr><td colSpan="6" className="py-8 text-center text-gray-400 font-bold">{t('table.no_data')}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -476,6 +475,203 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* Tab 2: Box Master */}
+      {/* ========================================== */}
+      {adminSubTab === 'boxes' && (
+        <div className="flex flex-col space-y-8 print:hidden">
+
+          <BoxCodenameUpdater
+            boxes={boxes}
+            fetchAdminData={refreshAdminData}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
+
+            {/* Box Add/Edit Form */}
+            <div className="space-y-6 h-fit print:hidden">
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg text-gray-800">
+                <h3 className="text-xl font-black text-[#0066CC] mb-4">{editingBoxId ? t('box.edit_title') : t('box.add_title')}</h3>
+                <form onSubmit={handleBoxSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">{t('box.id')}</label>
+                    <input type="text" required disabled={!!editingBoxId} value={boxForm.pckId || ''} onChange={(e) => setBoxForm(prev => ({ ...prev, pckId: String(e.target.value).toUpperCase() }))} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800 disabled:bg-gray-100 disabled:text-gray-400" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold mb-1 text-[#0066CC]">{t('box.codename')}</label>
+                    <input type="text" value={boxForm.codename || ''} onChange={(e) => setBoxForm({ ...boxForm, codename: e.target.value })} className="w-full p-3 border border-blue-200 rounded-lg bg-blue-50 outline-none text-gray-800 focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] placeholder-gray-400" placeholder={t('box.codename_placeholder')} />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">{t('box.desc')}</label>
+                    <input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({ ...boxForm, description: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-600 mb-1">{t('box.capacity')}</label>
+                      <input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({ ...boxForm, maxCapacity: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-[#0066CC] mb-1">{t('box.stock')}</label>
+                      <input type="number" required value={boxForm.currentStock || 0} onChange={(e) => setBoxForm({ ...boxForm, currentStock: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] font-bold bg-white text-[#0066CC]" />
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-2 pt-4">
+                    <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold py-3 px-4 rounded-lg shadow-sm">{t('common.save')}</button>
+                    {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">{t('common.cancel')}</button>}
+                  </div>
+                </form>
+              </div>
+
+              {!editingBoxId && (
+                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
+                  <h3 className="text-lg font-black text-[#0066CC] mb-3 flex items-center gap-2">{t('box.import_excel')}</h3>
+                  <div className="space-y-3">
+                    <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleBoxFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Box Table */}
+            <div className="lg:col-span-2 flex flex-col h-full print:block print:h-auto print:w-full">
+              <div className="hidden print:block mb-8 text-center text-black pt-4">
+                <h1 className="text-3xl font-black mb-2">{t('box.report_title')}</h1>
+                <p className="text-gray-600 font-medium">{t('box.report_date')} {new Date().toLocaleDateString('th-TH')} {t('box.report_time')} {new Date().toLocaleTimeString('th-TH')}</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-5 mb-6 rounded-2xl border border-gray-200 shadow-sm print:hidden">
+                <div className="lg:col-span-5 w-full flex items-center bg-gray-50 border border-gray-300 rounded-lg px-4 py-2.5 focus-within:border-[#0066CC] focus-within:ring-1 focus-within:ring-[#0066CC] transition-all">
+                  <input type="text" placeholder={t('box.search_placeholder')} value={boxSearchTerm} onChange={(e) => setBoxSearchTerm(e.target.value)} className="w-full outline-none text-sm text-gray-800 bg-transparent placeholder-gray-400" />
+                  {boxSearchTerm && <button onClick={() => setBoxSearchTerm('')} className="text-gray-400 hover:text-red-500 font-bold ml-2">X</button>}
+                </div>
+
+                <div className="lg:col-span-7 flex flex-wrap items-center justify-start lg:justify-end gap-3 w-full text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <label className="font-bold text-sm whitespace-nowrap">{t('common.sort_by')}</label>
+                    <select value={boxSortBy} onChange={(e) => setBoxSortBy(e.target.value)} className="p-2.5 w-auto min-w-[140px] border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC] outline-none text-sm font-medium bg-white text-gray-800">
+                      <option value="id_asc">{t('sort.id_asc')}</option>
+                      <option value="id_desc">{t('sort.id_desc')}</option>
+                      <option value="desc_asc">{t('sort.desc_asc')}</option>
+                      <option value="desc_desc">{t('sort.desc_desc')}</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => window.print()} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center gap-2 whitespace-nowrap">
+                      {t('box.print_stock')}
+                    </button>
+                    <button onClick={handleExportBoxes} className="bg-white hover:bg-blue-50 text-[#0066CC] font-bold py-2.5 px-4 rounded-lg border border-[#0066CC] transition-all flex items-center gap-2 whitespace-nowrap shadow-sm">
+                      {t('common.download_template')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-gray-200 flex-1 shadow-sm bg-white print:overflow-visible print:border-gray-400 print:shadow-none print:block">
+                <table className="min-w-full print:bg-white print:text-black">
+                  <thead className="bg-gray-50 border-b border-gray-200 print:bg-gray-200 print:border-gray-400">
+                    <tr>
+                      <th className="py-4 px-4 text-left text-gray-600 print:text-black font-bold uppercase tracking-wider text-sm border-r border-transparent print:border-gray-300">{t('table.box_id')}</th>
+                      <th className="py-4 px-4 text-left text-gray-600 print:text-black font-bold uppercase tracking-wider text-sm border-r border-transparent print:border-gray-300">{t('table.box_desc')}</th>
+                      <th className="py-4 px-4 text-center text-gray-600 print:text-black font-bold uppercase tracking-wider text-sm border-r border-transparent print:border-gray-300">{t('table.box_stock')}</th>
+                      <th className="py-4 px-4 text-center text-gray-600 print:hidden font-bold uppercase tracking-wider text-sm">{t('table.action')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 print:divide-gray-300">
+                    {processedBoxes.length > 0 ? (
+                      processedBoxes.map(box => {
+                        const id = box?.pckId || box?.pckid;
+                        return (
+                          <tr key={id} className="hover:bg-gray-50 print:hover:bg-transparent transition-colors print:break-inside-avoid">
+                            <td className="py-3 px-4 font-mono font-black text-[#0066CC] print:text-black border-r border-transparent print:border-gray-300">{id}</td>
+                            <td className="py-3 px-4 text-gray-800 print:text-black font-medium text-sm border-r border-transparent print:border-gray-300">
+                              {box?.description || '-'}
+                              {box?.codename && <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded inline-block font-bold mt-1">{t('box.codename_label')} {box.codename}</div>}
+                            </td>
+                            <td className="py-3 px-4 text-center border-r border-transparent print:border-gray-300">
+                              <span className="font-black text-2xl text-[#0066CC] print:text-black">{box?.currentStock || 0}</span>
+                            </td>
+                            <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap print:hidden">
+                              <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, codename: box.codename || '', description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit')}</button>
+                              <button onClick={() => handleBoxDelete(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    ) : (
+                      <tr><td colSpan="4" className="py-8 text-center text-gray-400 font-bold">{t('table.no_box_data')}</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* Tab 3: User Management */}
+      {/* ========================================== */}
+      {adminSubTab === 'users' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-6 h-fit">
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg text-gray-800">
+              <h3 className="text-xl font-black text-[#0066CC] mb-4">{editingUserId ? t('user.edit_title') : t('user.add_title')}</h3>
+              <form onSubmit={handleUserSubmit} className="space-y-4">
+                <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('user.username')}</label><input type="text" required disabled={!!editingUserId} value={userForm.username || ''} onChange={(e) => setUserForm(prev => ({ ...prev, username: String(e.target.value).toUpperCase() }))} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800 disabled:bg-gray-100" /></div>
+                <div><label className="block text-sm font-bold text-gray-600 mb-1">{editingUserId ? t('user.new_password') : t('user.password')}</label><input type="password" required={!editingUserId} value={userForm.passwordHash || ''} onChange={(e) => setUserForm({ ...userForm, passwordHash: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" /></div>
+                <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('user.fullname')}</label><input type="text" required value={userForm.firstName || ''} onChange={(e) => setUserForm({ ...userForm, firstName: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" /></div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">{t('user.role')}</label>
+                  <select value={userForm.role || 'operator'} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg font-bold bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800">
+                    <option value="operator">{t('user.role_operator')}</option>
+                    <option value="admin">{t('user.role_admin')}</option>
+                  </select>
+                </div>
+
+                <div className="flex space-x-2 pt-4">
+                  <button type="submit" className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors">{t('common.save')}</button>
+                  {editingUserId && <button type="button" onClick={() => { setEditingUserId(null); setUserForm({ username: '', passwordHash: '', firstName: '', role: 'operator' }); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">{t('common.cancel')}</button>}
+                </div>
+              </form>
+            </div>
+          </div>
+          <div className="lg:col-span-2 overflow-x-auto bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <table className="min-w-full">
+              <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
+                <tr>
+                  <th className="py-4 px-4 text-left font-bold uppercase tracking-wider text-sm">{t('table.username')}</th>
+                  <th className="py-4 px-4 text-left font-bold uppercase tracking-wider text-sm">{t('table.fullname')}</th>
+                  <th className="py-4 px-4 text-center font-bold uppercase tracking-wider text-sm">{t('table.role')}</th>
+                  <th className="py-4 px-4 text-center font-bold uppercase tracking-wider text-sm">{t('table.action')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {users && users.length > 0 ? (
+                  users.filter(u => u && u.username).map(u => (
+                    <tr key={u?.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-4 font-mono font-black text-[#0066CC]">{u?.username}</td>
+                      <td className="py-3 px-4 text-gray-800 font-bold text-sm">{u?.firstName}</td>
+                      <td className="py-3 px-4 text-center"><span className={`px-3 py-1 rounded-full text-xs font-black uppercase border ${u?.role?.toLowerCase() === 'admin' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>{u?.role}</span></td>
+                      <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
+                        <button onClick={() => { setEditingUserId(u.id); setUserForm({ username: u.username, passwordHash: '', firstName: u.firstName, role: u.role?.toLowerCase() }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit')}</button>
+                        {currentUser.id !== u.id && <button onClick={() => handleUserDelete(u.id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan="4" className="py-8 text-center text-gray-400 font-bold">{t('table.no_user_data')}</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
