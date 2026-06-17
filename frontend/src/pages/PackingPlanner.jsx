@@ -6,13 +6,13 @@ import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
 
 export default function PackingPlanner({ items, boxes, currentUser, fetchReportsData, fetchLogsData, fetchAdminData }) {
-  const { t } = useTranslation(); // 🌟 เรียกใช้งาน Hook แปลภาษา
+  const { t } = useTranslation();
   const [bulkText, setBulkText] = useState('');
   const [calcResults, setCalcResults] = useState([]);
   const [boxSummary, setBoxSummary] = useState([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
-  
-  const [packingMode, setPackingMode] = useState('consolidate'); 
+
+  const [packingMode, setPackingMode] = useState('consolidate');
   const [moveConfig, setMoveConfig] = useState(null);
 
   const handleBulkCalculate = () => {
@@ -26,7 +26,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const NO_PO = t('planner.no_po');
 
     rows.forEach((row, index) => {
-      
+      // ข้ามแถวที่เป็นหัวตาราง
       if (index === 0 && /(item|qty|จำนวน|รหัส|po|order|line|lot)/i.test(row)) return;
 
       let parts = row.trim().split(/[\t ]+/).filter(Boolean);
@@ -39,30 +39,24 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       let lotNo = '';
       let qty = 0;
 
-      
+      // 🧠 SMART DETECT: หา รหัสสินค้า
       const itemIndex = parts.findIndex(p => items.some(i => i.itemId === p.toUpperCase().trim()));
 
       if (itemIndex === -1) {
-        
         errorList.push({ id: index, orderNo, poNumber, itemCode: parts[0], lotNo, qty: 0, error: t('planner.err_item_not_found') });
         return;
       }
 
       itemCode = parts[itemIndex].toUpperCase().trim();
 
-      
+      // 🧠 SMART DETECT: หา จำนวน (Qty)
       let qtyIndex = -1;
 
-      
       if (itemIndex < parts.length - 1 && !isNaN(parts[itemIndex + 1]) && Number(parts[itemIndex + 1]) > 0) {
         qtyIndex = itemIndex + 1;
-      }
-      
-      else if (itemIndex > 0 && !isNaN(parts[itemIndex - 1]) && Number(parts[itemIndex - 1]) > 0) {
+      } else if (itemIndex > 0 && !isNaN(parts[itemIndex - 1]) && Number(parts[itemIndex - 1]) > 0) {
         qtyIndex = itemIndex - 1;
-      }
-      
-      else {
+      } else {
         qtyIndex = parts.findLastIndex((p, idx) => idx !== itemIndex && !isNaN(p) && Number(p) > 0);
       }
 
@@ -73,19 +67,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         return;
       }
 
-      
       const indicesToRemove = [itemIndex, qtyIndex].sort((a, b) => b - a);
       indicesToRemove.forEach(idx => parts.splice(idx, 1));
 
-      // 🧠 4. MAP THE REST: ข้อมูลที่เหลือจับยัดลง PO, Order, Line, Lot (ตามลำดับที่พี่กำหนด)
+      // 🧠 MAP THE REST: ข้อมูลที่เหลือจับยัดลง PO, Order, Line, Lot
       if (parts.length > 0) poNumber = parts[0].toUpperCase().trim();
       if (parts.length > 1) orderNo = parts[1].toUpperCase().trim();
       if (parts.length > 2) lineNo = parts[2].toUpperCase().trim();
       if (parts.length > 3) lotNo = parts[3].toUpperCase().trim();
 
-      // --------------------------------------------------------
-      // ตรวจสอบกล่อง และดึงน้ำหนักมาคำนวณ (ใช้ลอจิกเดิม)
-      // --------------------------------------------------------
       const foundItem = items.find(i => i.itemId === itemCode);
       const foundBox = boxes.find(b => b.pckId === foundItem.defaultPckId);
 
@@ -122,9 +112,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       });
     });
 
-    // --------------------------------------------------------
-    // ลอจิกการคำนวณยัดลงกล่องด้านล่าง คงเดิมทุกประการครับ
-    // --------------------------------------------------------
     const boxTypesObj = {};
     validItemsList.forEach(item => {
       if (!boxTypesObj[item.cardGroupKey]) {
@@ -224,7 +211,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
     const exportData = [];
 
-    // วนลูปดึงข้อมูลจากสรุปการเบิกกล่อง
     boxSummary.forEach((group) => {
       const boxName = group.boxCodename || group.boxType;
 
@@ -257,7 +243,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       });
     });
 
-    // สร้างไฟล์ Excel และดาวน์โหลด
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Packing Plan");
@@ -272,7 +257,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       if (box.cardGroupKey === cardGroupKey) {
         const newTotal = Math.max(1, box.totalBoxes + amount);
         const newBreakdown = [...box.boxesBreakdown];
-        
+
         if (amount > 0) {
           newBreakdown.push({ boxNo: newTotal, items: [], spaceLeftPct: 100, spaceLeft: box.boxCap });
         } else if (amount < 0 && newBreakdown.length > newTotal) {
@@ -297,7 +282,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       orderNo: item.orderNo,
       poNumber: item.poNumber,
       lineNo: item.lineNo,
-      lotNo: item.lotNo || '', 
+      lotNo: item.lotNo || '',
       maxQty: item.qty,
       cap: item.cap,
       moveQty: 1,
@@ -308,7 +293,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const confirmMove = () => {
     if (!moveConfig) return;
     const { groupIndex, fromBoxNo, toBoxNo, itemCode, orderNo, poNumber, lineNo, moveQty, lotNo, cap } = moveConfig;
-    
+
     if (fromBoxNo === Number(toBoxNo) || moveQty <= 0) {
       setMoveConfig(null);
       return;
@@ -328,7 +313,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
         const fromItems = [...fromBox.items];
         const itemIndex = fromItems.findIndex(i => i.itemCode === itemCode && i.orderNo === orderNo && i.poNumber === poNumber && i.lineNo === lineNo && (i.lotNo || '') === lotNo);
-        
+
         if (itemIndex > -1) {
           const movingItem = { ...fromItems[itemIndex] };
           const actualMoveQty = Math.min(moveQty, movingItem.qty);
@@ -339,7 +324,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             fromItems[itemIndex].qty -= actualMoveQty;
           }
           fromBox.items = fromItems;
-          
+
           const spacePerPiece = 1 / movingItem.cap;
           fromBox.spaceLeftPct = Math.min(100, fromBox.spaceLeftPct + Math.round((actualMoveQty * spacePerPiece) * 100));
           if (packingMode !== 'consolidate') fromBox.spaceLeft += actualMoveQty;
@@ -352,7 +337,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             toItems.push({ ...movingItem, qty: actualMoveQty });
           }
           toBox.items = toItems;
-          
+
           toBox.spaceLeftPct = Math.max(0, toBox.spaceLeftPct - Math.round((actualMoveQty * spacePerPiece) * 100));
           if (packingMode !== 'consolidate') toBox.spaceLeft -= actualMoveQty;
 
@@ -370,16 +355,16 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
   const handleSaveReport = async () => {
     const validItems = calcResults.filter(r => !r.error);
-    if (validItems.length === 0) return toast.error(t('planner.err_no_valid_data')); 
-    
+    if (validItems.length === 0) return toast.error(t('planner.err_no_valid_data'));
+
     const totalBoxesUsed = boxSummary.reduce((sum, box) => sum + (box.totalBoxes || 0), 0);
-    const toastId = toast.loading(t('planner.saving_report')); 
+    const toastId = toast.loading(t('planner.saving_report'));
 
     try {
       const { error: reportError } = await supabase.from('Report').insert([{
         operator: currentUser?.firstName || t('common.unspecified_user'),
         totalOrders: validItems.length,
-        totalBoxes: totalBoxesUsed, 
+        totalBoxes: totalBoxesUsed,
         data: validItems
       }]);
 
@@ -413,17 +398,17 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         }
       }
 
-      toast.success(t('planner.save_success'), { id: toastId }); 
-      setCalcResults([]); 
-      setBoxSummary([]); 
+      toast.success(t('planner.save_success'), { id: toastId });
+      setCalcResults([]);
+      setBoxSummary([]);
       setBulkText('');
-      
-      fetchReportsData(); 
-      fetchLogsData();    
-      fetchAdminData();   
 
-    } catch (error) { 
-      toast.error(t('planner.save_error') + error.message, { id: toastId }); 
+      fetchReportsData();
+      fetchLogsData();
+      fetchAdminData();
+
+    } catch (error) {
+      toast.error(t('planner.save_error') + error.message, { id: toastId });
     }
   };
 
@@ -437,13 +422,13 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       };
     }
     acc[curr.boxType].totalBoxes += curr.totalBoxes;
-    
+
     const capKey = packingMode === 'consolidate' ? t('planner.mixed_spec_vol') : `${curr.boxCap} ${t('planner.unit_piece')}`;
     if (!acc[curr.boxType].subCaps[capKey]) {
       acc[curr.boxType].subCaps[capKey] = 0;
     }
     acc[curr.boxType].subCaps[capKey] += curr.totalBoxes;
-    
+
     return acc;
   }, {})).map(box => {
     const subCapsArray = Object.entries(box.subCaps).map(([cap, count]) => ({
@@ -456,15 +441,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const NO_ORDER = t('planner.no_order');
   const NO_PO = t('planner.no_po');
 
- return (
+  return (
     <div className="space-y-6 print:space-y-0">
-      
+
       {/* ========================================== */}
       {/* 1. ส่วนตั้งค่าและกรอกข้อมูล */}
       {/* ========================================== */}
       <div className="bg-[#1C2541] p-6 md:p-8 rounded-2xl shadow-xl border border-white/10 text-white print:hidden">
         <h2 className="text-2xl font-black text-white mb-4">{t('planner.title')}</h2>
-        
+
         <div className="mb-6 p-4 bg-[#0B132B] rounded-xl border border-white/5">
           <div className="text-sm font-bold text-[#00B4D8] mb-3">{t('planner.select_mode')}</div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -491,21 +476,21 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </label>
           </div>
         </div>
-        
+
         <div className="space-y-4">
-          <textarea 
+          <textarea
             rows="6"
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
             placeholder={t('planner.textarea_placeholder')}
             className="w-full p-4 border border-white/10 rounded-xl focus:border-[#00B4D8] focus:ring-1 focus:ring-[#00B4D8] outline-none transition-all font-mono text-sm bg-[#0B132B] text-white placeholder-[#94A3B8]/50"
           ></textarea>
-          
+
           <div className="flex gap-4">
             <button onClick={handleBulkCalculate} className="flex-1 bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(0,180,216,0.3)] transition-all transform active:scale-95 text-lg">
               🧮 {t('planner.btn_calculate')}
             </button>
-            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast(t('planner.clear_success'), {icon: '🧹'}); }} className="bg-[#1C2541] hover:bg-white/10 border border-white/10 text-[#94A3B8] hover:text-white font-bold py-4 px-8 rounded-xl transition-all">
+            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast(t('planner.clear_success'), { icon: '🧹' }); }} className="bg-[#1C2541] hover:bg-white/10 border border-white/10 text-[#94A3B8] hover:text-white font-bold py-4 px-8 rounded-xl transition-all">
               {t('common.clear')}
             </button>
           </div>
@@ -514,9 +499,9 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
       {calcResults.length > 0 && (
         <div className="space-y-6 animate-fade-in-up print:hidden">
-          
+
           {/* ========================================== */}
-          {/* 2. รายละเอียดสรุปการเบิกกล่อง (แทนที่สีม่วง) */}
+          {/* 2. รายละเอียดสรุปการเบิกกล่อง */}
           {/* ========================================== */}
           {boxSummary.length > 0 && (
             <div className="bg-[#1C2541] rounded-2xl shadow-xl overflow-hidden text-white border border-[#00B4D8]/30">
@@ -527,12 +512,22 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                     {t('planner.calculated_with', { mode: packingMode === 'consolidate' ? t('planner.mode_name_consolidate') : packingMode === 'strict-item' ? t('planner.mode_name_item') : t('planner.mode_name_po') })}
                   </span>
                 </h3>
-                <button 
-                  onClick={() => setShowSummaryModal(true)} 
-                  className="bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all flex items-center gap-2"
-                >
-                  {t('planner.btn_view_print')}
-                </button>
+
+                {/* ปุ่ม Export Excel และ พิมพ์ */}
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <button
+                    onClick={handleExportPlanToExcel}
+                    className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>📊</span> Export Excel
+                  </button>
+                  <button
+                    onClick={() => setShowSummaryModal(true)}
+                    className="flex-1 sm:flex-none bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    📋 {t('planner.btn_view_print')}
+                  </button>
+                </div>
               </div>
 
               {/* 🛒 สรุปใบเบิกสโตร์ด่วน */}
@@ -577,7 +572,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                           <div className="bg-[#00B4D8]/10 text-[#00B4D8] text-xs px-2 py-1 rounded border border-[#00B4D8]/20">{t('planner.cap_mixed_vol')}</div>
                         )}
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-3 text-center mb-4 bg-[#1C2541] p-3 rounded-lg border border-white/5">
                         <div>
                           <div className="text-[11px] text-[#94A3B8] uppercase tracking-wider">{t('planner.total_mixed_items')}</div>
@@ -602,7 +597,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                             <div key={b.boxNo} className="bg-[#1C2541] rounded-lg p-3 border border-white/5">
                               <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/5">
                                 <span className="text-xs font-bold text-white">{t('planner.box_no', { no: b.boxNo })}</span>
-                                {packingMode === 'consolidate' 
+                                {packingMode === 'consolidate'
                                   ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-[#00B4D8]">{t('planner.space_left_pct', { pct: b.spaceLeftPct })}</span>)
                                   : (b.spaceLeft > 0 && <span className="text-[10px] text-[#00B4D8]">{t('planner.space_left_pcs', { pcs: b.spaceLeft })}</span>)
                                 }
@@ -621,15 +616,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                         )}
                                       </div>
                                     </div>
-                                    
+
                                     {item.lotNo && (
                                       <div className="text-[10px] text-white/50 font-mono mt-1">{t('planner.lot_po')} <span className="text-white">{item.lotNo}</span></div>
                                     )}
 
                                     {(item.poNumber !== NO_PO || item.orderNo !== NO_ORDER) && (
                                       <div className="text-[10px] text-[#94A3B8] mt-1 leading-tight bg-white/5 p-1 rounded">
-                                        {item.orderNo !== NO_ORDER ? <span className="text-white">{item.orderNo}</span> : ''} 
-                                        {item.lineNo !== '-' ? ` (L:${item.lineNo}) ` : ' '} 
+                                        {item.orderNo !== NO_ORDER ? <span className="text-white">{item.orderNo}</span> : ''}
+                                        {item.lineNo !== '-' ? ` (L:${item.lineNo}) ` : ' '}
                                         {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? ` | PO: ` : ''}
                                         {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? <span className="text-white">{item.poNumber}</span> : ''}
                                       </div>
@@ -641,30 +636,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                           ))}
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-[#0B132B] border-b border-white/10 gap-4">
-                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                          📦 {t('planner.summary_title')}
-                          <span className="text-sm font-normal text-[#00B4D8] bg-[#00B4D8]/10 px-3 py-1 rounded-full border border-[#00B4D8]/30">
-                            {t('planner.calculated_with', { mode: packingMode === 'consolidate' ? t('planner.mode_name_consolidate') : packingMode === 'strict-item' ? t('planner.mode_name_item') : t('planner.mode_name_po') })}
-                          </span>
-                        </h3>
 
-                        {/* 🌟 เพิ่มปุ่ม Export Excel คู่กับปุ่มเดิมตรงนี้ครับ */}
-                        <div className="flex items-center gap-3 w-full sm:w-auto">
-                          <button
-                            onClick={handleExportPlanToExcel}
-                            className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
-                          >
-                            <span>📊</span> Export Excel
-                          </button>
-                          <button
-                            onClick={() => setShowSummaryModal(true)}
-                            className="flex-1 sm:flex-none bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
-                          >
-                            📋 {t('planner.btn_view_print')}
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -673,7 +645,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
           )}
 
           {/* ========================================== */}
-          {/* 3. ตารางรายละเอียดสินค้า (แก้สีพื้นหลังให้ไม่กลืน) */}
+          {/* 3. ตารางรายละเอียดสินค้า */}
           {/* ========================================== */}
           <div className="bg-[#1C2541] rounded-2xl shadow-xl overflow-hidden border border-white/10">
             <div className="bg-[#0B132B] p-4 border-b border-white/10 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-white">
@@ -685,7 +657,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
               </button>
             </div>
             <div className="overflow-x-auto">
-              {/* 🌟 จุดแก้ปัญหา: กำหนดพื้นหลังตารางให้เป็นสีเข้ม และตัวหนังสือสีขาว */}
               <table className="min-w-full bg-[#1C2541]">
                 <thead className="bg-[#0B132B]/80 border-b border-white/10">
                   <tr>
@@ -748,11 +719,11 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#94A3B8] mb-1">{t('planner.move_qty_label')}</label>
-                <input type="number" min="1" max={moveConfig.maxQty} value={moveConfig.moveQty} onChange={(e) => setMoveConfig({...moveConfig, moveQty: Number(e.target.value)})} className="w-full p-3 border border-white/10 rounded-lg font-bold text-center bg-[#0B132B] text-white focus:outline-none focus:border-[#00B4D8]" />
+                <input type="number" min="1" max={moveConfig.maxQty} value={moveConfig.moveQty} onChange={(e) => setMoveConfig({ ...moveConfig, moveQty: Number(e.target.value) })} className="w-full p-3 border border-white/10 rounded-lg font-bold text-center bg-[#0B132B] text-white focus:outline-none focus:border-[#00B4D8]" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-[#94A3B8] mb-1">{t('planner.move_dest_label')}</label>
-                <select value={moveConfig.toBoxNo} onChange={(e) => setMoveConfig({...moveConfig, toBoxNo: Number(e.target.value)})} className="w-full p-3 border border-white/10 rounded-lg font-bold text-white bg-[#0B132B] focus:outline-none focus:border-[#00B4D8]">
+                <select value={moveConfig.toBoxNo} onChange={(e) => setMoveConfig({ ...moveConfig, toBoxNo: Number(e.target.value) })} className="w-full p-3 border border-white/10 rounded-lg font-bold text-white bg-[#0B132B] focus:outline-none focus:border-[#00B4D8]">
                   {boxSummary[moveConfig.groupIndex].boxesBreakdown.map(b => (
                     <option key={b.boxNo} value={b.boxNo} disabled={b.boxNo === moveConfig.fromBoxNo}>
                       {t('planner.box_no', { no: b.boxNo })} ({packingMode === 'consolidate' ? t('planner.space_left_pct', { pct: b.spaceLeftPct }) : t('planner.space_left_pcs', { pcs: b.spaceLeft })})
@@ -812,7 +783,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                     <td className="p-3 align-middle">
                       <div className="font-black text-[#00B4D8] print:text-black text-xl">{sum.boxCodename || sum.boxType}</div>
                       <div className="text-xs text-[#94A3B8] print:text-gray-600 mb-2">ID: {sum.boxType}</div>
-                      
+
                       <div className="pl-3 border-l-2 border-[#00B4D8]/50 text-xs space-y-1 text-white print:text-gray-700 font-medium">
                         {sum.subCaps.map((sub, sIdx) => (
                           <div key={sIdx}>
@@ -837,7 +808,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 <div key={idx} className="avoid-break bg-[#0B132B] p-5 rounded-xl border border-white/5 print:border-gray-400 print:p-2 print:bg-transparent">
                   <div className="font-bold text-yellow-300 print:text-black mb-4 border-b border-white/10 print:border-gray-300 pb-3 flex justify-between items-center">
                     <span className="text-lg">
-                      📦 {sum.boxCodename || sum.boxType} 
+                      📦 {sum.boxCodename || sum.boxType}
                       {packingMode !== 'consolidate' && <span className="text-sm text-[#00B4D8] print:text-black ml-2 bg-[#00B4D8]/10 print:bg-transparent px-2 py-0.5 rounded">({sum.boxCap} {t('planner.unit_piece')})</span>}
                     </span>
                     <span className="text-sm font-normal text-white print:text-gray-600 bg-white/5 print:bg-transparent px-3 py-1 rounded-full">
@@ -845,13 +816,13 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                       {t('planner.used_total_boxes', { count: sum.totalBoxes })}
                     </span>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {sum.boxesBreakdown.map((b) => (
                       <div key={b.boxNo} className="bg-[#1C2541] p-4 rounded-lg border border-white/5 print:bg-gray-50 print:border-gray-300 avoid-break">
                         <div className="flex justify-between items-center mb-3 pb-2 border-b border-white/5 print:border-gray-300">
                           <span className="font-bold text-white print:text-black bg-white/5 print:bg-transparent px-2 py-0.5 rounded">{t('planner.box_no', { no: b.boxNo })}</span>
-                          {packingMode === 'consolidate' 
+                          {packingMode === 'consolidate'
                             ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-[#00B4D8] print:text-gray-500 font-bold">{t('planner.space_left_pct', { pct: b.spaceLeftPct })}</span>)
                             : (b.spaceLeft > 0 && <span className="text-[10px] text-[#00B4D8] print:text-gray-500 font-bold">{t('planner.space_left_pcs', { pcs: b.spaceLeft })}</span>)
                           }
@@ -867,7 +838,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                   {packingMode === 'consolidate' && <div className="text-[#94A3B8] print:text-gray-600 text-[10px]">{t('planner.spec_cap', { cap: item.cap })}</div>}
                                 </div>
                               </div>
-                              
+
                               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                                 {item.lotNo && (
                                   <div className="text-[10px] text-[#94A3B8] print:text-gray-600 font-mono bg-white/5 print:bg-transparent px-1.5 py-0.5 rounded">
@@ -877,8 +848,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
                                 {(item.poNumber !== NO_PO || item.orderNo !== NO_ORDER) && (
                                   <span className="text-[10px] text-[#94A3B8] print:text-gray-600 bg-white/5 print:bg-transparent px-1.5 py-0.5 rounded leading-tight flex items-center gap-1">
-                                    {item.orderNo !== NO_ORDER ? <span className="text-white print:text-black">{item.orderNo}</span> : ''} 
-                                    {item.lineNo !== '-' ? `(L:${item.lineNo})` : ''} 
+                                    {item.orderNo !== NO_ORDER ? <span className="text-white print:text-black">{item.orderNo}</span> : ''}
+                                    {item.lineNo !== '-' ? `(L:${item.lineNo})` : ''}
                                     {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? ` | PO: ` : ''}
                                     {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? <span className="text-white print:text-black">{item.poNumber}</span> : ''}
                                   </span>
