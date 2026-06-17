@@ -447,31 +447,31 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       {/* ========================================== */}
       {/* 1. ส่วนตั้งค่าและกรอกข้อมูล */}
       {/* ========================================== */}
-      <div className="bg-[#1C2541] p-6 md:p-8 rounded-2xl shadow-xl border border-white/10 text-white print:hidden">
-        <h2 className="text-2xl font-black text-white mb-4">{t('planner.title')}</h2>
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200 text-gray-800 print:hidden">
+        <h2 className="text-2xl font-black text-[#0066CC] mb-4">{t('planner.title')}</h2>
 
-        <div className="mb-6 p-4 bg-[#0B132B] rounded-xl border border-white/5">
-          <div className="text-sm font-bold text-[#00B4D8] mb-3">{t('planner.select_mode')}</div>
+        <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+          <div className="text-sm font-bold text-[#0066CC] mb-3">{t('planner.select_mode')}</div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'consolidate' ? 'bg-[#00B4D8] border-[#00B4D8] text-white shadow-[0_0_15px_rgba(0,180,216,0.3)]' : 'bg-[#1C2541] border-white/10 text-[#94A3B8] hover:border-[#00B4D8]/50'}`}>
+            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'consolidate' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
               <input type="radio" name="packMode" className="hidden" checked={packingMode === 'consolidate'} onChange={() => setPackingMode('consolidate')} />
               <div>
                 <div className="font-bold">{t('planner.mode_consolidate')}</div>
-                <div className={`text-xs mt-1 ${packingMode === 'consolidate' ? 'text-white' : 'text-[#94A3B8]'}`}>{t('planner.mode_consolidate_desc')}</div>
+                <div className={`text-xs mt-1 ${packingMode === 'consolidate' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_consolidate_desc')}</div>
               </div>
             </label>
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-item' ? 'bg-[#00B4D8] border-[#00B4D8] text-white shadow-[0_0_15px_rgba(0,180,216,0.3)]' : 'bg-[#1C2541] border-white/10 text-[#94A3B8] hover:border-[#00B4D8]/50'}`}>
+            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-item' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
               <input type="radio" name="packMode" className="hidden" checked={packingMode === 'strict-item'} onChange={() => setPackingMode('strict-item')} />
               <div>
                 <div className="font-bold">{t('planner.mode_strict_item')}</div>
-                <div className={`text-xs mt-1 ${packingMode === 'strict-item' ? 'text-white' : 'text-[#94A3B8]'}`}>{t('planner.mode_strict_item_desc')}</div>
+                <div className={`text-xs mt-1 ${packingMode === 'strict-item' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_strict_item_desc')}</div>
               </div>
             </label>
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-po' ? 'bg-[#00B4D8] border-[#00B4D8] text-white shadow-[0_0_15px_rgba(0,180,216,0.3)]' : 'bg-[#1C2541] border-white/10 text-[#94A3B8] hover:border-[#00B4D8]/50'}`}>
+            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-po' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
               <input type="radio" name="packMode" className="hidden" checked={packingMode === 'strict-po'} onChange={() => setPackingMode('strict-po')} />
               <div>
                 <div className="font-bold">{t('planner.mode_strict_po')}</div>
-                <div className={`text-xs mt-1 ${packingMode === 'strict-po' ? 'text-white' : 'text-[#94A3B8]'}`}>{t('planner.mode_strict_po_desc')}</div>
+                <div className={`text-xs mt-1 ${packingMode === 'strict-po' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_strict_po_desc')}</div>
               </div>
             </label>
           </div>
@@ -483,14 +483,14 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
             placeholder={t('planner.textarea_placeholder')}
-            className="w-full p-4 border border-white/10 rounded-xl focus:border-[#00B4D8] focus:ring-1 focus:ring-[#00B4D8] outline-none transition-all font-mono text-sm bg-[#0B132B] text-white placeholder-[#94A3B8]/50"
+            className="w-full p-4 border border-gray-300 rounded-xl focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] outline-none transition-all font-mono text-sm bg-white text-gray-800 placeholder-gray-400 shadow-inner"
           ></textarea>
 
           <div className="flex gap-4">
-            <button onClick={handleBulkCalculate} className="flex-1 bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(0,180,216,0.3)] transition-all transform active:scale-95 text-lg">
+            <button onClick={handleBulkCalculate} className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-4 rounded-xl shadow-md transition-all transform active:scale-95 text-lg">
               🧮 {t('planner.btn_calculate')}
             </button>
-            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast(t('planner.clear_success'), { icon: '🧹' }); }} className="bg-[#1C2541] hover:bg-white/10 border border-white/10 text-[#94A3B8] hover:text-white font-bold py-4 px-8 rounded-xl transition-all">
+            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast(t('planner.clear_success'), { icon: '🧹' }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 font-bold py-4 px-8 rounded-xl transition-all">
               {t('common.clear')}
             </button>
           </div>
@@ -504,11 +504,11 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
           {/* 2. รายละเอียดสรุปการเบิกกล่อง */}
           {/* ========================================== */}
           {boxSummary.length > 0 && (
-            <div className="bg-[#1C2541] rounded-2xl shadow-xl overflow-hidden text-white border border-[#00B4D8]/30">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-[#0B132B] border-b border-white/10 gap-4">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden text-gray-800 border border-gray-200">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 border-b border-gray-200 gap-4">
+                <h3 className="text-xl font-bold text-[#0066CC] flex items-center gap-2">
                   📦 {t('planner.summary_title')}
-                  <span className="text-sm font-normal text-[#00B4D8] bg-[#00B4D8]/10 px-3 py-1 rounded-full border border-[#00B4D8]/30">
+                  <span className="text-sm font-normal text-[#0066CC] bg-[#0066CC]/10 px-3 py-1 rounded-full border border-[#0066CC]/20">
                     {t('planner.calculated_with', { mode: packingMode === 'consolidate' ? t('planner.mode_name_consolidate') : packingMode === 'strict-item' ? t('planner.mode_name_item') : t('planner.mode_name_po') })}
                   </span>
                 </h3>
@@ -517,13 +517,13 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <button
                     onClick={handleExportPlanToExcel}
-                    className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+                    className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
                   >
                     <span>📊</span> Export Excel
                   </button>
                   <button
                     onClick={() => setShowSummaryModal(true)}
-                    className="flex-1 sm:flex-none bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+                    className="flex-1 sm:flex-none bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
                   >
                     📋 {t('planner.btn_view_print')}
                   </button>
@@ -532,101 +532,101 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
               {/* 🛒 สรุปใบเบิกสโตร์ด่วน */}
               <div className="p-6">
-                <div className="mb-4 text-sm font-bold text-[#94A3B8] flex items-center gap-2">{t('planner.quick_summary')}</div>
+                <div className="mb-4 text-sm font-bold text-gray-500 flex items-center gap-2">{t('planner.quick_summary')}</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   {aggregatedBoxRequisition.map((sum, idx) => (
-                    <div key={idx} className="bg-[#0B132B] p-4 rounded-xl border border-white/5 flex justify-between items-center shadow-inner">
+                    <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex justify-between items-center shadow-sm">
                       <div>
-                        <div className="font-black text-lg text-[#00B4D8]">{sum.boxCodename || sum.boxType}</div>
-                        <div className="text-xs text-[#94A3B8] space-y-1 mt-2 pl-3 border-l-2 border-[#00B4D8]/50">
+                        <div className="font-black text-lg text-[#0066CC]">{sum.boxCodename || sum.boxType}</div>
+                        <div className="text-xs text-gray-500 space-y-1 mt-2 pl-3 border-l-2 border-[#0066CC]/30">
                           {sum.subCaps.map((sub, sIdx) => (
-                            <div key={sIdx}>• {sub.cap} {t('planner.used')} <span className="text-white font-bold">{sub.boxesCount} {t('planner.unit_box')}</span></div>
+                            <div key={sIdx}>• {sub.cap} {t('planner.used')} <span className="text-gray-800 font-bold">{sub.boxesCount} {t('planner.unit_box')}</span></div>
                           ))}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider">{t('planner.total_requisition')}</div>
-                        <div className="text-4xl font-black text-white">{sum.totalBoxes} <span className="text-sm font-normal text-[#94A3B8]">{t('planner.unit_box')}</span></div>
+                        <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('planner.total_requisition')}</div>
+                        <div className="text-4xl font-black text-gray-800">{sum.totalBoxes} <span className="text-sm font-normal text-gray-500">{t('planner.unit_box')}</span></div>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 {/* 📦 แผนการแพ็คกล่องแต่ละประเภท */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6 border-t border-white/10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6 border-t border-gray-200">
                   {boxSummary.map((sum, groupIdx) => (
-                    <div key={groupIdx} className="bg-[#0B132B] rounded-xl p-5 border border-white/5 flex flex-col h-full">
+                    <div key={groupIdx} className="bg-gray-50 rounded-xl p-5 border border-gray-200 flex flex-col h-full shadow-sm">
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <div className="font-black text-xl text-white">
+                          <div className="font-black text-xl text-gray-800">
                             {sum.boxCodename || sum.boxType}
                             {packingMode !== 'consolidate' && (
-                              <span className="text-sm text-[#00B4D8] ml-2 border border-[#00B4D8]/30 bg-[#00B4D8]/10 px-2 py-0.5 rounded-md whitespace-nowrap">
+                              <span className="text-sm text-[#0066CC] ml-2 border border-[#0066CC]/20 bg-[#0066CC]/10 px-2 py-0.5 rounded-md whitespace-nowrap">
                                 {sum.boxCap} {t('planner.unit_piece')}
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-[#94A3B8] mt-1 font-mono uppercase tracking-wider">System ID: {sum.boxType}</div>
+                          <div className="text-[10px] text-gray-500 mt-1 font-mono uppercase tracking-wider">System ID: {sum.boxType}</div>
                         </div>
                         {packingMode === 'consolidate' && (
-                          <div className="bg-[#00B4D8]/10 text-[#00B4D8] text-xs px-2 py-1 rounded border border-[#00B4D8]/20">{t('planner.cap_mixed_vol')}</div>
+                          <div className="bg-[#0066CC]/10 text-[#0066CC] text-xs px-2 py-1 rounded border border-[#0066CC]/20">{t('planner.cap_mixed_vol')}</div>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 text-center mb-4 bg-[#1C2541] p-3 rounded-lg border border-white/5">
+                      <div className="grid grid-cols-2 gap-3 text-center mb-4 bg-white p-3 rounded-lg border border-gray-200">
                         <div>
-                          <div className="text-[11px] text-[#94A3B8] uppercase tracking-wider">{t('planner.total_mixed_items')}</div>
-                          <div className="font-bold text-xl text-white">{sum.totalQty} <span className="text-sm font-normal text-[#94A3B8]">{t('planner.unit_piece')}</span></div>
+                          <div className="text-[11px] text-gray-500 uppercase tracking-wider">{t('planner.total_mixed_items')}</div>
+                          <div className="font-bold text-xl text-gray-800">{sum.totalQty} <span className="text-sm font-normal text-gray-500">{t('planner.unit_piece')}</span></div>
                         </div>
                         <div>
-                          <div className="text-[11px] text-[#94A3B8] uppercase tracking-wider">{t('planner.requisition_box')}</div>
+                          <div className="text-[11px] text-gray-500 uppercase tracking-wider">{t('planner.requisition_box')}</div>
                           <div className="flex items-center justify-center gap-2 mt-1">
-                            <button onClick={() => handleAdjustBox(sum.cardGroupKey, -1)} className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white w-6 h-6 rounded flex items-center justify-center font-bold transition-colors">-</button>
-                            <div className="font-bold text-xl text-[#00B4D8] w-8">{sum.totalBoxes}</div>
-                            <button onClick={() => handleAdjustBox(sum.cardGroupKey, 1)} className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white w-6 h-6 rounded flex items-center justify-center font-bold transition-colors">+</button>
+                            <button onClick={() => handleAdjustBox(sum.cardGroupKey, -1)} className="bg-red-100 text-red-600 hover:bg-red-500 hover:text-white w-6 h-6 rounded flex items-center justify-center font-bold transition-colors">-</button>
+                            <div className="font-bold text-xl text-[#0066CC] w-8">{sum.totalBoxes}</div>
+                            <button onClick={() => handleAdjustBox(sum.cardGroupKey, 1)} className="bg-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white w-6 h-6 rounded flex items-center justify-center font-bold transition-colors">+</button>
                           </div>
                         </div>
                       </div>
 
-                      <div className="mt-auto pt-4 border-t border-white/5">
-                        <div className="text-xs font-bold text-[#94A3B8] mb-3 flex items-center gap-2">
+                      <div className="mt-auto pt-4 border-t border-gray-200">
+                        <div className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-2">
                           <span>📋</span> {t('planner.packing_plan')}
                         </div>
                         <div className="space-y-3 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
                           {sum.boxesBreakdown.map((b) => (
-                            <div key={b.boxNo} className="bg-[#1C2541] rounded-lg p-3 border border-white/5">
-                              <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/5">
-                                <span className="text-xs font-bold text-white">{t('planner.box_no', { no: b.boxNo })}</span>
+                            <div key={b.boxNo} className="bg-white rounded-lg p-3 border border-gray-200">
+                              <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
+                                <span className="text-xs font-bold text-gray-800">{t('planner.box_no', { no: b.boxNo })}</span>
                                 {packingMode === 'consolidate'
-                                  ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-[#00B4D8]">{t('planner.space_left_pct', { pct: b.spaceLeftPct })}</span>)
-                                  : (b.spaceLeft > 0 && <span className="text-[10px] text-[#00B4D8]">{t('planner.space_left_pcs', { pcs: b.spaceLeft })}</span>)
+                                  ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-[#0066CC]">{t('planner.space_left_pct', { pct: b.spaceLeftPct })}</span>)
+                                  : (b.spaceLeft > 0 && <span className="text-[10px] text-[#0066CC]">{t('planner.space_left_pcs', { pcs: b.spaceLeft })}</span>)
                                 }
                               </div>
                               <div className="space-y-2">
-                                {b.items.length === 0 && <div className="text-xs text-[#94A3B8] text-center italic py-2">{t('planner.empty_box')}</div>}
+                                {b.items.length === 0 && <div className="text-xs text-gray-400 text-center italic py-2">{t('planner.empty_box')}</div>}
                                 {b.items.map((item, i) => (
-                                  <div key={i} className="flex flex-col text-xs bg-[#0B132B] p-2 rounded border-l-2 border-[#00B4D8]">
+                                  <div key={i} className="flex flex-col text-xs bg-gray-50 p-2 rounded border-l-2 border-[#0066CC]">
                                     <div className="flex justify-between items-start">
-                                      <span className="font-bold text-white">{item.itemCode}</span>
+                                      <span className="font-bold text-gray-800">{item.itemCode}</span>
                                       <div className="flex items-center gap-2">
-                                        <span className="font-bold text-emerald-400 min-w-max">{item.qty} {t('planner.unit_piece')}</span>
-                                        {packingMode === 'consolidate' && <span className="text-[#94A3B8] text-[9px] ml-1">{t('planner.spec_cap', { cap: item.cap })}</span>}
+                                        <span className="font-bold text-emerald-600 min-w-max">{item.qty} {t('planner.unit_piece')}</span>
+                                        {packingMode === 'consolidate' && <span className="text-gray-400 text-[9px] ml-1">{t('planner.spec_cap', { cap: item.cap })}</span>}
                                         {sum.boxesBreakdown.length > 1 && (
-                                          <button onClick={() => openMoveModal(groupIdx, b.boxNo, item)} className="text-[9px] bg-[#00B4D8]/20 text-[#00B4D8] w-5 h-5 rounded hover:bg-[#00B4D8] hover:text-white transition-colors flex items-center justify-center">🔄</button>
+                                          <button onClick={() => openMoveModal(groupIdx, b.boxNo, item)} className="text-[9px] bg-blue-100 text-[#0066CC] w-5 h-5 rounded hover:bg-[#0066CC] hover:text-white transition-colors flex items-center justify-center">🔄</button>
                                         )}
                                       </div>
                                     </div>
 
                                     {item.lotNo && (
-                                      <div className="text-[10px] text-white/50 font-mono mt-1">{t('planner.lot_po')} <span className="text-white">{item.lotNo}</span></div>
+                                      <div className="text-[10px] text-gray-500 font-mono mt-1">{t('planner.lot_po')} <span className="text-gray-800">{item.lotNo}</span></div>
                                     )}
 
                                     {(item.poNumber !== NO_PO || item.orderNo !== NO_ORDER) && (
-                                      <div className="text-[10px] text-[#94A3B8] mt-1 leading-tight bg-white/5 p-1 rounded">
-                                        {item.orderNo !== NO_ORDER ? <span className="text-white">{item.orderNo}</span> : ''}
+                                      <div className="text-[10px] text-gray-500 mt-1 leading-tight bg-white p-1 rounded border border-gray-200">
+                                        {item.orderNo !== NO_ORDER ? <span className="text-gray-800">{item.orderNo}</span> : ''}
                                         {item.lineNo !== '-' ? ` (L:${item.lineNo}) ` : ' '}
                                         {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? ` | PO: ` : ''}
-                                        {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? <span className="text-white">{item.poNumber}</span> : ''}
+                                        {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? <span className="text-gray-800">{item.poNumber}</span> : ''}
                                       </div>
                                     )}
                                   </div>
@@ -647,51 +647,51 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
           {/* ========================================== */}
           {/* 3. ตารางรายละเอียดสินค้า */}
           {/* ========================================== */}
-          <div className="bg-[#1C2541] rounded-2xl shadow-xl overflow-hidden border border-white/10">
-            <div className="bg-[#0B132B] p-4 border-b border-white/10 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-white">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+            <div className="bg-gray-50 p-4 border-b border-gray-200 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-gray-800">
               <span className="flex items-center gap-2">
                 <span>📋</span> {t('planner.items_to_pack', { count: calcResults.length })}
               </span>
-              <button onClick={handleSaveReport} className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-6 py-2.5 rounded-lg shadow-md transition-all flex items-center gap-2 font-bold">
+              <button onClick={handleSaveReport} className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-6 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-bold">
                 <span>💾</span> {t('planner.btn_confirm_save')}
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full bg-[#1C2541]">
-                <thead className="bg-[#0B132B]/80 border-b border-white/10">
+              <table className="min-w-full bg-white">
+                <thead className="bg-gray-100 border-b border-gray-200">
                   <tr>
-                    <th className="py-4 px-4 text-left font-bold text-[#94A3B8] text-sm uppercase tracking-wider">{t('planner.th_order_po')}</th>
-                    <th className="py-4 px-4 text-left font-bold text-[#94A3B8] text-sm uppercase tracking-wider">{t('planner.th_item_code')}</th>
-                    <th className="py-4 px-4 text-left font-bold text-[#94A3B8] text-sm uppercase tracking-wider">{t('planner.th_item_name_cust')}</th>
-                    <th className="py-4 px-4 text-center font-bold text-[#94A3B8] text-sm uppercase tracking-wider">{t('planner.th_qty')}</th>
-                    <th className="py-4 px-4 text-center font-bold text-[#94A3B8] text-sm uppercase tracking-wider">{t('planner.th_box_type')}</th>
+                    <th className="py-4 px-4 text-left font-bold text-gray-600 text-sm uppercase tracking-wider">{t('planner.th_order_po')}</th>
+                    <th className="py-4 px-4 text-left font-bold text-gray-600 text-sm uppercase tracking-wider">{t('planner.th_item_code')}</th>
+                    <th className="py-4 px-4 text-left font-bold text-gray-600 text-sm uppercase tracking-wider">{t('planner.th_item_name_cust')}</th>
+                    <th className="py-4 px-4 text-center font-bold text-gray-600 text-sm uppercase tracking-wider">{t('planner.th_qty')}</th>
+                    <th className="py-4 px-4 text-center font-bold text-gray-600 text-sm uppercase tracking-wider">{t('planner.th_box_type')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-gray-100">
                   {calcResults.map((res) => (
-                    <tr key={res.id} className="hover:bg-white/5 transition-colors">
+                    <tr key={res.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-3 px-4">
-                        <div className="font-bold text-[#00B4D8] text-xs mb-1">{res.orderNo !== NO_ORDER ? res.orderNo : '-'}</div>
-                        <div className="font-bold text-[#94A3B8] text-xs">{res.poNumber !== NO_PO ? res.poNumber : '-'}</div>
+                        <div className="font-bold text-amber-600 text-xs mb-1">{res.orderNo !== NO_ORDER ? res.orderNo : '-'}</div>
+                        <div className="font-bold text-gray-500 text-xs">{res.poNumber !== NO_PO ? res.poNumber : '-'}</div>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-white">
-                        <div className="text-sm">{res.itemCode}</div>
-                        {res.lotNo && <div className="text-[11px] text-white/50 font-mono font-normal mt-1">{t('planner.lot_po')} <span className="text-white">{res.lotNo}</span></div>}
+                      <td className="py-3 px-4 font-mono font-bold text-gray-800">
+                        <div className="text-sm text-[#0066CC]">{res.itemCode}</div>
+                        {res.lotNo && <div className="text-[11px] text-gray-400 font-mono font-normal mt-1">{t('planner.lot_po')} <span className="text-gray-600">{res.lotNo}</span></div>}
                       </td>
                       {res.error ? (
-                        <td colSpan="3" className="py-3 px-4 text-red-400 font-bold bg-red-500/10 border-l-2 border-red-500">{res.error}</td>
+                        <td colSpan="3" className="py-3 px-4 text-red-600 font-bold bg-red-50 border-l-2 border-red-500">{res.error}</td>
                       ) : (
                         <>
                           <td className="py-3 px-4">
-                            <div className="font-bold text-white text-sm mb-1">{res.itemName}</div>
-                            <div className="text-xs text-[#00B4D8] font-bold">{res.customer}</div>
+                            <div className="font-bold text-gray-800 text-sm mb-1">{res.itemName}</div>
+                            <div className="text-xs text-gray-500 font-bold">{res.customer}</div>
                           </td>
-                          <td className="py-3 px-4 text-center font-black text-white text-lg">{res.qty}</td>
+                          <td className="py-3 px-4 text-center font-black text-gray-800 text-lg">{res.qty}</td>
                           <td className="py-3 px-4 text-center">
-                            <div className="font-bold text-[#00B4D8] bg-[#00B4D8]/10 border border-[#00B4D8]/20 px-3 py-1.5 rounded-lg mb-1 inline-block">
-                              {res.boxCodename || res.boxType} <span className="text-white text-xs ml-1">({res.boxCap} {t('planner.unit_piece')})</span>
+                            <div className="font-bold text-[#0066CC] bg-[#0066CC]/10 border border-[#0066CC]/20 px-3 py-1.5 rounded-lg mb-1 inline-block">
+                              {res.boxCodename || res.boxType} <span className="text-[#0066CC] text-xs ml-1">({res.boxCap} {t('planner.unit_piece')})</span>
                             </div>
-                            {res.boxCodename && <div className="text-[10px] text-[#94A3B8] font-mono text-center mt-1">ID: {res.boxType}</div>}
+                            {res.boxCodename && <div className="text-[10px] text-gray-400 font-mono text-center mt-1">ID: {res.boxType}</div>}
                           </td>
                         </>
                       )}
@@ -707,23 +707,23 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       {/* Modal ย้ายของ */}
       {moveConfig && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden">
-          <div className="bg-[#1C2541] rounded-2xl p-6 shadow-2xl w-full max-w-sm border border-[#00B4D8]/30 text-white">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><span>🔄</span> {t('planner.move_modal_title')}</h3>
-            <div className="mb-4 bg-[#0B132B] p-4 rounded-xl text-sm text-white border border-white/5">
-              <span className="font-bold text-[#00B4D8] text-base">{moveConfig.itemCode}</span>
-              {moveConfig.lotNo && <span className="text-xs text-white/50 block mt-1">{t('planner.lot_po')} <span className="text-white">{moveConfig.lotNo}</span></span>}
-              <div className="mt-3 pt-3 border-t border-white/10 text-xs">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-sm border border-gray-200 text-gray-800">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><span>🔄</span> {t('planner.move_modal_title')}</h3>
+            <div className="mb-4 bg-gray-50 p-4 rounded-xl text-sm text-gray-800 border border-gray-200">
+              <span className="font-bold text-[#0066CC] text-base">{moveConfig.itemCode}</span>
+              {moveConfig.lotNo && <span className="text-xs text-gray-500 block mt-1">{t('planner.lot_po')} <span className="text-gray-800">{moveConfig.lotNo}</span></span>}
+              <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-600">
                 {t('planner.from_box_no', { no: moveConfig.fromBoxNo })}
               </div>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[#94A3B8] mb-1">{t('planner.move_qty_label')}</label>
-                <input type="number" min="1" max={moveConfig.maxQty} value={moveConfig.moveQty} onChange={(e) => setMoveConfig({ ...moveConfig, moveQty: Number(e.target.value) })} className="w-full p-3 border border-white/10 rounded-lg font-bold text-center bg-[#0B132B] text-white focus:outline-none focus:border-[#00B4D8]" />
+                <label className="block text-xs font-bold text-gray-600 mb-1">{t('planner.move_qty_label')}</label>
+                <input type="number" min="1" max={moveConfig.maxQty} value={moveConfig.moveQty} onChange={(e) => setMoveConfig({ ...moveConfig, moveQty: Number(e.target.value) })} className="w-full p-3 border border-gray-300 rounded-lg font-bold text-center bg-white text-gray-800 focus:outline-none focus:border-[#0066CC]" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-[#94A3B8] mb-1">{t('planner.move_dest_label')}</label>
-                <select value={moveConfig.toBoxNo} onChange={(e) => setMoveConfig({ ...moveConfig, toBoxNo: Number(e.target.value) })} className="w-full p-3 border border-white/10 rounded-lg font-bold text-white bg-[#0B132B] focus:outline-none focus:border-[#00B4D8]">
+                <label className="block text-xs font-bold text-gray-600 mb-1">{t('planner.move_dest_label')}</label>
+                <select value={moveConfig.toBoxNo} onChange={(e) => setMoveConfig({ ...moveConfig, toBoxNo: Number(e.target.value) })} className="w-full p-3 border border-gray-300 rounded-lg font-bold text-gray-800 bg-white focus:outline-none focus:border-[#0066CC]">
                   {boxSummary[moveConfig.groupIndex].boxesBreakdown.map(b => (
                     <option key={b.boxNo} value={b.boxNo} disabled={b.boxNo === moveConfig.fromBoxNo}>
                       {t('planner.box_no', { no: b.boxNo })} ({packingMode === 'consolidate' ? t('planner.space_left_pct', { pct: b.spaceLeftPct }) : t('planner.space_left_pcs', { pcs: b.spaceLeft })})
@@ -733,8 +733,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setMoveConfig(null)} className="px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg font-bold text-white transition-colors">{t('common.cancel')}</button>
-              <button onClick={confirmMove} className="px-5 py-2.5 bg-[#00B4D8] hover:bg-[#0096B4] text-white rounded-lg font-bold shadow-md transition-colors">{t('common.confirm')}</button>
+              <button onClick={() => setMoveConfig(null)} className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg font-bold text-gray-600 transition-colors">{t('common.cancel')}</button>
+              <button onClick={confirmMove} className="px-5 py-2.5 bg-[#0066CC] hover:bg-[#0052a3] text-white rounded-lg font-bold shadow-md transition-colors">{t('common.confirm')}</button>
             </div>
           </div>
         </div>
@@ -754,10 +754,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             `}
           </style>
 
-          <div id="print-modal" className="bg-[#1C2541] rounded-2xl p-6 md:p-8 w-full max-w-3xl shadow-2xl my-auto border border-[#00B4D8]/20 print:border-none print:bg-white print:text-black print:my-0 print:shadow-none print:w-full print:max-w-full text-white">
+          <div id="print-modal" className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-3xl shadow-2xl my-auto border border-gray-200 print:border-none print:bg-white print:text-black print:my-0 print:shadow-none print:w-full print:max-w-full text-gray-800">
             <div className="flex justify-between items-center mb-6 print:hidden">
-              <h2 className="text-2xl font-black text-white flex items-center gap-2"><span>📋</span> {t('planner.print_modal_title')}</h2>
-              <button onClick={() => setShowSummaryModal(false)} className="text-[#94A3B8] hover:text-white bg-white/5 hover:bg-white/10 w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors">✕</button>
+              <h2 className="text-2xl font-black text-gray-800 flex items-center gap-2"><span>📋</span> {t('planner.print_modal_title')}</h2>
+              <button onClick={() => setShowSummaryModal(false)} className="text-gray-400 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors">✕</button>
             </div>
 
             <div className="hidden print:block text-center mb-6">
@@ -765,93 +765,93 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
               <p className="text-gray-600">{t('planner.calc_mode_label')} {packingMode === 'consolidate' ? t('planner.mode_name_consolidate') : packingMode === 'strict-item' ? t('planner.mode_name_item') : t('planner.mode_name_po')}</p>
             </div>
 
-            <h3 className="text-lg font-bold text-[#00B4D8] print:text-black mb-3 mt-4 flex items-center gap-2">
+            <h3 className="text-lg font-bold text-[#0066CC] print:text-black mb-3 mt-4 flex items-center gap-2">
               <span>🛒</span> {t('planner.print_step1')}
             </h3>
-            <table className="w-full text-left border-collapse mb-10 bg-[#0B132B] print:bg-white rounded-lg overflow-hidden">
-              <thead className="bg-[#1C2541] text-white print:bg-gray-200 print:text-black border-b border-white/10 print:border-gray-300">
+            <table className="w-full text-left border-collapse mb-10 bg-white print:bg-white rounded-lg overflow-hidden border border-gray-200">
+              <thead className="bg-gray-100 text-gray-600 print:bg-gray-200 print:text-black border-b border-gray-200 print:border-gray-300">
                 <tr>
                   <th className="p-3 font-bold text-center w-16">{t('planner.th_seq')}</th>
                   <th className="p-3 font-bold">{t('planner.th_box_spec')}</th>
                   <th className="p-3 font-bold text-center w-32">{t('planner.th_req_qty')}</th>
                 </tr>
               </thead>
-              <tbody className="text-white print:text-black">
+              <tbody className="text-gray-800 print:text-black">
                 {aggregatedBoxRequisition.map((sum, idx) => (
-                  <tr key={idx} className="border-b border-white/5 print:border-gray-300 last:border-0">
-                    <td className="p-3 text-center align-middle font-medium text-[#94A3B8] print:text-black">{idx + 1}</td>
+                  <tr key={idx} className="border-b border-gray-100 print:border-gray-300 last:border-0 hover:bg-gray-50">
+                    <td className="p-3 text-center align-middle font-medium text-gray-500 print:text-black">{idx + 1}</td>
                     <td className="p-3 align-middle">
-                      <div className="font-black text-[#00B4D8] print:text-black text-xl">{sum.boxCodename || sum.boxType}</div>
-                      <div className="text-xs text-[#94A3B8] print:text-gray-600 mb-2">ID: {sum.boxType}</div>
+                      <div className="font-black text-[#0066CC] print:text-black text-xl">{sum.boxCodename || sum.boxType}</div>
+                      <div className="text-xs text-gray-500 print:text-gray-600 mb-2">ID: {sum.boxType}</div>
 
-                      <div className="pl-3 border-l-2 border-[#00B4D8]/50 text-xs space-y-1 text-white print:text-gray-700 font-medium">
+                      <div className="pl-3 border-l-2 border-[#0066CC]/50 text-xs space-y-1 text-gray-600 print:text-gray-700 font-medium">
                         {sum.subCaps.map((sub, sIdx) => (
                           <div key={sIdx}>
-                            • {sub.cap} = <span className="font-bold text-yellow-400 print:text-black">{sub.boxesCount} {t('planner.unit_box')}</span>
+                            • {sub.cap} = <span className="font-bold text-gray-800 print:text-black">{sub.boxesCount} {t('planner.unit_box')}</span>
                           </div>
                         ))}
                       </div>
                     </td>
-                    <td className="p-3 font-black text-center text-4xl text-emerald-400 print:text-black align-middle">
-                      {sum.totalBoxes} <span className="text-sm font-normal text-[#94A3B8] print:text-gray-700 block mt-1">{t('planner.unit_box')}</span>
+                    <td className="p-3 font-black text-center text-4xl text-emerald-600 print:text-black align-middle">
+                      {sum.totalBoxes} <span className="text-sm font-normal text-gray-500 print:text-gray-700 block mt-1">{t('planner.unit_box')}</span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            <h3 className="text-lg font-bold text-white print:text-black mb-4 flex items-center gap-2 pt-4 border-t border-white/10 print:border-gray-300">
+            <h3 className="text-lg font-bold text-gray-800 print:text-black mb-4 flex items-center gap-2 pt-4 border-t border-gray-200 print:border-gray-300">
               <span>📦</span> {t('planner.print_step2')}
             </h3>
             <div className="space-y-6">
               {boxSummary.map((sum, idx) => (
-                <div key={idx} className="avoid-break bg-[#0B132B] p-5 rounded-xl border border-white/5 print:border-gray-400 print:p-2 print:bg-transparent">
-                  <div className="font-bold text-yellow-300 print:text-black mb-4 border-b border-white/10 print:border-gray-300 pb-3 flex justify-between items-center">
+                <div key={idx} className="avoid-break bg-gray-50 p-5 rounded-xl border border-gray-200 print:border-gray-400 print:p-2 print:bg-transparent shadow-sm">
+                  <div className="font-bold text-[#0066CC] print:text-black mb-4 border-b border-gray-200 print:border-gray-300 pb-3 flex justify-between items-center">
                     <span className="text-lg">
                       📦 {sum.boxCodename || sum.boxType}
-                      {packingMode !== 'consolidate' && <span className="text-sm text-[#00B4D8] print:text-black ml-2 bg-[#00B4D8]/10 print:bg-transparent px-2 py-0.5 rounded">({sum.boxCap} {t('planner.unit_piece')})</span>}
+                      {packingMode !== 'consolidate' && <span className="text-sm text-[#0066CC] print:text-black ml-2 bg-[#0066CC]/10 print:bg-transparent px-2 py-0.5 rounded border border-[#0066CC]/20 print:border-none">({sum.boxCap} {t('planner.unit_piece')})</span>}
                     </span>
-                    <span className="text-sm font-normal text-white print:text-gray-600 bg-white/5 print:bg-transparent px-3 py-1 rounded-full">
-                      {packingMode === 'consolidate' && <span className="text-[#00B4D8] font-bold mr-2">{t('planner.mixed_tag')}</span>}
+                    <span className="text-sm font-normal text-gray-600 print:text-gray-600 bg-white border border-gray-200 print:bg-transparent px-3 py-1 rounded-full">
+                      {packingMode === 'consolidate' && <span className="text-[#0066CC] font-bold mr-2">{t('planner.mixed_tag')}</span>}
                       {t('planner.used_total_boxes', { count: sum.totalBoxes })}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {sum.boxesBreakdown.map((b) => (
-                      <div key={b.boxNo} className="bg-[#1C2541] p-4 rounded-lg border border-white/5 print:bg-gray-50 print:border-gray-300 avoid-break">
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-white/5 print:border-gray-300">
-                          <span className="font-bold text-white print:text-black bg-white/5 print:bg-transparent px-2 py-0.5 rounded">{t('planner.box_no', { no: b.boxNo })}</span>
+                      <div key={b.boxNo} className="bg-white p-4 rounded-lg border border-gray-200 print:bg-gray-50 print:border-gray-300 avoid-break shadow-sm">
+                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100 print:border-gray-300">
+                          <span className="font-bold text-[#0066CC] print:text-black bg-blue-50 print:bg-transparent px-2 py-0.5 rounded">{t('planner.box_no', { no: b.boxNo })}</span>
                           {packingMode === 'consolidate'
-                            ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-[#00B4D8] print:text-gray-500 font-bold">{t('planner.space_left_pct', { pct: b.spaceLeftPct })}</span>)
-                            : (b.spaceLeft > 0 && <span className="text-[10px] text-[#00B4D8] print:text-gray-500 font-bold">{t('planner.space_left_pcs', { pcs: b.spaceLeft })}</span>)
+                            ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-gray-500 print:text-gray-500 font-bold">{t('planner.space_left_pct', { pct: b.spaceLeftPct })}</span>)
+                            : (b.spaceLeft > 0 && <span className="text-[10px] text-gray-500 print:text-gray-500 font-bold">{t('planner.space_left_pcs', { pcs: b.spaceLeft })}</span>)
                           }
                         </div>
                         <ul className="space-y-2">
-                          {b.items.length === 0 && <div className="text-xs text-[#94A3B8] text-center italic py-2">{t('planner.empty_box_hint')}</div>}
+                          {b.items.length === 0 && <div className="text-xs text-gray-400 text-center italic py-2">{t('planner.empty_box_hint')}</div>}
                           {b.items.map((item, i) => (
-                            <li key={i} className="flex flex-col text-sm text-white print:text-black mb-2 bg-[#0B132B] print:bg-transparent p-2 print:p-0 rounded border-l-2 border-[#00B4D8] print:border-none">
+                            <li key={i} className="flex flex-col text-sm text-gray-800 print:text-black mb-2 bg-gray-50 print:bg-transparent p-2 print:p-0 rounded border-l-2 border-[#0066CC] print:border-none">
                               <div className="flex justify-between items-start">
                                 <span className="font-bold pr-2">{item.itemCode}</span>
                                 <div className="text-right">
-                                  <span className="font-black text-emerald-400 print:text-black text-base">{item.qty} <span className="text-xs font-normal">{t('planner.unit_piece')}</span></span>
-                                  {packingMode === 'consolidate' && <div className="text-[#94A3B8] print:text-gray-600 text-[10px]">{t('planner.spec_cap', { cap: item.cap })}</div>}
+                                  <span className="font-black text-emerald-600 print:text-black text-base">{item.qty} <span className="text-xs font-normal">{t('planner.unit_piece')}</span></span>
+                                  {packingMode === 'consolidate' && <div className="text-gray-500 print:text-gray-600 text-[10px]">{t('planner.spec_cap', { cap: item.cap })}</div>}
                                 </div>
                               </div>
 
                               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                                 {item.lotNo && (
-                                  <div className="text-[10px] text-[#94A3B8] print:text-gray-600 font-mono bg-white/5 print:bg-transparent px-1.5 py-0.5 rounded">
-                                    {t('planner.lot_po')} <span className="text-white print:text-black">{item.lotNo}</span>
+                                  <div className="text-[10px] text-gray-500 print:text-gray-600 font-mono bg-white border border-gray-200 print:border-none print:bg-transparent px-1.5 py-0.5 rounded">
+                                    {t('planner.lot_po')} <span className="text-gray-800 print:text-black">{item.lotNo}</span>
                                   </div>
                                 )}
 
                                 {(item.poNumber !== NO_PO || item.orderNo !== NO_ORDER) && (
-                                  <span className="text-[10px] text-[#94A3B8] print:text-gray-600 bg-white/5 print:bg-transparent px-1.5 py-0.5 rounded leading-tight flex items-center gap-1">
-                                    {item.orderNo !== NO_ORDER ? <span className="text-white print:text-black">{item.orderNo}</span> : ''}
+                                  <span className="text-[10px] text-gray-500 print:text-gray-600 bg-white border border-gray-200 print:border-none print:bg-transparent px-1.5 py-0.5 rounded leading-tight flex items-center gap-1">
+                                    {item.orderNo !== NO_ORDER ? <span className="text-gray-800 print:text-black">{item.orderNo}</span> : ''}
                                     {item.lineNo !== '-' ? `(L:${item.lineNo})` : ''}
                                     {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? ` | PO: ` : ''}
-                                    {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? <span className="text-white print:text-black">{item.poNumber}</span> : ''}
+                                    {item.poNumber !== NO_PO && item.poNumber !== item.lotNo ? <span className="text-gray-800 print:text-black">{item.poNumber}</span> : ''}
                                   </span>
                                 )}
                               </div>
@@ -866,10 +866,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </div>
 
             <div className="mt-8 flex justify-end gap-3 print:hidden">
-              <button onClick={() => setShowSummaryModal(false)} className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-lg font-bold transition-colors">
+              <button onClick={() => setShowSummaryModal(false)} className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 rounded-lg font-bold transition-colors">
                 {t('common.back')}
               </button>
-              <button onClick={() => window.print()} className="px-6 py-2.5 bg-[#00B4D8] hover:bg-[#0096B4] text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg">
+              <button onClick={() => window.print()} className="px-6 py-2.5 bg-[#0066CC] hover:bg-[#0052a3] text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-sm">
                 🖨️ {t('planner.btn_print_instruction')}
               </button>
             </div>
