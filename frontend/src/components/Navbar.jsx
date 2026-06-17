@@ -25,7 +25,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
           />
           {/* ซ่อนคำว่า ZENIX ในจอมือถือ/แท็บเล็ต เพื่อประหยัดพื้นที่ (เพราะในรูปโลโก้มีคำนี้อยู่แล้ว) */}
           <h1 className="text-xl md:text-2xl font-black tracking-wider text-gray-800 mt-1 sm:mt-0">
-            <span className="hidden sm:inline">ZENIX</span><span className="text-[#0066CC]">PACKINGHUB</span>
+            <span className="text-[#0066CC]">PCA</span>
           </h1>
         </div>
 
