@@ -19,7 +19,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
         {/* ฝั่งซ้าย: โลโก้ */}
         <div className="flex items-center space-x-2 md:space-x-3 shrink-0 order-1">
           <img
-            src="/zenix-pace.png"
+            src="/zenix_pace.png"
             alt="Zenix Logo"
             className="h-12 md:h-16 lg:h-[70px] w-auto object-contain"
           />
