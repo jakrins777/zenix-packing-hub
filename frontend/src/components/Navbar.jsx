@@ -35,14 +35,14 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
             onClick={() => setCurrentTab('packing')}
             className={`px-3 md:px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base ${currentTab === 'packing' ? 'bg-[#0066CC] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
           >
-            {t('navbar.scan_packing')}
+            {t('navbar.scan_pack')}
           </button>
 
           <button
             onClick={() => setCurrentTab('inventory')}
             className={`px-3 md:px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base ${currentTab === 'inventory' ? 'bg-[#0066CC] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
           >
-            {t('navbar.check_inventory')}
+            {t('navbar.check_stock')}
           </button>
 
           {isAdmin && (
