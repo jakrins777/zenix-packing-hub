@@ -35,14 +35,14 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
             onClick={() => setCurrentTab('packing')}
             className={`px-3 md:px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base ${currentTab === 'packing' ? 'bg-[#0066CC] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
           >
-            🚀 สแกนแพ็ค
+            {t('navbar.scan_packing')}
           </button>
 
           <button
             onClick={() => setCurrentTab('inventory')}
             className={`px-3 md:px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base ${currentTab === 'inventory' ? 'bg-[#0066CC] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
           >
-            📦 เช็คสต็อกกล่อง
+            {t('navbar.check_inventory')}
           </button>
 
           {isAdmin && (
@@ -51,14 +51,14 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
                 onClick={() => setCurrentTab('dashboard')}
                 className={`px-3 md:px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base ${currentTab === 'dashboard' ? 'bg-[#0066CC] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
               >
-                📊 Dashboard
+                {t('navbar.dashboard')}
               </button>
 
               <button
                 onClick={() => setCurrentTab('admin')}
                 className={`px-3 md:px-4 py-2 rounded-lg font-bold transition-all text-sm md:text-base ${currentTab === 'admin' ? 'bg-[#0066CC] text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
               >
-                ⚙️ แอดมิน
+                ⚙️ {t('navbar.admin')}
               </button>
             </>
           )}
@@ -69,7 +69,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
           <button
             onClick={() => i18n.changeLanguage(i18n.language === 'th' ? 'en' : 'th')}
             className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-50 hover:bg-gray-200 border border-gray-200 text-[#0066CC] font-black transition-colors shadow-sm shrink-0 text-sm md:text-base"
-            title={t('navbar_change_language')}
+            title={t('navbar.change_language')}
           >
             {i18n.language === 'th' ? 'TH' : 'EN'}
           </button>
@@ -84,7 +84,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
               onClick={onLogout}
               className="text-red-500 hover:text-red-600 font-bold text-xs md:text-sm transition-colors flex items-center shrink-0 py-1"
             >
-              {t('navbar_logout')}
+              {t('navbar.logout')}
             </button>
           </div>
         </div>
