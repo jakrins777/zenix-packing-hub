@@ -53,6 +53,7 @@ model Box {
   createdAt    DateTime @default(now()) 
   updatedAt    DateTime @updatedAt 
   minStockLevel Int     @default(0) // จุดแจ้งเตือนสั่งซื้อ (ถ้าสต็อกต่ำกว่านี้จะแจ้งเตือน)
+  codename  String?
   
   // Relation: กล่อง 1 ไซส์ สามารถถูกผูกเป็นกล่องมาตรฐานให้กับสินค้าได้หลายชิ้น
   items        Item[]
@@ -71,7 +72,7 @@ model Item {
   boxesPerUnit Int      @default(1)
   createdAt      DateTime @default(now()) 
   updatedAt      DateTime @updatedAt 
- 
+  requireDesiccant  Boolean  @default(false)  // เติมบรรทัดนี้กลับเข้าไป
   
   // Relation Link: เชื่อมไปหาตารางกล่องบรรจุภัณฑ์
   defaultBox     Box?     @relation(fields: [defaultPckId], references: [pckId], onDelete: SetNull)
