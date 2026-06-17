@@ -35,7 +35,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     // บังคับให้ boxesPerUnit เป็น 1 เสมอถ้าไม่ได้กรอกมา เพื่อป้องกันค่าว่าง (Null)
     const payload = {
       ...itemForm,
-      itemName: itemForm.itemName.trim() === '' ? itemForm.itemId : itemForm.itemName,
+      // 🌟 เติม (itemForm.itemName || '') เผื่อกรณีค่าเป็น undefined ระบบจะได้ไม่พังครับ
+      itemName: (itemForm.itemName || '').trim() === '' ? itemForm.itemId : itemForm.itemName,
       boxesPerUnit: itemForm.boxesPerUnit ? Number(itemForm.boxesPerUnit) : 1,
       updatedAt: new Date().toISOString()
     };
