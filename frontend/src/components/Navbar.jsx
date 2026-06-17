@@ -18,7 +18,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
         {/* 🌟 โลโก้แบบรูปภาพ */}
         <div className="flex items-center space-x-3">
           <img 
-            src="/logo-zenix.png" 
+            src="/zenix-logo.png" 
             alt="Zenix Logo" 
             className="h-10 w-auto object-contain" 
           />
