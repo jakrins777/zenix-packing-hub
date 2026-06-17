@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
-import { useTranslation } from 'react-i18next'; // 🌟 Import เครื่องมือแปลภาษา
+import { useTranslation } from 'react-i18next';
+import * as XLSX from 'xlsx';
 
 export default function PackingPlanner({ items, boxes, currentUser, fetchReportsData, fetchLogsData, fetchAdminData }) {
   const { t } = useTranslation(); // 🌟 เรียกใช้งาน Hook แปลภาษา
@@ -213,6 +214,57 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     setCalcResults([...validItemsList, ...errorList].sort((a, b) => a.id - b.id));
     setBoxSummary(summaryArray);
     toast.success(t('planner.calc_success', { pass: validItemsList.length, fail: errorList.length }));
+  };
+
+  const handleExportPlanToExcel = () => {
+    if (!boxSummary || boxSummary.length === 0) {
+      toast.error('ไม่มีข้อมูลแผนการแพ็คสำหรับ Export');
+      return;
+    }
+
+    const exportData = [];
+
+    // วนลูปดึงข้อมูลจากสรุปการเบิกกล่อง
+    boxSummary.forEach((group) => {
+      const boxName = group.boxCodename || group.boxType;
+
+      group.boxesBreakdown.forEach((box) => {
+        if (box.items.length === 0) {
+          exportData.push({
+            'Box Type (ชนิดกล่อง)': boxName,
+            'Box No (ใบที่)': `Box #${box.boxNo}`,
+            'Item Code': 'EMPTY BOX (กล่องเปล่า)',
+            'Item Name': '-',
+            'Qty (ชิ้น)': 0,
+            'Order No': '-',
+            'PO Number': '-',
+            'Lot/PO': '-'
+          });
+        } else {
+          box.items.forEach((item) => {
+            exportData.push({
+              'Box Type (ชนิดกล่อง)': boxName,
+              'Box No (ใบที่)': `Box #${box.boxNo}`,
+              'Item Code': item.itemCode,
+              'Item Name': item.itemName || '-',
+              'Qty (ชิ้น)': item.qty,
+              'Order No': item.orderNo !== t('planner.no_order') ? item.orderNo : '-',
+              'PO Number': item.poNumber !== t('planner.no_po') ? item.poNumber : '-',
+              'Lot/PO': item.lotNo || '-'
+            });
+          });
+        }
+      });
+    });
+
+    // สร้างไฟล์ Excel และดาวน์โหลด
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Packing Plan");
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `Packing_Plan_${dateStr}.xlsx`);
+    toast.success('ดาวน์โหลดไฟล์ Excel สำเร็จ!');
   };
 
   const handleAdjustBox = (cardGroupKey, amount) => {
@@ -589,7 +641,30 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                           ))}
                         </div>
                       </div>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-[#0B132B] border-b border-white/10 gap-4">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          📦 {t('planner.summary_title')}
+                          <span className="text-sm font-normal text-[#00B4D8] bg-[#00B4D8]/10 px-3 py-1 rounded-full border border-[#00B4D8]/30">
+                            {t('planner.calculated_with', { mode: packingMode === 'consolidate' ? t('planner.mode_name_consolidate') : packingMode === 'strict-item' ? t('planner.mode_name_item') : t('planner.mode_name_po') })}
+                          </span>
+                        </h3>
 
+                        {/* 🌟 เพิ่มปุ่ม Export Excel คู่กับปุ่มเดิมตรงนี้ครับ */}
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                          <button
+                            onClick={handleExportPlanToExcel}
+                            className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+                          >
+                            <span>📊</span> Export Excel
+                          </button>
+                          <button
+                            onClick={() => setShowSummaryModal(true)}
+                            className="flex-1 sm:flex-none bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+                          >
+                            📋 {t('planner.btn_view_print')}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
