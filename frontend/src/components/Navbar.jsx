@@ -69,7 +69,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
             className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-50 hover:bg-gray-200 border border-gray-200 text-[#0066CC] font-black transition-colors shadow-sm"
             title="เปลี่ยนภาษา (Change Language)"
           >
-            {i18n.language === 'th' ? 'EN' : 'TH'}
+            {i18n.language === 'th' ? 'TH' : 'EN'}
           </button>
 
           <div className="flex items-center space-x-4 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200" >
