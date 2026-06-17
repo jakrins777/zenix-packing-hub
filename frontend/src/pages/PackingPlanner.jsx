@@ -38,29 +38,29 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       let lotNo = '';
       let qty = 0;
 
-      // 🧠 1. SMART DETECT: หา รหัสสินค้า (Item Code) โดยเช็คเทียบกับ Master Data
+      
       const itemIndex = parts.findIndex(p => items.some(i => i.itemId === p.toUpperCase().trim()));
 
       if (itemIndex === -1) {
-        // ถ้าหาไม่เจอจริงๆ ในมาสเตอร์ ให้แจ้ง Error
+        
         errorList.push({ id: index, orderNo, poNumber, itemCode: parts[0], lotNo, qty: 0, error: t('planner.err_item_not_found') });
         return;
       }
 
       itemCode = parts[itemIndex].toUpperCase().trim();
 
-      // 🧠 2. SMART DETECT: หา จำนวน (Qty) โดยเล็งตัวเลขที่อยู่ติดกับ Item ก่อน
+      
       let qtyIndex = -1;
 
-      // เช็คด้านขวา (เช่น: FG-D2P 50)
+      
       if (itemIndex < parts.length - 1 && !isNaN(parts[itemIndex + 1]) && Number(parts[itemIndex + 1]) > 0) {
         qtyIndex = itemIndex + 1;
       }
-      // เช็คด้านซ้าย (เช่น: 50 FG-D2P)
+      
       else if (itemIndex > 0 && !isNaN(parts[itemIndex - 1]) && Number(parts[itemIndex - 1]) > 0) {
         qtyIndex = itemIndex - 1;
       }
-      // ท่าไม้ตาย: ถ้าไม่ติดกัน ให้หา "ตัวเลขสุดท้าย" ในแถวนั้น
+      
       else {
         qtyIndex = parts.findLastIndex((p, idx) => idx !== itemIndex && !isNaN(p) && Number(p) > 0);
       }
@@ -72,7 +72,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         return;
       }
 
-      // 🧠 3. ลบ Item และ Qty ออกจาก Array ชั่วคราว (ลบจากหลังมาหน้า Index จะได้ไม่เคลื่อน)
+      
       const indicesToRemove = [itemIndex, qtyIndex].sort((a, b) => b - a);
       indicesToRemove.forEach(idx => parts.splice(idx, 1));
 
