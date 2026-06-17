@@ -68,6 +68,7 @@ model Item {
   itemWeight     Float    
   defaultPckId   String?  
   stdPackQty     Int      @default(1)
+  boxesPerUnit Int      @default(1)
   createdAt      DateTime @default(now()) 
   updatedAt      DateTime @updatedAt 
  

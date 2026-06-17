@@ -157,8 +157,14 @@ app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
         if (rawWeight !== undefined) updateData.itemWeight = parseFloat(rawWeight) || 0;
 
         // 🌟 3. ดักรหัสกล่อง
+        
         const rawBox = row['Box ID'] || row['รหัสกล่อง'] || row['defaultPckId'] || row['pckId'];
-        if (rawBox !== undefined) updateData.defaultPckId = String(rawBox).toUpperCase().trim();
+        if (rawBox !== undefined) {
+          const boxCode = String(rawBox).toUpperCase().trim();
+          if (boxCode !== '') {
+            updateData.defaultBox = { connect: { pckId: boxCode } };
+          }
+        }
 
         // 🌟 4. ดักจำนวนจุต่อกล่อง 
         const rawStdPack = row['stdPackQty'] || row['Std Pack'] || row['จำนวนจุต่อกล่อง'];
