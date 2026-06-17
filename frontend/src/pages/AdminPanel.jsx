@@ -31,20 +31,43 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...itemForm, itemName: itemForm.itemName.trim() === '' ? itemForm.itemId : itemForm.itemName, updatedAt: new Date().toISOString() };
+
+    // บังคับให้ boxesPerUnit เป็น 1 เสมอถ้าไม่ได้กรอกมา เพื่อป้องกันค่าว่าง (Null)
+    const payload = {
+      ...itemForm,
+      itemName: itemForm.itemName.trim() === '' ? itemForm.itemId : itemForm.itemName,
+      boxesPerUnit: itemForm.boxesPerUnit ? Number(itemForm.boxesPerUnit) : 1,
+      updatedAt: new Date().toISOString()
+    };
+
     const toastId = toast.loading(t('toast.saving_item'));
+
     try {
       let error;
-      if (editingItemId) { const { error: updateError } = await supabase.from('items').update(payload).eq('itemId', editingItemId); error = updateError; } 
-      else { const { error: insertError } = await supabase.from('items').insert([payload]); error = insertError; }
-      if (!error) { 
-        toast.success(t('toast.save_item_success'), { id: toastId }); 
-        setItemForm({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '',  stdPackQty: 1 }); 
-        setEditingItemId(null); 
-        if (refreshAdminData) refreshAdminData(); 
-      } 
-      else { if (error.code === '23505' || error.message.includes('duplicate key')) { toast.error(t('toast.save_item_duplicate'), { id: toastId }); } else { toast.error(t('toast.save_error') + error.message, { id: toastId }); } }
-    } catch (err) { toast.error(t('toast.save_item_error'), { id: toastId }); }
+      if (editingItemId) {
+        const { error: updateError } = await supabase.from('items').update(payload).eq('itemId', editingItemId);
+        error = updateError;
+      } else {
+        const { error: insertError } = await supabase.from('items').insert([payload]);
+        error = insertError;
+      }
+
+      if (!error) {
+        toast.success(t('toast.save_item_success'), { id: toastId });
+        // 🌟 เพิ่ม boxesPerUnit: 1 เข้าไปในการรีเซ็ตฟอร์ม
+        setItemForm({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1, boxesPerUnit: 1 });
+        setEditingItemId(null);
+        if (refreshAdminData) refreshAdminData();
+      } else {
+        if (error.code === '23505' || error.message.includes('duplicate key')) {
+          toast.error(t('toast.save_item_duplicate'), { id: toastId });
+        } else {
+          toast.error(t('toast.save_error') + error.message, { id: toastId });
+        }
+      }
+    } catch (err) {
+      toast.error(t('toast.save_item_error'), { id: toastId });
+    }
   };
 
   const handleSelectItem = (id) => {
@@ -317,9 +340,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.name')}</label><input type="text" value={itemForm.itemName || ''} onChange={(e) => setItemForm({ ...itemForm, itemName: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
                 <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.customer')}</label><input type="text" value={itemForm.supplier || ''} onChange={(e) => setItemForm({ ...itemForm, supplier: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* 🌟 แก้ไข: เปลี่ยนเป็น 3 คอลัมน์ และเพิ่มช่อง กล่องต่อชิ้น */}
+                <div className="grid grid-cols-3 gap-4">
                   <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.weight')}</label><input type="number" step="0.001" required value={itemForm.itemWeight || ''} onChange={(e) => setItemForm({ ...itemForm, itemWeight: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
                   <div><label className="block text-sm font-bold text-[#0066CC] mb-1">{t('item.qty_per_box')}</label><input type="number" required min="1" value={itemForm.stdPackQty || ''} onChange={(e) => setItemForm({ ...itemForm, stdPackQty: parseInt(e.target.value) || 1 })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
+                  <div><label className="block text-sm font-bold text-amber-600 mb-1">กล่อง/ชิ้น</label><input type="number" required min="1" value={itemForm.boxesPerUnit || 1} onChange={(e) => setItemForm({ ...itemForm, boxesPerUnit: parseInt(e.target.value) || 1 })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" /></div>
                 </div>
 
                 <div>
@@ -337,7 +362,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
                 <div className="flex space-x-2 pt-4">
                   <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all">{t('common.save')}</button>
-                  {editingItemId && <button type="button" onClick={() => { setEditingItemId(null); setItemForm({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1 }); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-all">{t('common.cancel')}</button>}
+                  {/* 🌟 แก้ไข: ปุ่มยกเลิกรีเซ็ตค่า boxesPerUnit ด้วย */}
+                  {editingItemId && <button type="button" onClick={() => { setEditingItemId(null); setItemForm({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1, boxesPerUnit: 1 }); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-all">{t('common.cancel')}</button>}
                 </div>
               </form>
             </div>
@@ -449,9 +475,15 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                           <td className="py-3 px-4 font-mono font-black text-[#0066CC]">{id}</td>
                           <td className="py-3 px-4 text-sm font-bold text-gray-800">{name}</td>
                           <td className="py-3 px-4 text-gray-500 font-medium text-sm">{item.supplier || '-'}</td>
-                          <td className="py-3 px-4 text-sm"><div className="font-bold text-gray-800 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md inline-block mr-2">{item.defaultPckId || '-'}</div><span className="text-xs text-[#0066CC] font-bold bg-blue-50 border border-blue-100 px-2 py-1 rounded">{t('common.capacity')} {item.stdPackQty || 1}</span></td>
+                          <td className="py-3 px-4 text-sm">
+                            <div className="font-bold text-gray-800 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md inline-block mr-2">{item.defaultPckId || '-'}</div>
+                            <span className="text-xs text-[#0066CC] font-bold bg-blue-50 border border-blue-100 px-2 py-1 rounded mr-2">{t('common.capacity')} {item.stdPackQty || 1}</span>
+                            {/* 🌟 แสดงป้ายบอกถ้าสินค้านี้ต้องแยก 2 กล่อง */}
+                            {(item.boxesPerUnit && item.boxesPerUnit > 1) && <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-1 rounded">📦 แยก {item.boxesPerUnit} กล่อง</span>}
+                          </td>
                           <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
-                            <button onClick={() => { setEditingItemId(id); setItemForm({ itemId: id, itemName: name, supplier: item.supplier, itemWeight: item.itemWeight, defaultPckId: item.defaultPckId || '', stdPackQty: item.stdPackQty || 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit_light')}</button>
+                            {/* 🌟 แก้ไข: ปุ่ม Edit ดึงค่า boxesPerUnit ไปแสดงในฟอร์มด้วย */}
+                            <button onClick={() => { setEditingItemId(id); setItemForm({ itemId: id, itemName: name, supplier: item.supplier, itemWeight: item.itemWeight, defaultPckId: item.defaultPckId || '', stdPackQty: item.stdPackQty || 1, boxesPerUnit: item.boxesPerUnit || 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit_light')}</button>
                             <button onClick={() => handleDeleteItem(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
                           </td>
                         </tr>

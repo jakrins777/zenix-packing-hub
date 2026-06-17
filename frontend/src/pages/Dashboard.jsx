@@ -63,7 +63,7 @@ export default function Dashboard({ logs, reports, handleDeleteLog, handleDelete
               <option value="all"> {t('filter.all')}</option>
             </select>
             {timeFilter === 'custom' && <input type="date" value={customDate} onChange={(e) => setCustomDate(e.target.value)} className="p-2.5 border border-[#0066CC] rounded-lg font-bold text-[#0066CC] focus:outline-none focus:ring-1 focus:ring-[#0066CC] bg-white" />}
-            <button onClick={() => window.print()} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-4 py-2.5 rounded-lg font-bold flex items-center transition-colors shadow-sm gap-2">🖨️ {t('dashboard.print_report')}</button>
+            <button onClick={() => window.print()} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-4 py-2.5 rounded-lg font-bold flex items-center transition-colors shadow-sm gap-2">{t('dashboard.print_report')}</button>
             <button onClick={handleExportExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-bold flex items-center transition-colors shadow-md gap-2"><span>📊</span> {t('dashboard.export_excel')}</button>
           </div>
         </div>
