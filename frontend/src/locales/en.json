@@ -235,9 +235,9 @@
     "delete_report": "🗑️ Delete Report"
   },
   "inventory": {
-    "title": "📦 Packaging Stock Report",
+    "title": " Packaging Stock Report",
     "subtitle": "Stock balance and box status monitoring system",
-    "print_summary": "🖨️ Print Summary Report",
+    "print_summary": " Print Summary Report",
     "report_title": "Packaging Box Stock Report",
     "print_date": "Print Date:",
     "th_box_id": "Box ID",
@@ -245,9 +245,9 @@
     "th_current_stock": "Current Stock",
     "th_status_alert": "Alert Status",
     "status_consignment": "🔄 Consignment Quota",
-    "status_out_of_stock": "❌ Out of Stock!",
-    "status_low_stock": "⚠️ Low Stock!",
-    "status_normal": "✅ Normal Stock"
+    "status_out_of_stock": " Out of Stock!",
+    "status_low_stock": "Low Stock!",
+    "status_normal": " Normal Stock"
   },
   "login": {
     "error_server": "Unable to connect to the server (Please check Backend)",
@@ -281,13 +281,13 @@
     "mode_strict_po_desc": "Never mix items or Orders",
     "textarea_placeholder": "Paste your data here. You can copy directly from the store report Excel...",
     "btn_calculate": "Calculate using selected mode",
-    "summary_title": "📦 Box Requisition Summary",
+    "summary_title": " Box Requisition Summary",
     "calculated_with": "Calculated with: {{mode}}",
     "mode_name_consolidate": "Consolidate Mode (Volume Based)",
     "mode_name_item": "Strict Item Mode",
     "mode_name_po": "Strict PO Mode",
-    "btn_view_print": "📋 View / Print Packing Instruction",
-    "quick_summary": "🛒 Quick Requisition Summary (Total Boxes + Sub Capacity)",
+    "btn_view_print": "View / Print Packing Instruction",
+    "quick_summary": "Quick Requisition Summary (Total Boxes + Sub Capacity)",
     "used": "used",
     "unit_box": "Boxes",
     "total_requisition": "Total Req.",
