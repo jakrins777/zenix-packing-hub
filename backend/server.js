@@ -125,7 +125,7 @@ app.get('/api/items/:id', async (req, res) => {
   }
 });
 
-// 📥 อัปโหลดสินค้า (รองรับหลายไฟล์ + Upsert + ดักความจุกล่อง)
+// 📥 อัปโหลดสินค้า (รองรับหลายไฟล์ + Upsert + ดักความจุกล่องและแยกกล่อง)
 app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
   try {
     let allRawData = [];
@@ -141,29 +141,34 @@ app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
       // 🌟 1. ดักจับรหัสสินค้า
       const rawItemCode = row['itemId'] || row['ItemId'] || row['itemid'] || row['Item'] || row['รหัสสินค้า'] || '';
       const itemCode = String(rawItemCode).toUpperCase().trim();
-      
+
       if (itemCode) {
         const updateData = {};
-        
+
         // 🌟 2. ดักชื่อลูกค้า และ น้ำหนัก
-        const rawName = row['Description'] || row['ชื่อสินค้า'] || row['itemName'];
-        if (rawName !== undefined) updateData.itemName = String(rawName).trim();
-        
+        // [แก้บั๊ก Prisma ตรงนี้]: ถ้าไม่มีคอลัมน์ชื่อสินค้าใน Excel ให้ดึง "รหัสสินค้า" มายัดใส่เป็นชื่อแทนเลย!
+        const rawName = row['Description'] || row['ชื่อสินค้า'] || row['itemName'] || itemCode;
+        updateData.itemName = String(rawName).trim();
+
         const rawSupplier = row['Product Code'] || row['ซัพพลายเออร์'] || row['supplier'] || row['Customer'];
         if (rawSupplier !== undefined) updateData.supplier = String(rawSupplier).trim();
-        
+
         const rawWeight = row['Unit Weight'] || row['น้ำหนัก'] || row['itemWeight'];
         if (rawWeight !== undefined) updateData.itemWeight = parseFloat(rawWeight) || 0;
-        
+
         // 🌟 3. ดักรหัสกล่อง
         const rawBox = row['Box ID'] || row['รหัสกล่อง'] || row['defaultPckId'] || row['pckId'];
         if (rawBox !== undefined) updateData.defaultPckId = String(rawBox).toUpperCase().trim();
 
-        // 🌟 4. ดักจำนวนจุต่อกล่อง (จุดที่หายไป!)
+        // 🌟 4. ดักจำนวนจุต่อกล่อง 
         const rawStdPack = row['stdPackQty'] || row['Std Pack'] || row['จำนวนจุต่อกล่อง'];
         if (rawStdPack !== undefined) updateData.stdPackQty = parseInt(rawStdPack, 10) || 1;
 
-        // 🌟 5. บันทึกลงฐานข้อมูล (มีอยู่แล้วอัปเดต, ไม่มีให้สร้างใหม่)
+        // 🌟 5. [เพิ่มใหม่] ดักจำนวนแยกกล่อง (สำหรับ Stelia D2P)
+        const rawBoxesPerUnit = row['boxesPerUnit'] || row['จำนวนกล่อง/ชิ้น'];
+        if (rawBoxesPerUnit !== undefined) updateData.boxesPerUnit = parseInt(rawBoxesPerUnit, 10) || 1;
+
+        // 🌟 6. บันทึกลงฐานข้อมูล (มีอยู่แล้วอัปเดต, ไม่มีให้สร้างใหม่)
         if (Object.keys(updateData).length > 0) {
           const existingItem = await prisma.item.findUnique({
             where: { itemId: itemCode }
