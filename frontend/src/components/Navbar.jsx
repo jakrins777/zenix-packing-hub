@@ -84,7 +84,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
               onClick={onLogout}
               className="text-red-500 hover:text-red-600 font-bold text-xs md:text-sm transition-colors flex items-center shrink-0 py-1"
             >
-              ออกจากระบบ
+              {t(navbar.logout)}
             </button>
           </div>
         </div>
