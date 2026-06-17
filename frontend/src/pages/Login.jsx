@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next'; // 🌟 Import เครื่องมือแปลภาษา
 
 export default function Login({ onLogin }) {
+  const { t } = useTranslation(); // 🌟 เรียกใช้งาน Hook แปลภาษา
   // 🌟 ประกาศ State สำหรับเก็บค่าต่างๆ ในหน้า Login ให้ครบถ้วน
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +37,7 @@ export default function Login({ onLogin }) {
         setError(data.message);
       }
     } catch (err) {
-      setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ (โปรดตรวจสอบ Backend)');
+      setError(t('login.error_server'));
       console.error(err);
     } finally {
       setLoading(false); // ปิดโหมด Loading
@@ -63,19 +65,19 @@ return (
         {/* 🌟 ฟอร์มล็อกอิน */}
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-sm font-bold text-[#94A3B8] mb-2">{t('login.username_label')}</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">{t('login.username_label')}</label>
             <input 
               type="text" 
               required 
               value={username} 
               onChange={(e) => setUsername(e.target.value)} 
-              className="w-full px-4 py-3 border border-white/10 rounded-xl bg-[#0B132B] text-white focus:ring-1 focus:ring-[#00B4D8] focus:border-[#00B4D8] outline-none transition-all font-mono placeholder-[#94A3B8]/40" 
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-mono" 
               placeholder={t('login.username_placeholder')}
               disabled={loading}
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-[#94A3B8] mb-2">{t('login.password_label')}</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2">{t('login.password_label')}</label>
             <input 
               type="password" 
               required 

@@ -8,8 +8,11 @@ import PackingPlanner from './pages/PackingPlanner';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import toast, { Toaster } from 'react-hot-toast'; 
+import { useTranslation } from 'react-i18next'; // 🌟 Import เครื่องมือแปลภาษา
 
 function App() {
+  const { t } = useTranslation(); // 🌟 เรียกใช้งาน Hook แปลภาษา
+
   // ==========================================
   // 1. GLOBAL STATES
   // ==========================================
@@ -49,9 +52,9 @@ function App() {
       const { data: dataUsers } = await supabase.from('users').select('*');
       if (dataUsers) setUsers(dataUsers);
     } catch (err) { 
-      toast.error('โหลด Master Data ไม่สำเร็จ'); 
+      toast.error(t('app.err_load_master')); 
     }
-  }, []);
+  }, [t]);
 
   const fetchLogsData = useCallback(async () => {
     try {
@@ -63,9 +66,9 @@ function App() {
       if (error) throw error;
       if (dataLogs) setLogs(dataLogs);
     } catch (err) { 
-      toast.error('โหลดข้อมูล Logs ไม่สำเร็จ'); 
+      toast.error(t('app.err_load_logs')); 
     }
-  }, []);
+  }, [t]);
 
   const fetchReportsData = useCallback(async () => {
     try {
@@ -74,9 +77,9 @@ function App() {
       if (error) throw error;
       if (dataReports) setReports(dataReports);
     } catch (err) {
-      toast.error('โหลดข้อมูลรายงานสรุปไม่สำเร็จ');
+      toast.error(t('app.err_load_reports'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (currentUser) {
@@ -90,8 +93,8 @@ function App() {
   // 3. GLOBAL HANDLERS (LOG DELETION)
   // ==========================================
   const handleDeleteLog = async (id) => {
-    if (!confirm('🚨 ยืนยันที่จะลบประวัติการแพ็คนี้ใช่หรือไม่? (ระบบจะคืนสต็อกกล่องให้ด้วย)')) return;
-    const toastId = toast.loading('กำลังลบข้อมูลและคืนสต็อก...'); 
+    if (!confirm(t('app.confirm_delete_log'))) return;
+    const toastId = toast.loading(t('app.deleting_log')); 
     try {
       const logToDelete = logs.find(l => l.logId === id);
       const { error } = await supabase.from('packing_logs').delete().eq('logId', id); 
@@ -105,29 +108,29 @@ function App() {
               fetchAdminData();
            }
         }
-        toast.success('ลบประวัติและคืนสต็อกกล่องสำเร็จ', { id: toastId }); 
+        toast.success(t('app.del_log_success'), { id: toastId }); 
         fetchLogsData(); 
       } else {
-        toast.error('ลบไม่สำเร็จ: ' + error.message, { id: toastId }); 
+        toast.error(t('app.del_err_msg') + error.message, { id: toastId }); 
       }
     } catch (err) { 
-      toast.error('ลบไม่สำเร็จ ระบบขัดข้อง', { id: toastId }); 
+      toast.error(t('app.del_err_sys'), { id: toastId }); 
     }
   };
 
   const handleDeleteReportLog = async (id) => {
-    if (!confirm('🚨 ยืนยันที่จะลบรายงานสรุปแผนการเบิกกล่องนี้ใช่หรือไม่?')) return;
-    const toastId = toast.loading('กำลังลบรายงานสรุปแผน...'); 
+    if (!confirm(t('app.confirm_delete_report'))) return;
+    const toastId = toast.loading(t('app.deleting_report')); 
     try {
       const { error } = await supabase.from('Report').delete().eq('id', id); 
       if (!error) {
-        toast.success('ลบรายงานสรุปสำเร็จ', { id: toastId });
+        toast.success(t('app.del_report_success'), { id: toastId });
         fetchReportsData(); 
       } else {
-        toast.error('ลบไม่สำเร็จ: ' + error.message, { id: toastId });
+        toast.error(t('app.del_err_msg') + error.message, { id: toastId });
       }
     } catch (err) {
-      toast.error('ลบไม่สำเร็จ ระบบขัดข้อง', { id: toastId });
+      toast.error(t('app.del_err_sys'), { id: toastId });
     }
   };
 
@@ -147,7 +150,7 @@ function App() {
 
       <Navbar 
         user={currentUser} 
-        onLogout={() => { setCurrentUser(null); localStorage.removeItem('zenix_user'); toast.success('ออกจากระบบสำเร็จ'); }} 
+        onLogout={() => { setCurrentUser(null); localStorage.removeItem('zenix_user'); toast.success(t('app.logout_success')); }} 
         currentTab={currentTab} 
         setCurrentTab={setCurrentTab} 
       />

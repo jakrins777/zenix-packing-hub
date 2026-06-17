@@ -2,15 +2,17 @@
 import React, { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import Barcode from 'react-barcode';
+import { useTranslation } from 'react-i18next'; // 🌟 Import เครื่องมือแปลภาษา
 
 export default function PrintLabelButton({ data }) {
+  const { t } = useTranslation(); // 🌟 เรียกใช้งาน Hook แปลภาษา
   const componentRef = useRef();
   
   // 🌟 อัปเกรดคำสั่ง: รองรับโครงสร้างทั้ง react-to-print v2 และ v3+ รวดเดียวกันพังครับ
   const handlePrint = useReactToPrint({
     contentRef: componentRef,            // สำหรับ react-to-print v3+ (เวอร์ชันใหม่ล่าสุด)
     content: () => componentRef.current, // สำหรับ react-to-print v2 (เวอร์ชันเก่า)
-    documentTitle: `Label_${data?.itemId || 'Product'}`,
+    documentTitle: `Label_${data?.itemId || t('print_label.default_product')}`,
   });
 
  return (
