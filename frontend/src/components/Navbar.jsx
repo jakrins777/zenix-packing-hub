@@ -69,7 +69,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
           <button
             onClick={() => i18n.changeLanguage(i18n.language === 'th' ? 'en' : 'th')}
             className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-50 hover:bg-gray-200 border border-gray-200 text-[#0066CC] font-black transition-colors shadow-sm shrink-0 text-sm md:text-base"
-            title="เปลี่ยนภาษา (Change Language)"
+            title={t('navbar_change_language')}
           >
             {i18n.language === 'th' ? 'TH' : 'EN'}
           </button>
@@ -84,7 +84,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
               onClick={onLogout}
               className="text-red-500 hover:text-red-600 font-bold text-xs md:text-sm transition-colors flex items-center shrink-0 py-1"
             >
-              {t('logout')}
+              {t('navbar_logout')}
             </button>
           </div>
         </div>
