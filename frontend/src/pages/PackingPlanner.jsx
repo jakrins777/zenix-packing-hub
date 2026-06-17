@@ -25,71 +25,75 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const NO_PO = t('planner.no_po');
 
     rows.forEach((row, index) => {
-      const parts = row.trim().split(/[\t ]+/).filter(Boolean); 
+      
+      if (index === 0 && /(item|qty|จำนวน|รหัส|po|order|line|lot)/i.test(row)) return;
+
+      let parts = row.trim().split(/[\t ]+/).filter(Boolean);
       if (parts.length < 2) return;
 
       let orderNo = NO_ORDER;
       let poNumber = NO_PO;
       let lineNo = '-';
       let itemCode = '';
-      let lotNo = ''; 
+      let lotNo = '';
       let qty = 0;
 
-      const isParts0Item = items.some(i => i.itemId === parts[0].toUpperCase().trim());
+      // 🧠 1. SMART DETECT: หา รหัสสินค้า (Item Code) โดยเช็คเทียบกับ Master Data
+      const itemIndex = parts.findIndex(p => items.some(i => i.itemId === p.toUpperCase().trim()));
 
-      if (isParts0Item) {
-        itemCode = parts[0].toUpperCase().trim();
-        if (!isNaN(parseInt(parts[1], 10))) {
-          qty = parseInt(parts[1], 10);
-          if (parts.length > 2) {
-            poNumber = parts[parts.length - 1].toUpperCase().trim();
-            orderNo = poNumber; 
-            lotNo = poNumber; 
-          }
-        } 
-        else if (parts.length >= 5 && !isNaN(parseInt(parts[4], 10))) {
-          qty = parseInt(parts[4], 10);
-          lotNo = parts[2].trim();
-          poNumber = lotNo; 
-          orderNo = lotNo;
-        }
-      } else {
-        if (parts.length >= 5) {
-          poNumber = parts[0].toUpperCase().trim();
-          orderNo = parts[1].toUpperCase().trim();
-          lineNo = parts[2].toUpperCase().trim();
-          itemCode = parts[3].toUpperCase().trim();
-          qty = parseInt(parts[4], 10);
-        } else if (parts.length === 4) {
-          orderNo = parts[0].toUpperCase().trim();
-          poNumber = parts[1].toUpperCase().trim();
-          itemCode = parts[2].toUpperCase().trim();
-          qty = parseInt(parts[3], 10);
-        } else if (parts.length === 3) {
-          poNumber = parts[0].toUpperCase().trim();
-          itemCode = parts[1].toUpperCase().trim();
-          qty = parseInt(parts[2], 10);
-        } else {
-          itemCode = parts[0].toUpperCase().trim();
-          qty = parseInt(parts[1], 10);
-        }
-      }
-
-      if (!itemCode || isNaN(qty) || qty <= 0) return;
-
-      const foundItem = items.find(i => i.itemId === itemCode);
-      if (!foundItem) {
-        errorList.push({ id: index, orderNo, poNumber, itemCode, lotNo, qty, error: t('planner.err_item_not_found') });
+      if (itemIndex === -1) {
+        // ถ้าหาไม่เจอจริงๆ ในมาสเตอร์ ให้แจ้ง Error
+        errorList.push({ id: index, orderNo, poNumber, itemCode: parts[0], lotNo, qty: 0, error: t('planner.err_item_not_found') });
         return;
       }
 
+      itemCode = parts[itemIndex].toUpperCase().trim();
+
+      // 🧠 2. SMART DETECT: หา จำนวน (Qty) โดยเล็งตัวเลขที่อยู่ติดกับ Item ก่อน
+      let qtyIndex = -1;
+
+      // เช็คด้านขวา (เช่น: FG-D2P 50)
+      if (itemIndex < parts.length - 1 && !isNaN(parts[itemIndex + 1]) && Number(parts[itemIndex + 1]) > 0) {
+        qtyIndex = itemIndex + 1;
+      }
+      // เช็คด้านซ้าย (เช่น: 50 FG-D2P)
+      else if (itemIndex > 0 && !isNaN(parts[itemIndex - 1]) && Number(parts[itemIndex - 1]) > 0) {
+        qtyIndex = itemIndex - 1;
+      }
+      // ท่าไม้ตาย: ถ้าไม่ติดกัน ให้หา "ตัวเลขสุดท้าย" ในแถวนั้น
+      else {
+        qtyIndex = parts.findLastIndex((p, idx) => idx !== itemIndex && !isNaN(p) && Number(p) > 0);
+      }
+
+      if (qtyIndex !== -1) {
+        qty = parseInt(parts[qtyIndex], 10);
+      } else {
+        errorList.push({ id: index, orderNo, poNumber, itemCode, lotNo, qty: 0, error: '❌ ไม่พบจำนวน (Qty)' });
+        return;
+      }
+
+      // 🧠 3. ลบ Item และ Qty ออกจาก Array ชั่วคราว (ลบจากหลังมาหน้า Index จะได้ไม่เคลื่อน)
+      const indicesToRemove = [itemIndex, qtyIndex].sort((a, b) => b - a);
+      indicesToRemove.forEach(idx => parts.splice(idx, 1));
+
+      // 🧠 4. MAP THE REST: ข้อมูลที่เหลือจับยัดลง PO, Order, Line, Lot (ตามลำดับที่พี่กำหนด)
+      if (parts.length > 0) poNumber = parts[0].toUpperCase().trim();
+      if (parts.length > 1) orderNo = parts[1].toUpperCase().trim();
+      if (parts.length > 2) lineNo = parts[2].toUpperCase().trim();
+      if (parts.length > 3) lotNo = parts[3].toUpperCase().trim();
+
+      // --------------------------------------------------------
+      // ตรวจสอบกล่อง และดึงน้ำหนักมาคำนวณ (ใช้ลอจิกเดิม)
+      // --------------------------------------------------------
+      const foundItem = items.find(i => i.itemId === itemCode);
       const foundBox = boxes.find(b => b.pckId === foundItem.defaultPckId);
+
       if (!foundBox) {
         errorList.push({ id: index, orderNo, poNumber, itemCode, lotNo, qty, itemName: foundItem.itemName, error: t('planner.err_no_box_linked') });
         return;
       }
 
-      let boxCap = 1; 
+      let boxCap = 1;
       if (foundItem.stdPackQty && Number(foundItem.stdPackQty) > 1) {
         boxCap = Number(foundItem.stdPackQty);
       } else if (foundBox.maxCapacity && Number(foundBox.maxCapacity) > 1) {
@@ -98,30 +102,33 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
       let groupKey = '';
       if (packingMode === 'consolidate') {
-        groupKey = 'ALL_MIXED'; 
+        groupKey = 'ALL_MIXED';
       } else if (packingMode === 'strict-item') {
-        groupKey = lotNo ? `${itemCode}_${lotNo}` : itemCode; 
+        groupKey = lotNo ? `${itemCode}_${lotNo}` : itemCode;
       } else {
-        groupKey = `${orderNo}_${poNumber}_${lineNo}_${itemCode}${lotNo ? `_${lotNo}` : ''}`; 
+        groupKey = `${orderNo}_${poNumber}_${lineNo}_${itemCode}${lotNo ? `_${lotNo}` : ''}`;
       }
 
-      const cardGroupKey = packingMode === 'consolidate' 
-        ? foundBox.pckId 
+      const cardGroupKey = packingMode === 'consolidate'
+        ? foundBox.pckId
         : `${foundBox.pckId}_CAP${boxCap}`;
 
       validItemsList.push({
-        id: index, orderNo, poNumber, lineNo, itemCode, itemName: foundItem.itemName, customer: foundItem.supplier, qty, 
+        id: index, orderNo, poNumber, lineNo, itemCode, itemName: foundItem.itemName, customer: foundItem.supplier, qty,
         boxType: foundBox.pckId, boxDesc: foundBox.description, boxCodename: foundBox.codename || foundBox.description, boxCap, groupKey, cardGroupKey,
         lotNo,
         itemWeight: Number(foundItem.itemWeight || 0), totalWeight: qty * Number(foundItem.itemWeight || 0)
       });
     });
 
+    // --------------------------------------------------------
+    // ลอจิกการคำนวณยัดลงกล่องด้านล่าง คงเดิมทุกประการครับ
+    // --------------------------------------------------------
     const boxTypesObj = {};
     validItemsList.forEach(item => {
       if (!boxTypesObj[item.cardGroupKey]) {
         boxTypesObj[item.cardGroupKey] = {
-          cardGroupKey: item.cardGroupKey, 
+          cardGroupKey: item.cardGroupKey,
           boxType: item.boxType,
           boxDesc: item.boxDesc,
           boxCodename: item.boxCodename,
@@ -138,13 +145,13 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       boxGroup.items.sort((a, b) => a.groupKey.localeCompare(b.groupKey));
 
       let currentBoxIndex = 1;
-      let currentBoxUsedSpace = 0; 
+      let currentBoxUsedSpace = 0;
       let currentGroupKey = null;
       let boxesBreakdown = [{ boxNo: 1, items: [], spaceLeftPct: 100, spaceLeft: boxGroup.boxCap }];
 
       boxGroup.items.forEach(item => {
         let remainingQty = item.qty;
-        let spacePerPiece = 1 / item.boxCap; 
+        let spacePerPiece = 1 / item.boxCap;
 
         while (remainingQty > 0) {
           if (packingMode !== 'consolidate' && currentBoxUsedSpace > 0 && currentGroupKey !== item.groupKey) {
@@ -183,12 +190,12 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             itemName: item.itemName,
             qty: takeQty,
             cap: item.boxCap,
-            lotNo: item.lotNo 
+            lotNo: item.lotNo
           });
 
           remainingQty -= takeQty;
           currentBoxUsedSpace += (takeQty * spacePerPiece);
-          
+
           boxesBreakdown[currentBoxIndex - 1].spaceLeftPct = Math.max(0, Math.round((1 - currentBoxUsedSpace) * 100));
           if (packingMode !== 'consolidate') {
             boxesBreakdown[currentBoxIndex - 1].spaceLeft = Math.round((1 - currentBoxUsedSpace) / spacePerPiece);
@@ -196,15 +203,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         }
       });
 
-      return { 
-        ...boxGroup, 
-        totalBoxes: currentBoxIndex, 
-        boxesBreakdown 
+      return {
+        ...boxGroup,
+        totalBoxes: currentBoxIndex,
+        boxesBreakdown
       };
     });
 
-    setCalcResults([...validItemsList, ...errorList].sort((a,b) => a.id - b.id));
-    setBoxSummary(summaryArray); 
+    setCalcResults([...validItemsList, ...errorList].sort((a, b) => a.id - b.id));
+    setBoxSummary(summaryArray);
     toast.success(t('planner.calc_success', { pass: validItemsList.length, fail: errorList.length }));
   };
 
