@@ -22,7 +22,7 @@ export default function Navbar({ user, onLogout, currentTab, setCurrentTab }) {
             alt="Zenix Logo"
             className="h-16 md:h-20 w-auto object-contain"
           />
-          <h1 className="text-2xl font-black tracking-wider text-gray-800">ZENIX<span className="text-[#0066CC]">PACKINGHUB</span></h1>
+          <h1 className="text-l font-black tracking-wider text-gray-800">ZENIX<span className="text-[#0066CC]">PACKINGHUB</span></h1>
         </div>
 
         {/* ตรงกลาง: เมนู */}
