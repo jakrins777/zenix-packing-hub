@@ -71,13 +71,13 @@ export default function BoxCodenameUpdater({ boxes, fetchAdminData }) {
     }
   };
 
-  return (
-    <div className="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 mb-8 text-slate-200 print:hidden">
+return (
+    <div className="bg-[#1C2541] p-6 rounded-2xl shadow-xl border border-white/10 mb-8 text-white print:hidden">
       <div className="flex items-center gap-3 mb-6">
         <span className="text-3xl">🏷️</span>
         <div>
           <h2 className="text-xl font-bold text-white">ระบบอัปเดตชื่อกล่องรวดเดียว (Bulk Update Codename)</h2>
-          <p className="text-sm text-slate-400">ก๊อปปี้ 2 คอลัมน์จาก Excel (คอลัมน์ 1: รหัส PCK | คอลัมน์ 2: ชื่อ Codename) มาวางได้เลย</p>
+          <p className="text-sm text-[#94A3B8]">ก๊อปปี้ 2 คอลัมน์จาก Excel (คอลัมน์ 1: รหัส PCK | คอลัมน์ 2: ชื่อ Codename) มาวางได้เลย</p>
         </div>
       </div>
 
@@ -88,21 +88,21 @@ export default function BoxCodenameUpdater({ boxes, fetchAdminData }) {
           onChange={(e) => setBulkText(e.target.value)}
           disabled={isUpdating}
           placeholder="PCK0000013    D2P ใหญ่&#10;PCK0000036    กล่อง GKN MC165"
-          className="w-full p-4 border border-slate-600 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-sm bg-slate-700 text-white placeholder-slate-400 transition-all"
+          className="w-full p-4 border border-white/10 rounded-xl focus:border-[#00B4D8] focus:ring-1 focus:ring-[#00B4D8] outline-none font-mono text-sm bg-[#0B132B] text-white placeholder-[#94A3B8] transition-all"
         ></textarea>
 
         <div className="flex gap-4">
           <button 
             onClick={handlePreview} 
             disabled={isUpdating || !bulkText.trim()}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-colors shadow-md disabled:bg-slate-600 disabled:text-slate-400"
+            className="flex-1 bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-3 rounded-xl transition-colors shadow-md disabled:bg-[#94A3B8]/20 disabled:text-[#94A3B8]"
           >
             🔍 กดเพื่อตรวจสอบข้อมูลก่อนอัปเดต
           </button>
           <button 
             onClick={() => { setBulkText(''); setPreviewData([]); }} 
             disabled={isUpdating}
-            className="bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-sm"
+            className="bg-[#94A3B8]/20 hover:bg-[#94A3B8]/40 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-sm"
           >
             ล้าง
           </button>
@@ -110,7 +110,7 @@ export default function BoxCodenameUpdater({ boxes, fetchAdminData }) {
       </div>
 
       {previewData.length > 0 && (
-        <div className="mt-8 animate-fade-in-up border-t border-slate-700 pt-6">
+        <div className="mt-8 animate-fade-in-up border-t border-white/10 pt-6">
           <h3 className="font-bold text-white mb-3 flex justify-between items-end">
             <span>📋 ตารางตรวจสอบความถูกต้อง ({previewData.length} รายการ)</span>
             {previewData.some(d => d.status === 'NOT_FOUND') && (
@@ -118,22 +118,22 @@ export default function BoxCodenameUpdater({ boxes, fetchAdminData }) {
             )}
           </h3>
           
-          <div className="overflow-x-auto border border-slate-600 rounded-xl shadow-inner">
-            <table className="min-w-full text-left text-sm bg-slate-800">
-              <thead className="bg-slate-900/50 border-b border-slate-600">
+          <div className="overflow-x-auto border border-white/10 rounded-xl shadow-inner">
+            <table className="min-w-full text-left text-sm bg-[#1C2541]">
+              <thead className="bg-[#0B132B]/80 border-b border-white/10">
                 <tr>
-                  <th className="p-3 font-bold text-slate-300">รหัสกล่อง (PCK ID)</th>
-                  <th className="p-3 font-bold text-slate-300">ชื่อเดิมในระบบ</th>
-                  <th className="p-3 font-bold text-blue-400">➡️ ชื่อใหม่ที่ต้องการเปลี่ยน</th>
-                  <th className="p-3 font-bold text-center text-slate-300">สถานะ</th>
+                  <th className="p-3 font-bold text-[#94A3B8]">รหัสกล่อง (PCK ID)</th>
+                  <th className="p-3 font-bold text-[#94A3B8]">ชื่อเดิมในระบบ</th>
+                  <th className="p-3 font-bold text-[#00B4D8]">➡️ ชื่อใหม่ที่ต้องการเปลี่ยน</th>
+                  <th className="p-3 font-bold text-center text-[#94A3B8]">สถานะ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700">
+              <tbody className="divide-y divide-white/5">
                 {previewData.map((item) => (
-                  <tr key={item.id} className={item.status === 'NOT_FOUND' ? 'bg-red-900/20' : 'hover:bg-slate-700/50 transition-colors'}>
-                    <td className="p-3 font-mono font-bold text-slate-200">{item.pckId}</td>
-                    <td className="p-3 text-slate-400">{item.oldCodename || <span className="italic text-slate-500">ว่างเปล่า</span>}</td>
-                    <td className="p-3 font-black text-blue-300">{item.codename}</td>
+                  <tr key={item.id} className={item.status === 'NOT_FOUND' ? 'bg-red-900/20' : 'hover:bg-white/5 transition-colors'}>
+                    <td className="p-3 font-mono font-bold text-white">{item.pckId}</td>
+                    <td className="p-3 text-[#94A3B8]">{item.oldCodename || <span className="italic text-[#94A3B8]/70">ว่างเปล่า</span>}</td>
+                    <td className="p-3 font-black text-[#00B4D8]">{item.codename}</td>
                     <td className="p-3 text-center">
                       {item.status === 'READY' 
                         ? <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold border border-emerald-500/30">✅ พร้อมอัปเดต</span>
@@ -149,7 +149,7 @@ export default function BoxCodenameUpdater({ boxes, fetchAdminData }) {
           <button 
             onClick={handleConfirmUpdate}
             disabled={isUpdating || previewData.filter(d => d.status === 'READY').length === 0}
-            className="w-full mt-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition-colors text-lg disabled:bg-slate-600 disabled:text-slate-400 flex justify-center items-center gap-2"
+            className="w-full mt-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition-colors text-lg disabled:bg-[#94A3B8]/20 disabled:text-[#94A3B8] flex justify-center items-center gap-2"
           >
             {isUpdating ? '⏳ กำลังอัปเดตฐานข้อมูล...' : '💾 ยืนยันการอัปเดตชื่อกล่องทั้งหมด'}
           </button>

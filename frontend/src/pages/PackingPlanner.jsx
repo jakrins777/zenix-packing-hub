@@ -100,7 +100,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         groupKey = `${orderNo}_${poNumber}_${lineNo}_${itemCode}${lotNo ? `_${lotNo}` : ''}`; 
       }
 
-      // 🌟 พระเอกที่ทำให้เหลือ 25 กล่อง! ทุบกำแพงความจุทิ้ง เอาของกล่องแบบเดียวกันมากองรวมกันหมด
+      
       const cardGroupKey = packingMode === 'consolidate' 
         ? foundBox.pckId 
         : `${foundBox.pckId}_CAP${boxCap}`;
@@ -392,33 +392,33 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     return { ...box, subCaps: subCapsArray };
   }).sort((a, b) => b.totalBoxes - a.totalBoxes);
 
-  return (
+return (
     <div className="space-y-6 print:space-y-0">
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 print:hidden">
-        <h2 className="text-2xl font-black text-indigo-900 mb-4">📋 วางแผนจำนวนกล่องบรรจุภัณฑ์</h2>
+      <div className="bg-[#1C2541] p-6 md:p-8 rounded-2xl shadow-xl border border-white/10 text-white print:hidden">
+        <h2 className="text-2xl font-black text-white mb-4">📋 วางแผนจำนวนกล่องบรรจุภัณฑ์</h2>
         
-        <div className="mb-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-          <div className="text-sm font-bold text-indigo-800 mb-3">⚙️ เลือกโหมดการจัดกล่อง (Packing Mode)</div>
+        <div className="mb-6 p-4 bg-[#0B132B] rounded-xl border border-white/10">
+          <div className="text-sm font-bold text-[#00B4D8] mb-3">⚙️ เลือกโหมดการจัดกล่อง (Packing Mode)</div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'consolidate' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}>
+            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'consolidate' ? 'bg-[#00B4D8] border-[#00B4D8] text-white shadow-md' : 'bg-[#1C2541] border-white/10 text-[#94A3B8] hover:border-[#00B4D8]'}`}>
               <input type="radio" name="packMode" className="hidden" checked={packingMode === 'consolidate'} onChange={() => setPackingMode('consolidate')} />
               <div>
                 <div className="font-bold">📦 โหมดรวมมิตร (ประหยัดสุด)</div>
-                <div className={`text-xs mt-1 ${packingMode === 'consolidate' ? 'text-indigo-100' : 'text-gray-400'}`}>ปนรหัสได้ เน้นยัดให้เต็มกล่อง</div>
+                <div className={`text-xs mt-1 ${packingMode === 'consolidate' ? 'text-white' : 'text-[#94A3B8]'}`}>ปนรหัสได้ เน้นยัดให้เต็มกล่อง</div>
               </div>
             </label>
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-item' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}>
+            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-item' ? 'bg-[#00B4D8] border-[#00B4D8] text-white shadow-md' : 'bg-[#1C2541] border-white/10 text-[#94A3B8] hover:border-[#00B4D8]'}`}>
               <input type="radio" name="packMode" className="hidden" checked={packingMode === 'strict-item'} onChange={() => setPackingMode('strict-item')} />
               <div>
                 <div className="font-bold">🏷️ โหมดแยกรหัส (มาตรฐาน)</div>
-                <div className={`text-xs mt-1 ${packingMode === 'strict-item' ? 'text-indigo-100' : 'text-gray-400'}`}>รหัสสินค้าต่างกัน แยกกล่องทันที</div>
+                <div className={`text-xs mt-1 ${packingMode === 'strict-item' ? 'text-white' : 'text-[#94A3B8]'}`}>รหัสสินค้าต่างกัน แยกกล่องทันที</div>
               </div>
             </label>
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-po' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}>
+            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-po' ? 'bg-[#00B4D8] border-[#00B4D8] text-white shadow-md' : 'bg-[#1C2541] border-white/10 text-[#94A3B8] hover:border-[#00B4D8]'}`}>
               <input type="radio" name="packMode" className="hidden" checked={packingMode === 'strict-po'} onChange={() => setPackingMode('strict-po')} />
               <div>
                 <div className="font-bold">🏢 โหมดแยก PO / Order</div>
-                <div className={`text-xs mt-1 ${packingMode === 'strict-po' ? 'text-indigo-100' : 'text-gray-400'}`}>ห้ามปนรหัส, ห้ามปน Order เด็ดขาด</div>
+                <div className={`text-xs mt-1 ${packingMode === 'strict-po' ? 'text-white' : 'text-[#94A3B8]'}`}>ห้ามปนรหัส, ห้ามปน Order เด็ดขาด</div>
               </div>
             </label>
           </div>
@@ -430,12 +430,12 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
             placeholder={"ก๊อปปี้ข้อมูลวางตรงนี้ จาก Excel หน้ารายงานสโตร์คัดลอกมาวางได้รวดเดียวเลย..."}
-            className="w-full p-4 border-2 border-indigo-100 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all font-mono text-sm bg-gray-50 text-gray-900"
+            className="w-full p-4 border border-white/10 rounded-xl focus:border-[#00B4D8] focus:ring-1 focus:ring-[#00B4D8] outline-none transition-all font-mono text-sm bg-[#0B132B] text-white placeholder-[#94A3B8]"
           ></textarea>
           
           <div className="flex gap-4">
-            <button onClick={handleBulkCalculate} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all transform active:scale-95 text-lg">🧮 คำนวณตามโหมดที่เลือก</button>
-            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast('ล้างข้อมูลเรียบร้อย', {icon: '🧹'}); }} className="bg-gray-200 hover:bg-white-10 text-gray-700 font-bold py-4 px-8 rounded-xl transition-all">ล้างข้อมูล</button>
+            <button onClick={handleBulkCalculate} className="flex-1 bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-4 rounded-xl shadow-lg transition-all transform active:scale-95 text-lg">🧮 คำนวณตามโหมดที่เลือก</button>
+            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast('ล้างข้อมูลเรียบร้อย', {icon: '🧹'}); }} className="bg-[#94A3B8]/20 hover:bg-[#94A3B8]/40 text-white font-bold py-4 px-8 rounded-xl transition-all">ล้างข้อมูล</button>
           </div>
         </div>
       </div>
@@ -443,8 +443,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       {calcResults.length > 0 && (
         <div className="space-y-6 animate-fade-in-up print:hidden">
           {boxSummary.length > 0 && (
-            <div className="bg-gradient-to-r from-indigo-900 to-purple-900 rounded-2xl shadow-xl overflow-hidden text-white border border-indigo-800">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 p-4 border-b border-white/20">
+            <div className="bg-[#1C2541] rounded-2xl shadow-xl overflow-hidden text-white border border-white/10">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 p-4 border-b border-white/10">
                 <h3 className="text-xl font-bold text-white">📦 สรุปการเบิกกล่อง 
                   <span className="text-sm font-normal text-yellow-300 ml-2">
                     (คำนวณด้วย: {packingMode === 'consolidate' ? 'โหมดรวมมิตร' : packingMode === 'strict-item' ? 'โหมดแยกรหัส' : 'โหมดแยก PO'})
@@ -452,27 +452,27 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 </h3>
                 <button 
                   onClick={() => setShowSummaryModal(true)} 
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all flex items-center gap-2"
+                  className="bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all flex items-center gap-2"
                 >
                   📋 ดูใบสั่งแพ็คของลงกล่อง / พิมพ์
                 </button>
               </div>
 
-              <div className="mx-4 mb-6 p-4 bg-black/30 rounded-xl border border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="mx-4 mb-6 p-4 bg-[#0B132B] rounded-xl border border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 text-sm font-bold text-yellow-300 flex items-center gap-2">🛒 สรุปใบเบิกสโตร์ด่วน (ยอดกล่องรวม + ความจุย่อย)</div>
                 {aggregatedBoxRequisition.map((sum, idx) => (
                   <div key={idx} className="bg-white/5 p-3 rounded-lg border border-white/10 flex justify-between items-center">
                     <div>
-                      <div className="font-black text-lg text-blue-300">{sum.boxCodename || sum.boxType}</div>
-                      <div className="text-xs text-gray-400 space-y-1 mt-1.5 pl-2 border-l border-white/20">
+                      <div className="font-black text-lg text-[#00B4D8]">{sum.boxCodename || sum.boxType}</div>
+                      <div className="text-xs text-[#94A3B8] space-y-1 mt-1.5 pl-2 border-l border-white/20">
                         {sum.subCaps.map((sub, sIdx) => (
                           <div key={sIdx}>• {sub.cap} ใช้ <span className="text-yellow-400 font-bold">{sub.boxesCount} ใบ</span></div>
                         ))}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] text-gray-400 font-bold uppercase">เบิกรวม</div>
-                      <div className="text-3xl font-black text-emerald-400">{sum.totalBoxes} <span className="text-xs font-normal text-gray-300">ใบ</span></div>
+                      <div className="text-[10px] text-[#94A3B8] font-bold uppercase">เบิกรวม</div>
+                      <div className="text-3xl font-black text-emerald-400">{sum.totalBoxes} <span className="text-xs font-normal text-[#94A3B8]">ใบ</span></div>
                     </div>
                   </div>
                 ))}
@@ -480,7 +480,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
               <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-white/10 pt-6">
                 {boxSummary.map((sum, groupIdx) => (
-                  <div key={groupIdx} className="bg-white/10 rounded-xl p-4 border border-white/20 flex flex-col h-full relative">
+                  <div key={groupIdx} className="bg-[#0B132B]/50 rounded-xl p-4 border border-white/10 flex flex-col h-full relative">
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="font-black text-xl text-yellow-300">
@@ -491,20 +491,20 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                             </span>
                           )}
                         </div>
-                        <div className="text-[10px] text-indigo-300 mt-2 font-mono">System ID: {sum.boxType}</div>
+                        <div className="text-[10px] text-[#00B4D8] mt-2 font-mono">System ID: {sum.boxType}</div>
                       </div>
                       {packingMode === 'consolidate' && (
                         <div className="bg-emerald-500/20 text-emerald-300 text-xs px-2 py-1 rounded font-bold border border-emerald-500/30">จุ: รวมมิตร (ปริมาตร)</div>
                       )}
                     </div>
                     
-                    <div className="mt-2 pt-2 border-t border-white/20 grid grid-cols-2 gap-2 text-center mb-2">
+                    <div className="mt-2 pt-2 border-t border-white/10 grid grid-cols-2 gap-2 text-center mb-2">
                       <div>
-                        <div className="text-xs text-indigo-200">ของรวมทั้งหมด</div>
+                        <div className="text-xs text-[#94A3B8]">ของรวมทั้งหมด</div>
                         <div className="font-bold text-lg">{sum.totalQty} ชิ้น</div>
                       </div>
                       <div>
-                        <div className="text-xs text-indigo-200">เบิกกล่อง</div>
+                        <div className="text-xs text-[#94A3B8]">เบิกกล่อง</div>
                         <div className="flex items-center justify-center gap-2 mt-1">
                           <button onClick={() => handleAdjustBox(sum.cardGroupKey, -1)} className="bg-red-500/20 text-red-300 hover:bg-red-500/40 hover:text-white px-2 rounded font-bold transition-colors select-none">-</button>
                           <div className="font-bold text-xl text-green-400 w-8">{sum.totalBoxes}</div>
@@ -514,28 +514,28 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                     </div>
 
                     <div className="mt-auto pt-3 border-t border-white/10">
-                      <div className="text-xs font-bold text-indigo-300 mb-2">📋 แผนจัดเรียงลงกล่อง</div>
+                      <div className="text-xs font-bold text-[#00B4D8] mb-2">📋 แผนจัดเรียงลงกล่อง</div>
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                         {sum.boxesBreakdown.map((b) => (
-                          <div key={b.boxNo} className="bg-black/30 rounded p-2 border border-white/5">
+                          <div key={b.boxNo} className="bg-[#0B132B] rounded p-2 border border-white/5">
                             <div className="flex justify-between items-center mb-1 pb-1 border-b border-white/5">
                               <span className="text-[11px] font-bold text-emerald-300">กล่องใบที่ {b.boxNo}</span>
                               {packingMode === 'consolidate' 
-                                ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-gray-400">ว่าง {b.spaceLeftPct}%</span>)
-                                : (b.spaceLeft > 0 && <span className="text-[10px] text-gray-400">ว่าง {b.spaceLeft} ชิ้น</span>)
+                                ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-[#94A3B8]">ว่าง {b.spaceLeftPct}%</span>)
+                                : (b.spaceLeft > 0 && <span className="text-[10px] text-[#94A3B8]">ว่าง {b.spaceLeft} ชิ้น</span>)
                               }
                             </div>
                             <div className="space-y-1">
-                              {b.items.length === 0 && <div className="text-xs text-gray-500 text-center italic py-1">กล่องเปล่า</div>}
+                              {b.items.length === 0 && <div className="text-xs text-[#94A3B8] text-center italic py-1">กล่องเปล่า</div>}
                               {b.items.map((item, i) => (
-                                <div key={i} className="flex flex-col text-xs bg-white/5 p-1 rounded border-l-2 border-indigo-500">
+                                <div key={i} className="flex flex-col text-xs bg-white/5 p-1 rounded border-l-2 border-[#00B4D8]">
                                   <div className="flex justify-between items-start">
-                                    <span className="font-bold text-gray-200">- {item.itemCode}</span>
+                                    <span className="font-bold text-white">- {item.itemCode}</span>
                                     <div className="flex items-center gap-2">
                                       <span className="font-bold text-emerald-400 min-w-max">{item.qty} ชิ้น</span>
-                                      {packingMode === 'consolidate' && <span className="text-gray-400 text-[9px] ml-1">(สเปก: {item.cap})</span>}
+                                      {packingMode === 'consolidate' && <span className="text-[#94A3B8] text-[9px] ml-1">(สเปก: {item.cap})</span>}
                                       {sum.boxesBreakdown.length > 1 && (
-                                        <button onClick={() => openMoveModal(groupIdx, b.boxNo, item)} className="text-[9px] bg-blue-500/20 text-blue-300 px-1 rounded hover:bg-blue-500 hover:text-white transition-colors">🔄</button>
+                                        <button onClick={() => openMoveModal(groupIdx, b.boxNo, item)} className="text-[9px] bg-[#00B4D8]/20 text-[#00B4D8] px-1 rounded hover:bg-[#00B4D8] hover:text-white transition-colors">🔄</button>
                                       )}
                                     </div>
                                   </div>
@@ -545,7 +545,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                   )}
 
                                   {(item.poNumber !== 'ไม่ระบุ PO' || item.orderNo !== 'ไม่ระบุ Order') && (
-                                    <span className="text-[10px] text-indigo-300 mt-0.5 ml-2 leading-tight">
+                                    <span className="text-[10px] text-[#00B4D8] mt-0.5 ml-2 leading-tight">
                                       {item.orderNo !== 'ไม่ระบุ Order' ? item.orderNo : ''} {item.lineNo !== '-' ? `(L:${item.lineNo}) ` : ' '} 
                                       {item.poNumber !== 'ไม่ระบุ PO' && item.poNumber !== item.lotNo ? `| ${item.poNumber}` : ''}
                                     </span>
@@ -564,47 +564,47 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </div>
           )}
 
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-            <div className="bg-gray-50 p-4 border-b border-gray-100 font-bold flex justify-between items-center text-gray-700">
+          <div className="bg-[#1C2541] rounded-2xl shadow-xl overflow-hidden border border-white/10">
+            <div className="bg-[#0B132B]/80 p-4 border-b border-white/10 font-bold flex justify-between items-center text-white">
               <span>รายละเอียดสินค้าที่ต้องแพ็ค ({calcResults.length} รายการ)</span>
-              <button onClick={handleSaveReport} className="bg-green-500 hover:bg-green-400 text-white text-sm px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2"><span>💾</span> ยืนยันและบันทึกรายงาน</button>
+              <button onClick={handleSaveReport} className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2"><span>💾</span> ยืนยันและบันทึกรายงาน</button>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full">
-                <thead className="bg-white border-b border-gray-100">
+                <thead className="bg-[#0B132B]/80 border-b border-white/10">
                   <tr>
-                    <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">Order / PO</th>
-                    <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">รหัสสินค้า</th>
-                    <th className="py-3 px-4 text-left font-bold text-gray-500 text-sm">ชื่อสินค้า / ลูกค้า</th>
-                    <th className="py-3 px-4 text-center font-bold text-gray-500 text-sm">จำนวน</th>
-                    <th className="py-3 px-4 text-center font-bold text-gray-500 text-sm">ชนิดกล่อง (ชื่อเรียก)</th>
+                    <th className="py-3 px-4 text-left font-bold text-[#94A3B8] text-sm">Order / PO</th>
+                    <th className="py-3 px-4 text-left font-bold text-[#94A3B8] text-sm">รหัสสินค้า</th>
+                    <th className="py-3 px-4 text-left font-bold text-[#94A3B8] text-sm">ชื่อสินค้า / ลูกค้า</th>
+                    <th className="py-3 px-4 text-center font-bold text-[#94A3B8] text-sm">จำนวน</th>
+                    <th className="py-3 px-4 text-center font-bold text-[#94A3B8] text-sm">ชนิดกล่อง (ชื่อเรียก)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-white/5">
                   {calcResults.map((res) => (
-                    <tr key={res.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={res.id} className="hover:bg-white/5 transition-colors">
                       <td className="py-3 px-4">
-                        <div className="font-bold text-yellow-600 text-xs">{res.orderNo !== 'ไม่ระบุ Order' ? res.orderNo : '-'}</div>
-                        <div className="font-bold text-indigo-600 text-xs">{res.poNumber !== 'ไม่ระบุ PO' ? res.poNumber : '-'}</div>
+                        <div className="font-bold text-yellow-400 text-xs">{res.orderNo !== 'ไม่ระบุ Order' ? res.orderNo : '-'}</div>
+                        <div className="font-bold text-[#00B4D8] text-xs">{res.poNumber !== 'ไม่ระบุ PO' ? res.poNumber : '-'}</div>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-gray-800">
+                      <td className="py-3 px-4 font-mono font-bold text-white">
                         <div>{res.itemCode}</div>
                         {res.lotNo && <div className="text-[11px] text-amber-600 font-mono font-normal">Lot/PO: {res.lotNo}</div>}
                       </td>
                       {res.error ? (
-                        <td colSpan="3" className="py-3 px-4 text-red-500 font-bold bg-red-50">{res.error}</td>
+                        <td colSpan="3" className="py-3 px-4 text-red-400 font-bold bg-red-500/20">{res.error}</td>
                       ) : (
                         <>
                           <td className="py-3 px-4">
-                            <div className="font-bold text-gray-700">{res.itemName}</div>
-                            <div className="text-xs text-indigo-600 font-bold">{res.customer}</div>
+                            <div className="font-bold text-white">{res.itemName}</div>
+                            <div className="text-xs text-[#00B4D8] font-bold">{res.customer}</div>
                           </td>
-                          <td className="py-3 px-4 text-center font-black text-gray-700">{res.qty}</td>
+                          <td className="py-3 px-4 text-center font-black text-white">{res.qty}</td>
                           <td className="py-3 px-4 text-center">
-                            <div className="font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md mb-1 inline-block">
-                              {res.boxCodename || res.boxType} <span className="text-indigo-500 text-xs ml-1">({res.boxCap} Pcs.)</span>
+                            <div className="font-black text-[#00B4D8] bg-[#00B4D8]/20 px-2 py-1 rounded-md mb-1 inline-block">
+                              {res.boxCodename || res.boxType} <span className="text-[#00B4D8] text-xs ml-1">({res.boxCap} Pcs.)</span>
                             </div>
-                            {res.boxCodename && <div className="text-[10px] text-gray-500 font-mono text-center">ID: {res.boxType}</div>}
+                            {res.boxCodename && <div className="text-[10px] text-[#94A3B8] font-mono text-center">ID: {res.boxType}</div>}
                           </td>
                         </>
                       )}
@@ -620,21 +620,21 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       {/* Modal ย้ายของ */}
       {moveConfig && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 print:hidden">
-          <div className="bg-white rounded-xl p-6 shadow-2xl w-full max-w-sm border-2 border-indigo-500">
-            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><span>🔄</span> ย้ายสินค้าข้ามกล่อง</h3>
-            <div className="mb-4 bg-gray-50 p-3 rounded text-sm text-gray-600 border border-gray-200">
-              <span className="font-bold text-indigo-700">{moveConfig.itemCode}</span>
+          <div className="bg-[#1C2541] rounded-xl p-6 shadow-2xl w-full max-w-sm border border-[#00B4D8] text-white">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><span>🔄</span> ย้ายสินค้าข้ามกล่อง</h3>
+            <div className="mb-4 bg-[#0B132B] p-3 rounded text-sm text-white border border-white/10">
+              <span className="font-bold text-[#00B4D8]">{moveConfig.itemCode}</span>
               {moveConfig.lotNo && <span className="text-xs text-amber-600 block mt-0.5">Lot/PO: {moveConfig.lotNo}</span>}
               <span className="block text-xs mt-1">จาก <span className="font-bold text-red-500">กล่องใบที่ {moveConfig.fromBoxNo}</span></span>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">จำนวนที่ต้องการย้าย (ชิ้น)</label>
-                <input type="number" min="1" max={moveConfig.maxQty} value={moveConfig.moveQty} onChange={(e) => setMoveConfig({...moveConfig, moveQty: Number(e.target.value)})} className="w-full p-2 border rounded font-bold text-center focus:outline-indigo-500" />
+                <label className="block text-xs font-bold text-[#94A3B8] mb-1">จำนวนที่ต้องการย้าย (ชิ้น)</label>
+                <input type="number" min="1" max={moveConfig.maxQty} value={moveConfig.moveQty} onChange={(e) => setMoveConfig({...moveConfig, moveQty: Number(e.target.value)})} className="w-full p-2 border border-white/10 rounded font-bold text-center bg-[#0B132B] text-white focus:outline-[#00B4D8]" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">ย้ายไปปลายทาง</label>
-                <select value={moveConfig.toBoxNo} onChange={(e) => setMoveConfig({...moveConfig, toBoxNo: Number(e.target.value)})} className="w-full p-2 border rounded font-bold text-indigo-700 bg-indigo-50 focus:outline-indigo-500">
+                <label className="block text-xs font-bold text-[#94A3B8] mb-1">ย้ายไปปลายทาง</label>
+                <select value={moveConfig.toBoxNo} onChange={(e) => setMoveConfig({...moveConfig, toBoxNo: Number(e.target.value)})} className="w-full p-2 border border-white/10 rounded font-bold text-white bg-[#0B132B] focus:outline-[#00B4D8]">
                   {boxSummary[moveConfig.groupIndex].boxesBreakdown.map(b => (
                     <option key={b.boxNo} value={b.boxNo} disabled={b.boxNo === moveConfig.fromBoxNo}>กล่องใบที่ {b.boxNo} ({packingMode === 'consolidate' ? `ว่าง ${b.spaceLeftPct}%` : `ว่าง ${b.spaceLeft} ชิ้น`})</option>
                   ))}
@@ -642,8 +642,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <button onClick={() => setMoveConfig(null)} className="px-4 py-2 bg-gray-200 rounded font-bold text-gray-700">ยกเลิก</button>
-              <button onClick={confirmMove} className="px-4 py-2 bg-indigo-600 text-white rounded font-bold shadow-md">ยืนยัน</button>
+              <button onClick={() => setMoveConfig(null)} className="px-4 py-2 bg-[#94A3B8]/20 hover:bg-[#94A3B8]/40 rounded font-bold text-white">ยกเลิก</button>
+              <button onClick={confirmMove} className="px-4 py-2 bg-[#00B4D8] hover:bg-[#0096B4] text-white rounded font-bold shadow-md">ยืนยัน</button>
             </div>
           </div>
         </div>
@@ -663,7 +663,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             `}
           </style>
 
-          <div id="print-modal" className="bg-slate-800 rounded-xl p-6 md:p-8 w-full max-w-2xl shadow-2xl my-auto print:bg-white print:text-black print:my-0 print:shadow-none print:w-full print:max-w-full">
+          <div id="print-modal" className="bg-[#1C2541] rounded-xl p-6 md:p-8 w-full max-w-2xl shadow-2xl my-auto print:bg-white print:text-black print:my-0 print:shadow-none print:w-full print:max-w-full text-white">
             <div className="flex justify-between items-center mb-6 print:hidden">
               <h2 className="text-2xl font-black text-white">📋 ใบสั่งเบิกและแพ็คสินค้า</h2>
               <button onClick={() => setShowSummaryModal(false)} className="text-red-400 hover:text-red-300 font-bold text-2xl">✕</button>
@@ -671,29 +671,29 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
             <div className="hidden print:block text-center mb-6">
               <h1 className="text-3xl font-black text-black mb-2">ใบเบิกกล่องและสั่งแพ็ค (Packing Instruction)</h1>
-              <p className="text-gray-600">โหมดคำนวณ: {packingMode === 'consolidate' ? 'โหมดรวมมิตร (ตามปริมาตร)' : packingMode === 'strict-item' ? 'โหมดแยกรหัส' : 'โหมดแยก PO'}</p>
+              <p className="text-[#94A3B8] print:text-gray-600">โหมดคำนวณ: {packingMode === 'consolidate' ? 'โหมดรวมมิตร (ตามปริมาตร)' : packingMode === 'strict-item' ? 'โหมดแยกรหัส' : 'โหมดแยก PO'}</p>
             </div>
 
             <h3 className="text-lg font-bold text-emerald-400 print:text-black mb-2 mt-4 flex items-center gap-2">
               <span>🛒</span> 1. สรุปจำนวนกล่องรวม (ใบหยิบของจากสโตร์)
             </h3>
             <table className="w-full text-left border-collapse mb-10">
-              <thead className="bg-slate-700 text-slate-200 print:bg-gray-200 print:text-black">
+              <thead className="bg-[#0B132B] text-white print:bg-gray-200 print:text-black border-b border-white/10 print:border-gray-300">
                 <tr>
                   <th className="p-3 font-bold text-center w-16">ลำดับ</th>
                   <th className="p-3 font-bold">ชนิดบรรจุภัณฑ์ / รายละเอียดสเปกความจุ</th>
                   <th className="p-3 font-bold text-center w-32">จำนวนที่ต้องเบิก</th>
                 </tr>
               </thead>
-              <tbody className="text-slate-200 print:text-black">
+              <tbody className="text-white print:text-black">
                 {aggregatedBoxRequisition.map((sum, idx) => (
-                  <tr key={idx} className="hover:bg-slate-700/50 print:hover:bg-transparent border-b border-slate-700 print:border-gray-300 last:border-0">
+                  <tr key={idx} className="hover:bg-white/5 print:hover:bg-transparent border-b border-white/10 print:border-gray-300 last:border-0">
                     <td className="p-3 text-center align-middle">{idx + 1}</td>
                     <td className="p-3 align-middle">
-                      <div className="font-black text-blue-400 print:text-black text-xl">{sum.boxCodename || sum.boxType}</div>
-                      <div className="text-xs text-slate-400 print:text-gray-600 mb-2">ID: {sum.boxType}</div>
+                      <div className="font-black text-[#00B4D8] print:text-black text-xl">{sum.boxCodename || sum.boxType}</div>
+                      <div className="text-xs text-[#94A3B8] print:text-gray-600 mb-2">ID: {sum.boxType}</div>
                       
-                      <div className="pl-3 border-l-2 border-indigo-500 text-xs space-y-1 text-slate-300 print:text-gray-700 font-medium">
+                      <div className="pl-3 border-l-2 border-[#00B4D8] text-xs space-y-1 text-[#94A3B8] print:text-gray-700 font-medium">
                         {sum.subCaps.map((sub, sIdx) => (
                           <div key={sIdx}>
                             • {sub.cap} = <span className="font-bold text-yellow-400 print:text-black">{sub.boxesCount} ใบ</span>
@@ -702,7 +702,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                       </div>
                     </td>
                     <td className="p-3 font-black text-center text-3xl text-emerald-400 print:text-black align-middle">
-                      {sum.totalBoxes} <span className="text-sm font-normal text-slate-300 print:text-gray-700">ใบ</span>
+                      {sum.totalBoxes} <span className="text-sm font-normal text-[#94A3B8] print:text-gray-700">ใบ</span>
                     </td>
                   </tr>
                 ))}
@@ -714,13 +714,13 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </h3>
             <div className="space-y-6">
               {boxSummary.map((sum, idx) => (
-                <div key={idx} className="avoid-break bg-slate-700/30 p-4 rounded-lg print:border print:border-gray-400 print:p-2 print:bg-transparent">
-                  <div className="font-bold text-yellow-300 print:text-black mb-3 border-b border-white/20 print:border-gray-300 pb-2 flex justify-between">
+                <div key={idx} className="avoid-break bg-[#0B132B]/50 p-4 rounded-lg print:border print:border-gray-400 print:p-2 print:bg-transparent">
+                  <div className="font-bold text-yellow-300 print:text-black mb-3 border-b border-white/10 print:border-gray-300 pb-2 flex justify-between">
                     <span>
                       📦 {sum.boxCodename || sum.boxType} 
                       {packingMode !== 'consolidate' && <span className="text-emerald-300 print:text-black ml-2">({sum.boxCap} Pcs.)</span>}
                     </span>
-                    <span className="text-sm font-normal text-slate-300 print:text-gray-600">
+                    <span className="text-sm font-normal text-[#94A3B8] print:text-gray-600">
                       {packingMode === 'consolidate' && <span className="text-emerald-300 mr-2">[รวมมิตร]</span>}
                       (ใช้ <span className="font-bold">{sum.totalBoxes}</span> ใบ)
                     </span>
@@ -728,23 +728,23 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {sum.boxesBreakdown.map((b) => (
-                      <div key={b.boxNo} className="bg-slate-800 p-3 rounded border border-slate-600 print:bg-gray-50 print:border-gray-300 avoid-break">
-                        <div className="flex justify-between items-center mb-2 pb-1 border-b border-slate-600 print:border-gray-300">
+                      <div key={b.boxNo} className="bg-[#0B132B] p-3 rounded border border-white/10 print:bg-gray-50 print:border-gray-300 avoid-break">
+                        <div className="flex justify-between items-center mb-2 pb-1 border-b border-white/10 print:border-gray-300">
                           <span className="font-bold text-emerald-400 print:text-black">กล่องใบที่ {b.boxNo}</span>
                           {packingMode === 'consolidate' 
-                            ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-gray-400 print:text-gray-500">ว่าง {b.spaceLeftPct}%</span>)
-                            : (b.spaceLeft > 0 && <span className="text-[10px] text-gray-400 print:text-gray-500">ว่าง {b.spaceLeft} ชิ้น</span>)
+                            ? (b.spaceLeftPct > 0 && <span className="text-[10px] text-[#94A3B8] print:text-gray-500">ว่าง {b.spaceLeftPct}%</span>)
+                            : (b.spaceLeft > 0 && <span className="text-[10px] text-[#94A3B8] print:text-gray-500">ว่าง {b.spaceLeft} ชิ้น</span>)
                           }
                         </div>
                         <ul className="space-y-1">
-                          {b.items.length === 0 && <div className="text-xs text-gray-500 text-center italic">กล่องเปล่า (ใส่ของเพิ่มได้)</div>}
+                          {b.items.length === 0 && <div className="text-xs text-[#94A3B8] text-center italic">กล่องเปล่า (ใส่ของเพิ่มได้)</div>}
                           {b.items.map((item, i) => (
-                            <li key={i} className="flex flex-col text-sm text-slate-200 print:text-black mb-1.5">
+                            <li key={i} className="flex flex-col text-sm text-white print:text-black mb-1.5">
                               <div className="flex justify-between items-start">
                                 <span className="font-bold pr-2">- {item.itemCode}</span>
                                 <div>
                                   <span className="font-bold text-emerald-300 print:text-black min-w-max">{item.qty} ชิ้น</span>
-                                  {packingMode === 'consolidate' && <span className="text-gray-400 print:text-gray-600 text-[10px] ml-1">(สเปก: {item.cap})</span>}
+                                  {packingMode === 'consolidate' && <span className="text-[#94A3B8] print:text-gray-600 text-[10px] ml-1">(สเปก: {item.cap})</span>}
                                 </div>
                               </div>
                               
@@ -753,7 +753,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                               )}
 
                               {(item.poNumber !== 'ไม่ระบุ PO' || item.orderNo !== 'ไม่ระบุ Order') && (
-                                <span className="text-[10px] text-slate-400 print:text-gray-600 ml-3 leading-tight">
+                                <span className="text-[10px] text-[#94A3B8] print:text-gray-600 ml-3 leading-tight">
                                   {item.orderNo !== 'ไม่ระบุ Order' ? item.orderNo : ''} {item.lineNo !== '-' ? `(L:${item.lineNo}) ` : ' '} 
                                   {item.poNumber !== 'ไม่ระบุ PO' && item.poNumber !== item.lotNo ? `| ${item.poNumber}` : ''}
                                 </span>
@@ -769,8 +769,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </div>
 
             <div className="mt-8 flex justify-end gap-4 print:hidden">
-              <button onClick={() => setShowSummaryModal(false)} className="px-6 py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-bold transition-colors">ย้อนกลับ</button>
-              <button onClick={() => window.print()} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg">
+              <button onClick={() => setShowSummaryModal(false)} className="px-6 py-3 bg-[#94A3B8]/20 hover:bg-[#94A3B8]/40 text-white rounded-lg font-bold transition-colors">ย้อนกลับ</button>
+              <button onClick={() => window.print()} className="px-6 py-3 bg-[#00B4D8] hover:bg-[#0096B4] text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg">
                 🖨️ พิมพ์ใบสั่งแพ็ค (Print)
               </button>
             </div>
