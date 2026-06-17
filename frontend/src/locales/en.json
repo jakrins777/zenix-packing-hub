@@ -280,7 +280,7 @@
     "mode_strict_po": "🏢 Strict PO/Order Mode",
     "mode_strict_po_desc": "Never mix items or Orders",
     "textarea_placeholder": "Paste your data here. You can copy directly from the store report Excel...",
-    "btn_calculate": "🧮 Calculate using selected mode",
+    "btn_calculate": "Calculate using selected mode",
     "summary_title": "📦 Box Requisition Summary",
     "calculated_with": "Calculated with: {{mode}}",
     "mode_name_consolidate": "Consolidate Mode (Volume Based)",
