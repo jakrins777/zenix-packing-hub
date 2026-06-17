@@ -505,9 +505,13 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       {/* ========================================== */}
       {/* 📦 แท็บที่ 2: หน้าจัดการมาสเตอร์กล่อง */}
       {/* ========================================== */}
+      {/* ========================================== */}
+      {/* 📦 แท็บที่ 2: หน้าจัดการมาสเตอร์กล่อง */}
+      {/* ========================================== */}
       {adminSubTab === 'boxes' && (
         <div className="flex flex-col space-y-8 print:hidden">
 
+          {/* ⚠️ ปล. ถ้าใน BoxCodenameUpdater สีมันยังเพี้ยนๆ มืดๆ อยู่ พี่ส่งไฟล์ BoxCodenameUpdater.jsx มาให้ผมแก้สีให้ด้วยนะครับ! */}
           <BoxCodenameUpdater
             boxes={boxes}
             fetchAdminData={refreshAdminData}
@@ -515,11 +519,15 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
 
+            {/* ฟอร์มเพิ่ม/แก้ไขกล่อง */}
             <div className="space-y-6 h-fit print:hidden">
               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg text-gray-800">
                 <h3 className="text-xl font-black text-[#0066CC] mb-4">{editingBoxId ? '✏️ แก้ไขข้อมูลกล่อง' : '➕ เพิ่มกล่องใหม่'}</h3>
                 <form onSubmit={handleBoxSubmit} className="space-y-4">
-                  <div><label className="block text-sm font-bold text-gray-600 mb-1">รหัสกล่อง *</label><input type="text" required disabled={!!editingBoxId} value={boxForm.pckId || ''} onChange={(e) => setBoxForm(prev => ({ ...prev, pckId: String(e.target.value).toUpperCase() }))} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800 disabled:bg-gray-100" /></div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">รหัสกล่อง *</label>
+                    <input type="text" required disabled={!!editingBoxId} value={boxForm.pckId || ''} onChange={(e) => setBoxForm(prev => ({ ...prev, pckId: String(e.target.value).toUpperCase() }))} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800 disabled:bg-gray-100 disabled:text-gray-400" />
+                  </div>
 
                   <div>
                     <label className="block text-sm font-bold mb-1 text-[#0066CC]">ชื่อเรียกหน้างาน (Codename)</label>
@@ -527,34 +535,45 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       type="text"
                       value={boxForm.codename || ''}
                       onChange={(e) => setBoxForm({ ...boxForm, codename: e.target.value })}
-                      className="w-full p-3 border border-[#0066CC]/30 rounded-lg bg-blue-50/50 outline-none text-gray-800 focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]"
+                      className="w-full p-3 border border-blue-200 rounded-lg bg-blue-50 outline-none text-gray-800 focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] placeholder-gray-400"
                       placeholder="เช่น D2P ใหญ่"
                     />
                   </div>
 
-                  <div><label className="block text-sm font-bold text-gray-600 mb-1">คำอธิบาย / ขนาด</label><input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({ ...boxForm, description: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" /></div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">คำอธิบาย / ขนาด</label>
+                    <input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({ ...boxForm, description: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" />
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-bold text-gray-600 mb-1">จุได้กี่ชิ้น</label><input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({ ...boxForm, maxCapacity: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" /></div>
-                    <div><label className="block text-sm font-bold text-gray-600 mb-1">สต็อกที่มี (ใบ)</label><input type="number" required value={boxForm.currentStock || 0} onChange={(e) => setBoxForm({ ...boxForm, currentStock: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] font-bold bg-white text-[#0066CC]" /></div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-600 mb-1">จุได้กี่ชิ้น</label>
+                      <input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({ ...boxForm, maxCapacity: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-[#0066CC] mb-1">สต็อกที่มี (ใบ)</label>
+                      <input type="number" required value={boxForm.currentStock || 0} onChange={(e) => setBoxForm({ ...boxForm, currentStock: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] font-bold bg-white text-[#0066CC]" />
+                    </div>
                   </div>
 
                   <div className="flex space-x-2 pt-4">
-                    <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold py-3 px-4 rounded-lg shadow-md">💾 บันทึก</button>
-                    {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 }); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg">ยกเลิก</button>}
+                    <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold py-3 px-4 rounded-lg shadow-sm">💾 บันทึก</button>
+                    {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">ยกเลิก</button>}
                   </div>
                 </form>
               </div>
 
+              {/* ส่วนนำเข้าไฟล์แก้ให้เป็นสีฟ้าให้เข้าตีม */}
               {!editingBoxId && (
-                <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 shadow-sm">
-                  <h3 className="text-lg font-black text-emerald-700 mb-3 flex items-center gap-2">📥 นำเข้า/อัปเดตสต็อกด้วย Excel</h3>
+                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
+                  <h3 className="text-lg font-black text-[#0066CC] mb-3 flex items-center gap-2">📁 นำเข้า/อัปเดตสต็อกด้วย Excel</h3>
                   <div className="space-y-3">
-                    <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleBoxFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer transition-all" />
+                    <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleBoxFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all" />
                   </div>
                 </div>
               )}
             </div>
 
+            {/* ตารางแสดงผล */}
             <div className="lg:col-span-2 flex flex-col h-full print:block print:h-auto print:w-full">
 
               <style type="text/css" media="print">
@@ -574,6 +593,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 <p className="text-gray-600 font-medium">วันที่อัปเดตข้อมูล: {new Date().toLocaleDateString('th-TH')} เวลา {new Date().toLocaleTimeString('th-TH')}</p>
               </div>
 
+              {/* ช่องค้นหา */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-5 mb-6 rounded-2xl border border-gray-200 shadow-sm print:hidden">
                 <div className="lg:col-span-5 w-full flex items-center bg-gray-50 border border-gray-300 rounded-lg px-4 py-2.5 focus-within:border-[#0066CC] focus-within:ring-1 focus-within:ring-[#0066CC] transition-all">
                   <span className="text-gray-400 mr-2">🔍</span>
@@ -593,16 +613,17 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button onClick={() => window.print()} className="bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center gap-2 whitespace-nowrap">
+                    <button onClick={() => window.print()} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center gap-2 whitespace-nowrap">
                       🖨️ พิมพ์สต็อก
                     </button>
-                    <button onClick={handleExportBoxes} className="bg-white hover:bg-gray-50 text-emerald-600 font-bold py-2.5 px-4 rounded-lg border border-emerald-600 transition-all flex items-center gap-2 whitespace-nowrap shadow-sm">
+                    <button onClick={handleExportBoxes} className="bg-white hover:bg-blue-50 text-[#0066CC] font-bold py-2.5 px-4 rounded-lg border border-[#0066CC] transition-all flex items-center gap-2 whitespace-nowrap shadow-sm">
                       📥 โหลด Template (CSV)
                     </button>
                   </div>
                 </div>
               </div>
 
+              {/* ตารางกล่อง */}
               <div className="overflow-x-auto rounded-xl border border-gray-200 flex-1 shadow-sm bg-white print:overflow-visible print:border-gray-400 print:shadow-none print:block">
                 <table className="min-w-full print:bg-white print:text-black">
                   <thead className="bg-gray-50 border-b border-gray-200 print:bg-gray-200 print:border-gray-400">

@@ -73,13 +73,13 @@ export default function BoxCodenameUpdater({ boxes, fetchAdminData }) {
     }
   };
 
-return (
-    <div className="bg-[#1C2541] p-6 rounded-2xl shadow-xl border border-white/10 mb-8 text-white print:hidden">
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 mb-8 text-gray-800 print:hidden">
       <div className="flex items-center gap-3 mb-6">
         <span className="text-3xl">🏷️</span>
         <div>
-          <h2 className="text-xl font-bold text-white">{t('box_updater.title')}</h2>
-          <p className="text-sm text-slate-400">{t('box_updater.subtitle')}</p>
+          <h2 className="text-xl font-bold text-[#0066CC]">{t('box_updater.title')}</h2>
+          <p className="text-sm text-gray-500">{t('box_updater.subtitle')}</p>
         </div>
       </div>
 
@@ -90,21 +90,21 @@ return (
           onChange={(e) => setBulkText(e.target.value)}
           disabled={isUpdating}
           placeholder="PCK0000013    D2P ใหญ่&#10;PCK0000036    กล่อง GKN MC165"
-          className="w-full p-4 border border-white/10 rounded-xl focus:border-[#00B4D8] focus:ring-1 focus:ring-[#00B4D8] outline-none font-mono text-sm bg-[#0B132B] text-white placeholder-[#94A3B8] transition-all"
+          className="w-full p-4 border border-gray-300 rounded-xl focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] outline-none font-mono text-sm bg-white text-gray-800 placeholder-gray-400 shadow-inner transition-all"
         ></textarea>
 
         <div className="flex gap-4">
-          <button 
-            onClick={handlePreview} 
+          <button
+            onClick={handlePreview}
             disabled={isUpdating || !bulkText.trim()}
-            className="flex-1 bg-[#00B4D8] hover:bg-[#0096B4] text-white font-bold py-3 rounded-xl transition-colors shadow-md disabled:bg-[#94A3B8]/20 disabled:text-[#94A3B8]"
+            className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:border disabled:border-gray-200"
           >
             {t('box_updater.btn_preview')}
           </button>
-          <button 
-            onClick={() => { setBulkText(''); setPreviewData([]); }} 
+          <button
+            onClick={() => { setBulkText(''); setPreviewData([]); }}
             disabled={isUpdating}
-            className="bg-[#94A3B8]/20 hover:bg-[#94A3B8]/40 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-sm"
+            className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 font-bold py-3 px-6 rounded-xl transition-colors shadow-sm disabled:opacity-50"
           >
             {t('common.clear')}
           </button>
@@ -112,34 +112,34 @@ return (
       </div>
 
       {previewData.length > 0 && (
-        <div className="mt-8 animate-fade-in-up border-t border-white/10 pt-6">
-          <h3 className="font-bold text-white mb-3 flex justify-between items-end">
+        <div className="mt-8 animate-fade-in-up border-t border-gray-200 pt-6">
+          <h3 className="font-bold text-gray-800 mb-3 flex justify-between items-end">
             <span>{t('box_updater.preview_table_title', { count: previewData.length })}</span>
             {previewData.some(d => d.status === 'NOT_FOUND') && (
-              <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded">{t('box_updater.warning_not_found')}</span>
+              <span className="text-xs text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded">{t('box_updater.warning_not_found')}</span>
             )}
           </h3>
-          
-          <div className="overflow-x-auto border border-white/10 rounded-xl shadow-inner">
-            <table className="min-w-full text-left text-sm bg-[#1C2541]">
-              <thead className="bg-[#0B132B]/80 border-b border-white/10">
+
+          <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-sm">
+            <table className="min-w-full text-left text-sm bg-white">
+              <thead className="bg-gray-100 border-b border-gray-200">
                 <tr>
-                  <th className="p-3 font-bold text-slate-300">{t('box_updater.th_box_id')}</th>
-                  <th className="p-3 font-bold text-slate-300">{t('box_updater.th_old_name')}</th>
-                  <th className="p-3 font-bold text-blue-400">{t('box_updater.th_new_name')}</th>
-                  <th className="p-3 font-bold text-center text-slate-300">{t('box_updater.th_status')}</th>
+                  <th className="p-3 font-bold text-gray-600 uppercase tracking-wider text-xs">{t('box_updater.th_box_id')}</th>
+                  <th className="p-3 font-bold text-gray-600 uppercase tracking-wider text-xs">{t('box_updater.th_old_name')}</th>
+                  <th className="p-3 font-bold text-[#0066CC] uppercase tracking-wider text-xs">{t('box_updater.th_new_name')}</th>
+                  <th className="p-3 font-bold text-center text-gray-600 uppercase tracking-wider text-xs">{t('box_updater.th_status')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-gray-100">
                 {previewData.map((item) => (
-                  <tr key={item.id} className={item.status === 'NOT_FOUND' ? 'bg-red-900/20' : 'hover:bg-slate-700/50 transition-colors'}>
-                    <td className="p-3 font-mono font-bold text-slate-200">{item.pckId}</td>
-                    <td className="p-3 text-slate-400">{item.oldCodename || <span className="italic text-slate-500">{t('box_updater.empty')}</span>}</td>
-                    <td className="p-3 font-black text-blue-300">{item.codename}</td>
+                  <tr key={item.id} className={item.status === 'NOT_FOUND' ? 'bg-red-50' : 'hover:bg-gray-50 transition-colors'}>
+                    <td className="p-3 font-mono font-bold text-[#0066CC]">{item.pckId}</td>
+                    <td className="p-3 text-gray-500 font-medium">{item.oldCodename || <span className="italic text-gray-400">{t('box_updater.empty')}</span>}</td>
+                    <td className="p-3 font-black text-gray-800">{item.codename}</td>
                     <td className="p-3 text-center">
-                      {item.status === 'READY' 
-                        ? <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold border border-emerald-500/30">{t('box_updater.status_ready')}</span>
-                        : <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs font-bold border border-red-500/30">{t('box_updater.status_not_found')}</span>
+                      {item.status === 'READY'
+                        ? <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded text-xs font-bold border border-emerald-200">{t('box_updater.status_ready')}</span>
+                        : <span className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold border border-red-200">{t('box_updater.status_not_found')}</span>
                       }
                     </td>
                   </tr>
@@ -148,10 +148,10 @@ return (
             </table>
           </div>
 
-          <button 
+          <button
             onClick={handleConfirmUpdate}
             disabled={isUpdating || previewData.filter(d => d.status === 'READY').length === 0}
-            className="w-full mt-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl shadow-lg transition-colors text-lg disabled:bg-[#94A3B8]/20 disabled:text-[#94A3B8] flex justify-center items-center gap-2"
+            className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-sm transition-colors text-lg disabled:bg-gray-100 disabled:text-gray-400 disabled:border disabled:border-gray-200 disabled:shadow-none flex justify-center items-center gap-2"
           >
             {isUpdating ? t('box_updater.btn_updating') : t('box_updater.btn_confirm')}
           </button>
