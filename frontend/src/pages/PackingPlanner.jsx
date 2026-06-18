@@ -1,9 +1,14 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
+import axios from 'axios'; // 🌟 เพิ่ม Axios สำหรับยิง API Node.js
+import Pallet3DViewer from './Pallet3DViewer'; // 🌟 นำเข้าคอมโพเนนต์ 3D
+
+// 🌟 ตั้งค่า URL ของ API หลังบ้านที่รัน Node.js อยู่
+const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5000';
 
 export default function PackingPlanner({ items, boxes, currentUser, fetchReportsData, fetchLogsData, fetchAdminData }) {
   const { t } = useTranslation();
@@ -14,6 +19,27 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
   const [packingMode, setPackingMode] = useState('consolidate');
   const [moveConfig, setMoveConfig] = useState(null);
+
+  // 🌟 State ใหม่สำหรับระบบ Pallet 3D
+  const [palletsList, setPalletsList] = useState([]);
+  const [selectedPallet, setSelectedPallet] = useState('');
+  const [pallet3DResult, setPallet3DResult] = useState(null);
+  const [isCalculating3D, setIsCalculating3D] = useState(false);
+
+  // 🌟 โหลดรายชื่อพาเลทจาก Node API ตอนเปิดหน้าจอ
+  useEffect(() => {
+    const fetchPallets = async () => {
+      try {
+        const response = await axios.get(`${NODE_API_URL}/api/pallets`);
+        if (response.data.success) {
+          setPalletsList(response.data.data);
+        }
+      } catch (error) {
+        console.error("โหลดข้อมูลพาเลทไม่สำเร็จ:", error);
+      }
+    };
+    fetchPallets();
+  }, []);
 
   const handleBulkCalculate = () => {
     if (!bulkText.trim()) return;
@@ -26,7 +52,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const NO_PO = t('planner.no_po');
 
     rows.forEach((row, index) => {
-      // ข้ามแถวที่เป็นหัวตาราง
       if (index === 0 && /(item|qty|จำนวน|รหัส|po|order|line|lot)/i.test(row)) return;
 
       let parts = row.trim().split(/[\t ]+/).filter(Boolean);
@@ -39,7 +64,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       let lotNo = '';
       let qty = 0;
 
-      // ค้นหารหัสสินค้าจาก Master Data (items) ที่มีอยู่ในระบบ
       const itemIndex = parts.findIndex(p => items.some(i => i.itemId === p.toUpperCase().trim()));
 
       if (itemIndex === -1) {
@@ -49,7 +73,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
       itemCode = parts[itemIndex].toUpperCase().trim();
 
-      // ค้นหาจำนวน (Qty)
       let qtyIndex = -1;
       if (itemIndex < parts.length - 1 && !isNaN(parts[itemIndex + 1]) && Number(parts[itemIndex + 1]) > 0) {
         qtyIndex = itemIndex + 1;
@@ -74,7 +97,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       if (parts.length > 2) lineNo = parts[2].toUpperCase().trim();
       if (parts.length > 3) lotNo = parts[3].toUpperCase().trim();
 
-      // ดึงข้อมูลสินค้าจาก Master Data
       const dbItem = items.find(i => i.itemId === itemCode);
       const foundBox = boxes.find(b => b.pckId === dbItem.defaultPckId);
 
@@ -83,11 +105,9 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         return;
       }
 
-      // ดึงค่าการแยกกล่อง (ถ้าไม่ได้อัปโหลดมา จะถือว่าเป็น 1 ชิ้น 1 กล่องปกติ)
       const boxesPerUnit = Number(dbItem.boxesPerUnit || 1);
       const itemName = dbItem.itemName || itemCode;
 
-      // ลอจิกความจุกล่อง: ให้ความสำคัญกับ stdPackQty ของตัวสินค้าก่อนเสมอ
       let boxCap = 1;
       if (dbItem.stdPackQty && Number(dbItem.stdPackQty) > 0) {
         boxCap = Number(dbItem.stdPackQty);
@@ -106,7 +126,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
       const cardGroupKey = packingMode === 'consolidate' ? foundBox.pckId : `${foundBox.pckId}_CAP${boxCap}`;
 
-      // แตกกล่องอัตโนมัติ สำหรับสินค้า 1 ชิ้นแยกหลายกล่อง (Oversized)
       if (boxesPerUnit > 1) {
         const totalSplitBoxes = qty * boxesPerUnit;
         for (let splitIdx = 0; splitIdx < totalSplitBoxes; splitIdx++) {
@@ -116,12 +135,12 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             orderNo, poNumber, lineNo, itemCode,
             itemName: `${itemName} (Part ${partSeq}/${boxesPerUnit})`,
             customer: dbItem.supplier || '',
-            qty: 1 / boxesPerUnit, // สัดส่วนหลอกเพื่อคำนวณ
+            qty: 1 / boxesPerUnit,
             boxType: foundBox.pckId,
             boxDesc: foundBox.description,
             boxCodename: foundBox.codename || foundBox.description,
-            boxCap: 1, // ล็อกความจุเป็น 1 เพื่อไม่ให้ปนกับชิ้นอื่น
-            groupKey: `${groupKey}_PART${splitIdx}`, // แยกกลุ่มย่อยไม่ให้กล่องรวมกัน
+            boxCap: 1,
+            groupKey: `${groupKey}_PART${splitIdx}`,
             cardGroupKey,
             lotNo,
             isSpecialSplit: true,
@@ -130,7 +149,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
           });
         }
       } else {
-        // สินค้าปกติ
         validItemsList.push({
           id: index, orderNo, poNumber, lineNo, itemCode, itemName: itemName, customer: dbItem.supplier || '', qty,
           boxType: foundBox.pckId, boxDesc: foundBox.description, boxCodename: foundBox.codename || foundBox.description, boxCap, groupKey, cardGroupKey,
@@ -148,7 +166,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
           boxCodename: item.boxCodename, boxCap: item.boxCap, totalQty: 0, items: []
         };
       }
-      // คำนวณยอดชิ้นงานรวมกลับมาเป็นจำนวนปกติสำหรับการแสดงผล
       boxTypesObj[item.cardGroupKey].totalQty += item.isSpecialSplit ? (item.qty * item.boxesPerUnit) : item.qty;
       boxTypesObj[item.cardGroupKey].items.push(item);
     });
@@ -166,7 +183,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         let spacePerPiece = 1 / item.boxCap;
 
         while (remainingQty > 0) {
-          // ดักเงื่อนไขตัดขึ้นกล่องใหม่
           if ((packingMode !== 'consolidate' && currentBoxUsedSpace > 0 && currentGroupKey !== item.groupKey) ||
             (item.isSpecialSplit && currentBoxUsedSpace > 0)) {
             currentBoxIndex++;
@@ -218,20 +234,52 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
     setCalcResults([...validItemsList, ...errorList].sort((a, b) => a.id - b.id));
     setBoxSummary(summaryArray);
+
+    // รีเซ็ตภาพ 3D เผื่อข้อมูลเปลี่ยน
+    setPallet3DResult(null);
     toast.success(t('planner.calc_success', { pass: validItemsList.length, fail: errorList.length }));
   };
 
-  const handleExportPlanToExcel = () => {
-    if (!boxSummary || boxSummary.length === 0) {
-      toast.error('ไม่มีข้อมูลแผนการแพ็คสำหรับ Export');
-      return;
+  // 🌟 ฟังก์ชันคำนวณพาเลท 3D
+  const handleCalculate3DPallet = async () => {
+    if (!selectedPallet) return toast.error('กรุณาเลือกชนิดพาเลทก่อนครับ');
+
+    const validItems = calcResults.filter(r => !r.error);
+    if (validItems.length === 0) return toast.error('กรุณาคำนวณกล่อง (คำนวณแพ็คกิ้ง) ก่อนครับ');
+
+    setIsCalculating3D(true);
+    const toastId = toast.loading('กำลังจัดเรียงกล่องลงพาเลท 3 มิติ...');
+
+    try {
+      // ดึงข้อมูลสินค้าไปให้ Node API ประมวลผล (API จะไปหาไซส์กล่องเอง)
+      const shipmentItems = validItems.map(item => ({
+        itemId: item.itemCode,
+        qtyToPack: item.qty
+      }));
+
+      const response = await axios.post(`${NODE_API_URL}/api/pallet/calculate`, {
+        palletId: selectedPallet,
+        shipmentItems: shipmentItems
+      });
+
+      if (response.data.success) {
+        setPallet3DResult(response.data);
+        toast.success('จำลองพาเลท 3D สำเร็จ!', { id: toastId });
+      } else {
+        toast.error('ล้มเหลว: ' + response.data.message, { id: toastId });
+      }
+    } catch (error) {
+      toast.error('เซิร์ฟเวอร์ขัดข้อง: ' + (error.response?.data?.message || error.message), { id: toastId });
     }
+    setIsCalculating3D(false);
+  };
+
+  const handleExportPlanToExcel = () => {
+    if (!boxSummary || boxSummary.length === 0) return toast.error('ไม่มีข้อมูลแผนการแพ็คสำหรับ Export');
 
     const exportData = [];
-
     boxSummary.forEach((group) => {
       const boxName = group.boxCodename || group.boxType;
-
       group.boxesBreakdown.forEach((box) => {
         if (box.items.length === 0) {
           exportData.push({
@@ -310,7 +358,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
   const confirmMove = () => {
     if (!moveConfig) return;
-    const { groupIndex, fromBoxNo, toBoxNo, itemCode, orderNo, poNumber, lineNo, moveQty, lotNo, cap } = moveConfig;
+    const { groupIndex, fromBoxNo, toBoxNo, itemCode, orderNo, poNumber, lineNo, moveQty, lotNo } = moveConfig;
 
     if (fromBoxNo === Number(toBoxNo) || moveQty <= 0) {
       setMoveConfig(null);
@@ -420,6 +468,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       setCalcResults([]);
       setBoxSummary([]);
       setBulkText('');
+      setPallet3DResult(null);
 
       fetchReportsData();
       fetchLogsData();
@@ -432,27 +481,17 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
   const aggregatedBoxRequisition = Object.values(boxSummary.reduce((acc, curr) => {
     if (!acc[curr.boxType]) {
-      acc[curr.boxType] = {
-        boxType: curr.boxType,
-        boxCodename: curr.boxCodename,
-        totalBoxes: 0,
-        subCaps: {}
-      };
+      acc[curr.boxType] = { boxType: curr.boxType, boxCodename: curr.boxCodename, totalBoxes: 0, subCaps: {} };
     }
     acc[curr.boxType].totalBoxes += curr.totalBoxes;
 
     const capKey = packingMode === 'consolidate' ? t('planner.mixed_spec_vol') : `${curr.boxCap} ${t('planner.unit_piece')}`;
-    if (!acc[curr.boxType].subCaps[capKey]) {
-      acc[curr.boxType].subCaps[capKey] = 0;
-    }
+    if (!acc[curr.boxType].subCaps[capKey]) acc[curr.boxType].subCaps[capKey] = 0;
     acc[curr.boxType].subCaps[capKey] += curr.totalBoxes;
 
     return acc;
   }, {})).map(box => {
-    const subCapsArray = Object.entries(box.subCaps).map(([cap, count]) => ({
-      cap,
-      boxesCount: count
-    }));
+    const subCapsArray = Object.entries(box.subCaps).map(([cap, count]) => ({ cap, boxesCount: count }));
     return { ...box, subCaps: subCapsArray };
   }).sort((a, b) => b.totalBoxes - a.totalBoxes);
 
@@ -461,37 +500,50 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
   return (
     <div className="space-y-6 print:space-y-0">
-
-      {/* ========================================== */}
-      {/* 1. ส่วนตั้งค่าและกรอกข้อมูล */}
-      {/* ========================================== */}
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200 text-gray-800 print:hidden">
         <h2 className="text-2xl font-black text-[#0066CC] mb-4">{t('planner.title')}</h2>
 
-        <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-          <div className="text-sm font-bold text-[#0066CC] mb-3">{t('planner.select_mode')}</div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'consolidate' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
-              <input type="radio" name="packMode" className="hidden" checked={packingMode === 'consolidate'} onChange={() => setPackingMode('consolidate')} />
-              <div>
-                <div className="font-bold">{t('planner.mode_consolidate')}</div>
-                <div className={`text-xs mt-1 ${packingMode === 'consolidate' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_consolidate_desc')}</div>
-              </div>
-            </label>
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-item' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
-              <input type="radio" name="packMode" className="hidden" checked={packingMode === 'strict-item'} onChange={() => setPackingMode('strict-item')} />
-              <div>
-                <div className="font-bold">{t('planner.mode_strict_item')}</div>
-                <div className={`text-xs mt-1 ${packingMode === 'strict-item' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_strict_item_desc')}</div>
-              </div>
-            </label>
-            <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-po' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
-              <input type="radio" name="packMode" className="hidden" checked={packingMode === 'strict-po'} onChange={() => setPackingMode('strict-po')} />
-              <div>
-                <div className="font-bold">{t('planner.mode_strict_po')}</div>
-                <div className={`text-xs mt-1 ${packingMode === 'strict-po' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_strict_po_desc')}</div>
-              </div>
-            </label>
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="text-sm font-bold text-[#0066CC] mb-3">{t('planner.select_mode')}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'consolidate' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
+                <input type="radio" name="packMode" className="hidden" checked={packingMode === 'consolidate'} onChange={() => setPackingMode('consolidate')} />
+                <div>
+                  <div className="font-bold">{t('planner.mode_consolidate')}</div>
+                  <div className={`text-xs mt-1 ${packingMode === 'consolidate' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_consolidate_desc')}</div>
+                </div>
+              </label>
+              <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-item' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
+                <input type="radio" name="packMode" className="hidden" checked={packingMode === 'strict-item'} onChange={() => setPackingMode('strict-item')} />
+                <div>
+                  <div className="font-bold">{t('planner.mode_strict_item')}</div>
+                  <div className={`text-xs mt-1 ${packingMode === 'strict-item' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_strict_item_desc')}</div>
+                </div>
+              </label>
+              <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'strict-po' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
+                <input type="radio" name="packMode" className="hidden" checked={packingMode === 'strict-po'} onChange={() => setPackingMode('strict-po')} />
+                <div>
+                  <div className="font-bold">{t('planner.mode_strict_po')}</div>
+                  <div className={`text-xs mt-1 ${packingMode === 'strict-po' ? 'text-blue-100' : 'text-gray-400'}`}>{t('planner.mode_strict_po_desc')}</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* 🌟 กล่องสำหรับเลือกพาเลท */}
+          <div className="md:col-span-1 p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col justify-center">
+            <div className="text-sm font-bold text-[#0066CC] mb-3">🪵 เลือกพาเลท (สำหรับ 3D)</div>
+            <select
+              value={selectedPallet}
+              onChange={(e) => setSelectedPallet(e.target.value)}
+              className="w-full p-3 rounded-lg border border-blue-200 text-gray-800 font-bold focus:outline-none focus:ring-2 focus:ring-[#0066CC] bg-white"
+            >
+              <option value="">-- ไม่ระบุพาเลท --</option>
+              {palletsList.map(p => (
+                <option key={p.palletId} value={p.palletId}>{p.palletId}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -508,7 +560,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             <button onClick={handleBulkCalculate} className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-4 rounded-xl shadow-md transition-all transform active:scale-95 text-lg">
               🧮 {t('planner.btn_calculate')}
             </button>
-            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); toast(t('planner.clear_success'), { icon: '🧹' }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 font-bold py-4 px-8 rounded-xl transition-all">
+            <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); setPallet3DResult(null); toast(t('planner.clear_success'), { icon: '🧹' }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 font-bold py-4 px-8 rounded-xl transition-all">
               {t('common.clear')}
             </button>
           </div>
@@ -518,9 +570,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       {calcResults.length > 0 && (
         <div className="space-y-6 animate-fade-in-up print:hidden">
 
-          {/* ========================================== */}
-          {/* 2. รายละเอียดสรุปการเบิกกล่อง */}
-          {/* ========================================== */}
           {boxSummary.length > 0 && (
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden text-gray-800 border border-gray-200">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 border-b border-gray-200 gap-4">
@@ -531,24 +580,48 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                   </span>
                 </h3>
 
-                {/* ปุ่ม Export Excel และ พิมพ์ */}
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <button
-                    onClick={handleExportPlanToExcel}
-                    className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
-                  >
-                    <span>📊</span> Export Excel
+                  {/* 🌟 ปุ่มประมวลผล 3D Pallet */}
+                  <button onClick={handleCalculate3DPallet} disabled={isCalculating3D} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
+                    {isCalculating3D ? 'กำลังคำนวณ...' : '🔮 จำลองพาเลท 3D'}
                   </button>
-                  <button
-                    onClick={() => setShowSummaryModal(true)}
-                    className="flex-1 sm:flex-none bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
-                  >
+                  <button onClick={handleExportPlanToExcel} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
+                    <span>📊</span> Export
+                  </button>
+                  <button onClick={() => setShowSummaryModal(true)} className="flex-1 sm:flex-none bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
                     📋 {t('planner.btn_view_print')}
                   </button>
                 </div>
               </div>
 
-              {/* 🛒 สรุปใบเบิกสโตร์ด่วน */}
+              {/* 🌟 โซนแสดงผล 3D (แทรกอยู่ใต้ปุ่มกด) */}
+              {pallet3DResult && (
+                <div className="p-6 bg-slate-50 border-b border-gray-200">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 shadow-inner rounded-xl overflow-hidden border border-slate-200">
+                      <Pallet3DViewer palletData={pallet3DResult} />
+                    </div>
+                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                      <h4 className="font-bold text-slate-800 text-lg border-b pb-2">📋 สรุปจัดเรียงพาเลท</h4>
+                      {pallet3DResult.isOverfilled && (
+                        <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200 font-bold">
+                          ⚠️ ล้นพาเลท! มีกล่องสินค้าเกินพื้นที่จำนวน {pallet3DResult.unpackedBoxes.length} ใบ
+                        </div>
+                      )}
+                      <ul className="text-sm space-y-3 text-slate-600">
+                        <li className="flex justify-between"><span>กล่องวางสำเร็จ:</span> <span className="font-bold text-emerald-600 text-base">{pallet3DResult.totalPackedCount} ใบ</span></li>
+                        <li className="flex justify-between"><span>ความสูงรวม (จำกัด):</span> <span className="font-bold text-slate-800">{pallet3DResult.palletSpecification.maxHeightMm} mm</span></li>
+                        <li className="flex justify-between"><span>ความหนาฐาน:</span> <span className="font-bold text-slate-800">{pallet3DResult.palletSpecification.baseThicknessMm} mm</span></li>
+                      </ul>
+                      <div className="mt-auto pt-4 text-xs text-slate-400 text-center">
+                        *โมเดล 3D สามารถใช้เมาส์หมุนและซูมดูรายละเอียดได้
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 🛒 สรุปใบเบิกสโตร์ด่วน (เดิม) */}
               <div className="p-6">
                 <div className="mb-4 text-sm font-bold text-gray-500 flex items-center gap-2">{t('planner.quick_summary')}</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -570,7 +643,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                   ))}
                 </div>
 
-                {/* 📦 แผนการแพ็คกล่องแต่ละประเภท */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6 border-t border-gray-200">
                   {boxSummary.map((sum, groupIdx) => (
                     <div key={groupIdx} className="bg-gray-50 rounded-xl p-5 border border-gray-200 flex flex-col h-full shadow-sm">
@@ -662,9 +734,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* 3. ตารางรายละเอียดสินค้า */}
-          {/* ========================================== */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
             <div className="bg-gray-50 p-4 border-b border-gray-200 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-gray-800">
               <span className="flex items-center gap-2">
