@@ -89,29 +89,19 @@ app.get('/', (req, res) => {
  */
 // 🔮 API คำนวณการจัดเรียงกล่องหลากไซส์ลงบนพาเลทแบบ 3 มิติ
 // 🔮 API คำนวณการจัดเรียงกล่องหลากไซส์ลงบนพาเลทแบบ 3 มิติ
+// 🔮 API คำนวณจัดเรียงกล่องแบบเปลี่ยนชนิดพาเลทอัตโนมัติ (Multi-Pallet Dynamic Selection)
 app.post('/api/pallet/calculate', async (req, res) => {
   try {
     const { palletId, shipmentItems } = req.body;
 
-    if (!palletId) return res.status(400).json({ success: false, message: 'กรุณาระบุรหัสพาเลทที่ใช้' });
+    if (!palletId) return res.status(400).json({ success: false, message: 'กรุณาระบุรหัสพาเลทแรกที่ต้องการใช้' });
     if (!shipmentItems || shipmentItems.length === 0) return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลสินค้า' });
 
-    const palletSpec = await prisma.pallet.findUnique({ where: { palletId } });
-    if (!palletSpec) return res.status(404).json({ success: false, message: 'ไม่พบสเปกพาเลทรหัสนี้ในระบบ' });
+    // 1. โหลดรายชื่อสเปกพาเลททั้งหมดในระบบมาเตรียมไว้เป็นตัวเลือกสำหรับใบถัดๆ ไป
+    const allPalletsList = await prisma.pallet.findMany({ where: { status: 'ACTIVE' } });
 
-    const PALLET_WIDTH = palletSpec.width;
-    const PALLET_LENGTH = palletSpec.length;
-    const PALLET_MAX_HEIGHT = palletSpec.maxHeight;
-    const PALLET_BASE_THICKNESS = palletSpec.baseThickness;
-
-    const USABLE_HEIGHT = PALLET_MAX_HEIGHT - PALLET_BASE_THICKNESS;
-    const MAX_WEIGHT_CAPACITY = palletSpec.maxWeight;
-
-    // 🌟 แก้ไข 1: เรียงพารามิเตอร์ของพาเลทให้ถูกต้องตามไลบรารี (กว้าง, สูง, ลึก/ยาว)
-    const palletBin = new Bin(palletSpec.palletId, PALLET_WIDTH, USABLE_HEIGHT, PALLET_LENGTH, MAX_WEIGHT_CAPACITY);
-    const packer = new Packer();
-    packer.addBin(palletBin);
-
+    // 2. แตกรายการสินค้าออกเป็นจำนวนกล่องจริงทั้งหมดที่ต้องแพ็ค
+    let boxesRemaining = [];
     for (const sItem of shipmentItems) {
       const itemData = await prisma.item.findUnique({
         where: { itemId: sItem.itemId },
@@ -129,43 +119,113 @@ app.post('/api/pallet/calculate', async (req, res) => {
       const totalBoxesNeeded = Math.ceil(sItem.qtyToPack / (itemData.stdPackQty || 1));
 
       for (let i = 0; i < totalBoxesNeeded; i++) {
-        // 🌟 แก้ไข 2: สลับตำแหน่ง h กับ l ตอนสร้างกล่องให้ตรงกับแกน Y (ความสูง) และ Z (ความลึก/ยาว)
-        const newItem = new Item(`${itemData.itemId}-BOX-${i + 1}`, w, h, l, unitWeight);
-
-        // 🌟 แก้ไข 3: ล็อกการหมุน! บังคับให้วางแนวนอนเท่านั้น 
-        // รหัส 0 = วางปกติ (กว้าง, สูง, ยาว)
-        // รหัส 3 = หมุน 90 องศาแนวราบ (ยาว, สูง, กว้าง)
-        newItem.allowedRotations = [0, 3];
-
-        packer.addItem(newItem);
+        boxesRemaining.push({
+          name: `${itemData.itemId}-BOX-${i + 1}`,
+          w, h, l,
+          weight: unitWeight
+        });
       }
     }
 
-    packer.pack();
+    let palletsResult = [];
+    let palletIndex = 1;
 
-    const packedResults = palletBin.items.map(packedItem => ({
-      boxId: packedItem.name,
-      position: { x: packedItem.position[0], y: packedItem.position[1], z: packedItem.position[2] },
-      dimensions: { width: packedItem.width, length: packedItem.depth, height: packedItem.height },
-      weight: packedItem.weight
-    }));
+    // 3. เริ่มลูปจัดลงพาเลท ตราบใดที่ยังมีกล่องสินค้าเหลืออยู่
+    while (boxesRemaining.length > 0) {
+      let selectedPalletSpec = null;
 
-    const unpackedResults = packer.unfitItems.map(item => item.name);
+      if (palletIndex === 1) {
+        // พาเลทใบแรก: บังคับใช้ตัวเลือก A ที่ผู้ใช้เลือกมาจากหน้าบ้านตามคำสั่ง
+        selectedPalletSpec = allPalletsList.find(p => p.palletId === palletId);
+        if (!selectedPalletSpec) return res.status(404).json({ success: false, message: 'ไม่พบสเปกพาเลทแรกในระบบ' });
+      } else {
+        // พาเลทใบต่อไป: วิ่งทดสอบสเปกพาเลททุกตัวใน DB เพื่อหาตัวที่จุกล่องที่เหลือได้ "คุ้มค่าที่สุด"
+        let bestPalletCandidate = null;
+        let maxPackedCount = -1;
+
+        for (const pallet of allPalletsList) {
+          const testBin = new Bin(pallet.palletId, pallet.width, pallet.maxHeight - pallet.baseThickness, pallet.length, pallet.maxWeight);
+          const testPacker = new Packer();
+          testPacker.addBin(testBin);
+
+          boxesRemaining.forEach(box => {
+            const item = new Item(box.name, box.w, box.h, box.l, box.weight);
+            item.allowedRotations = [0, 3]; // นวนนอนเท่านั้น
+            testPacker.addItem(item);
+          });
+
+          testPacker.pack();
+
+          // มองหาพาเลทที่สามารถบรรจุกล่องที่เหลืออยู่ได้จำนวนมากที่สุด
+          if (testBin.items.length > maxPackedCount) {
+            maxPackedCount = testBin.items.length;
+            bestPalletCandidate = pallet;
+          }
+        }
+
+        // ดักเงื่อนไข: ถ้าไม่มีพาเลทแบบไหนในระบบใส่กล่องนี้ลงเลย (กล่องใหญ่มหึมาเกินไป) ให้หยุดลูปป้องกัน Infinite Loop
+        if (maxPackedCount <= 0) {
+          break;
+        }
+
+        selectedPalletSpec = bestPalletCandidate;
+      }
+
+      // 4. ทำการจัดเรียงกล่องลงพาเลทจริงที่ถูกเลือกในรอบนั้นๆ
+      const USABLE_HEIGHT = selectedPalletSpec.maxHeight - selectedPalletSpec.baseThickness;
+      const realBin = new Bin(selectedPalletSpec.palletId, selectedPalletSpec.width, USABLE_HEIGHT, selectedPalletSpec.length, selectedPalletSpec.maxWeight);
+      const realPacker = new Packer();
+      realPacker.addBin(realBin);
+
+      boxesRemaining.forEach(box => {
+        const item = new Item(box.name, box.w, box.h, box.l, box.weight);
+        item.allowedRotations = [0, 3];
+        realPacker.addItem(item);
+      });
+
+      realPacker.pack();
+
+      const packedBoxes = realBin.items.map(packedItem => ({
+        boxId: packedItem.name,
+        position: { x: packedItem.position[0], y: packedItem.position[1], z: packedItem.position[2] },
+        dimensions: { width: packedItem.width, length: packedItem.depth, height: packedItem.height },
+        weight: packedItem.weight
+      }));
+
+      palletsResult.push({
+        palletNo: palletIndex,
+        palletSpecification: {
+          palletId: selectedPalletSpec.palletId,
+          description: selectedPalletSpec.description,
+          totalWidthMm: selectedPalletSpec.width,
+          totalLengthMm: selectedPalletSpec.length,
+          maxHeightMm: selectedPalletSpec.maxHeight,
+          baseThicknessMm: selectedPalletSpec.baseThickness,
+          usableHeightMm: USABLE_HEIGHT
+        },
+        packedBoxes: packedBoxes,
+        totalPackedCount: packedBoxes.length
+      });
+
+      // 5. ตัดรายการกล่องที่จัดวางลงพาเลทใบนี้สำเร็จออกจากคิวงาน
+      const packedNames = new Set(realBin.items.map(i => i.name));
+      const beforeFilterCount = boxesRemaining.length;
+      boxesRemaining = boxesRemaining.filter(box => !packedNames.has(box.name));
+
+      // ดักลูปนรกกันพลาดอีกชั้น
+      if (boxesRemaining.length === beforeFilterCount) {
+        break;
+      }
+
+      palletIndex++;
+    }
 
     res.json({
       success: true,
-      palletSpecification: {
-        palletId: palletSpec.palletId,
-        totalWidthMm: PALLET_WIDTH,
-        totalLengthMm: PALLET_LENGTH,
-        maxHeightMm: PALLET_MAX_HEIGHT,
-        baseThicknessMm: PALLET_BASE_THICKNESS,
-        usableHeightMm: USABLE_HEIGHT
-      },
-      packedBoxes: packedResults,
-      unpackedBoxes: unpackedResults,
-      totalPackedCount: packedResults.length,
-      isOverfilled: unpackedResults.length > 0
+      pallets: palletsResult,
+      totalPalletsUsed: palletsResult.length,
+      unpackedBoxes: boxesRemaining.map(b => b.name),
+      isOverfilled: boxesRemaining.length > 0 // จะเป็น true ก็ต่อเมื่อทุกพาเลทในระบบรับของชิ้นนี้ไม่ได้แล้วจริงๆ
     });
 
   } catch (error) {

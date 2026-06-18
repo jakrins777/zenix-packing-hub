@@ -4,11 +4,10 @@ import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
-import axios from 'axios'; // 🌟 เพิ่ม Axios สำหรับยิง API Node.js
-import Pallet3DViewer from './Pallet3DViewer'; // 🌟 นำเข้าคอมโพเนนต์ 3D
+import axios from 'axios';
+import Pallet3DViewer from './Pallet3DViewer';
 
-// 🌟 ตั้งค่า URL ของ API หลังบ้านที่รัน Node.js อยู่
-const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'https://zenix-packing-hub.onrender.com';
+const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'https://ชื่อโปรเจกต์พี่.onrender.com';
 
 export default function PackingPlanner({ items, boxes, currentUser, fetchReportsData, fetchLogsData, fetchAdminData }) {
   const { t } = useTranslation();
@@ -20,29 +19,20 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const [packingMode, setPackingMode] = useState('consolidate');
   const [moveConfig, setMoveConfig] = useState(null);
 
-  // 🌟 State ใหม่สำหรับระบบ Pallet 3D
   const [palletsList, setPalletsList] = useState([]);
   const [selectedPallet, setSelectedPallet] = useState('');
   const [pallet3DResult, setPallet3DResult] = useState(null);
   const [isCalculating3D, setIsCalculating3D] = useState(false);
 
-  // 🌟 โหลดรายชื่อพาเลทจาก Node API ตอนเปิดหน้าจอ
+  // 🌟 State สำหรับสลับหน้าต่างดูพาเลทใบต่างๆ
+  const [activePalletTab, setActivePalletTab] = useState(0);
+
   useEffect(() => {
     const fetchPallets = async () => {
       try {
-        // อ้างอิงชื่อตาราง 'Pallet' (ตัว P ใหญ่) ให้ตรงกับในรูปเป๊ะๆ
-        const { data, error } = await supabase
-          .from('Pallet')
-          .select('*')
-          .order('palletId', { ascending: true });
-
-        if (error) {
-          throw error;
-        }
-
-        if (data) {
-          setPalletsList(data);
-        }
+        const { data, error } = await supabase.from('Pallet').select('*');
+        if (error) throw error;
+        if (data) setPalletsList(data);
       } catch (error) {
         console.error("โหลดข้อมูลพาเลทไม่สำเร็จ:", error.message);
       }
@@ -243,24 +233,20 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
     setCalcResults([...validItemsList, ...errorList].sort((a, b) => a.id - b.id));
     setBoxSummary(summaryArray);
-
-    // รีเซ็ตภาพ 3D เผื่อข้อมูลเปลี่ยน
     setPallet3DResult(null);
     toast.success(t('planner.calc_success', { pass: validItemsList.length, fail: errorList.length }));
   };
 
-  // 🌟 ฟังก์ชันคำนวณพาเลท 3D
   const handleCalculate3DPallet = async () => {
     if (!selectedPallet) return toast.error('กรุณาเลือกชนิดพาเลทก่อนครับ');
 
     const validItems = calcResults.filter(r => !r.error);
-    if (validItems.length === 0) return toast.error('กรุณาคำนวณกล่อง (คำนวณแพ็คกิ้ง) ก่อนครับ');
+    if (validItems.length === 0) return toast.error('กรุณาคำนวณกล่องก่อนครับ');
 
     setIsCalculating3D(true);
-    const toastId = toast.loading('กำลังจัดเรียงกล่องลงพาเลท 3 มิติ...');
+    const toastId = toast.loading('กำลังประมวลผลจัดเรียงโมเดลพาเลทคำนวณพื้นที่...');
 
     try {
-      // ดึงข้อมูลสินค้าไปให้ Node API ประมวลผล (API จะไปหาไซส์กล่องเอง)
       const shipmentItems = validItems.map(item => ({
         itemId: item.itemCode,
         qtyToPack: item.qty
@@ -273,12 +259,13 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
       if (response.data.success) {
         setPallet3DResult(response.data);
-        toast.success('จำลองพาเลท 3D สำเร็จ!', { id: toastId });
+        setActivePalletTab(0); // 🌟 รีเซ็ตให้แสดงผลพาเลทใบที่ 1 ก่อนเสมอ
+        toast.success(`คำนวณสำเร็จ! ใช้พาเลทรวมทั้งหมด ${response.data.totalPalletsUsed} ใบ`, { id: toastId });
       } else {
         toast.error('ล้มเหลว: ' + response.data.message, { id: toastId });
       }
     } catch (error) {
-      toast.error('เซิร์ฟเวอร์ขัดข้อง: ' + (error.response?.data?.message || error.message), { id: toastId });
+      toast.error('ระบบขัดข้อง: ' + (error.response?.data?.message || error.message), { id: toastId });
     }
     setIsCalculating3D(false);
   };
@@ -351,16 +338,9 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
   const openMoveModal = (groupIndex, boxNo, item) => {
     setMoveConfig({
-      groupIndex,
-      fromBoxNo: boxNo,
-      itemCode: item.itemCode,
-      orderNo: item.orderNo,
-      poNumber: item.poNumber,
-      lineNo: item.lineNo,
-      lotNo: item.lotNo || '',
-      maxQty: item.qty,
-      cap: item.cap,
-      moveQty: 1,
+      groupIndex, fromBoxNo: boxNo, itemCode: item.itemCode, orderNo: item.orderNo,
+      poNumber: item.poNumber, lineNo: item.lineNo, lotNo: item.lotNo || '',
+      maxQty: item.qty, cap: item.cap, moveQty: 1,
       toBoxNo: boxSummary[groupIndex].boxesBreakdown.length > 1 ? (boxNo === 1 ? 2 : 1) : 1
     });
   };
@@ -507,6 +487,11 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const NO_ORDER = t('planner.no_order');
   const NO_PO = t('planner.no_po');
 
+  // 🌟 ดึงข้อมูลพาเลทที่กำลังเลือกเปิดแท็บดูโมเดลอยู่มาส่งให้ตัว Viewer
+  const activePalletData = pallet3DResult && pallet3DResult.pallets && pallet3DResult.pallets[activePalletTab]
+    ? { success: true, ...pallet3DResult.pallets[activePalletTab] }
+    : null;
+
   return (
     <div className="space-y-6 print:space-y-0">
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200 text-gray-800 print:hidden">
@@ -540,9 +525,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </div>
           </div>
 
-          {/* 🌟 กล่องสำหรับเลือกพาเลท */}
           <div className="md:col-span-1 p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col justify-center">
-            <div className="text-sm font-bold text-[#0066CC] mb-3">🪵 เลือกพาเลท (สำหรับ 3D)</div>
+            <div className="text-sm font-bold text-[#0066CC] mb-3">🪵 เลือกพาเลทใบแรก</div>
             <select
               value={selectedPallet}
               onChange={(e) => setSelectedPallet(e.target.value)}
@@ -584,13 +568,9 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 border-b border-gray-200 gap-4">
                 <h3 className="text-xl font-bold text-[#0066CC] flex items-center gap-2">
                   📦 {t('planner.summary_title')}
-                  <span className="text-sm font-normal text-[#0066CC] bg-[#0066CC]/10 px-3 py-1 rounded-full border border-[#0066CC]/20">
-                    {t('planner.calculated_with', { mode: packingMode === 'consolidate' ? t('planner.mode_name_consolidate') : packingMode === 'strict-item' ? t('planner.mode_name_item') : t('planner.mode_name_po') })}
-                  </span>
                 </h3>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  {/* 🌟 ปุ่มประมวลผล 3D Pallet */}
                   <button onClick={handleCalculate3DPallet} disabled={isCalculating3D} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
                     {isCalculating3D ? 'กำลังคำนวณ...' : '🔮 จำลองพาเลท 3D'}
                   </button>
@@ -603,34 +583,52 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 </div>
               </div>
 
-              {/* 🌟 โซนแสดงผล 3D (แทรกอยู่ใต้ปุ่มกด) */}
-              {pallet3DResult && (
+              {/* 🌟 โซนแสดงผลลัพธ์ 3D แบบ Multi-Pallet Dynamic */}
+              {pallet3DResult && pallet3DResult.pallets && (
                 <div className="p-6 bg-slate-50 border-b border-gray-200">
+
+                  {/* ปุ่มสลับแท็บเลือกส่องพาเลทแต่ละใบ */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {pallet3DResult.pallets.map((p, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActivePalletTab(idx)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${activePalletTab === idx ? 'bg-[#0066CC] text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                      >
+                        📦 ใบที่ {p.palletNo} ({p.palletSpecification.palletId})
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 shadow-inner rounded-xl overflow-hidden border border-slate-200">
-                      <Pallet3DViewer palletData={pallet3DResult} />
+                      <Pallet3DViewer palletData={activePalletData} />
                     </div>
-                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
-                      <h4 className="font-bold text-slate-800 text-lg border-b pb-2">📋 สรุปจัดเรียงพาเลท</h4>
-                      {pallet3DResult.isOverfilled && (
-                        <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200 font-bold">
-                          ⚠️ ล้นพาเลท! มีกล่องสินค้าเกินพื้นที่จำนวน {pallet3DResult.unpackedBoxes.length} ใบ
+                    {activePalletData && (
+                      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                        <h4 className="font-bold text-slate-800 text-sm border-b pb-2 uppercase tracking-wide">📋 รายละเอียดพาเลทใบนี้</h4>
+                        <ul className="text-xs space-y-3 text-slate-600">
+                          <li className="flex justify-between"><span>พาเลทลำดับที่:</span> <span className="font-bold text-slate-800">ใบที่ {activePalletData.palletNo}</span></li>
+                          <li className="flex justify-between"><span>โมเดลที่ระบบเลือก:</span> <span className="font-bold text-[#0066CC]">{activePalletData.palletSpecification.palletId}</span></li>
+                          <li className="flex justify-between"><span>คำอธิบาย:</span> <span className="font-bold text-slate-700">{activePalletData.palletSpecification.description || '-'}</span></li>
+                          <li className="flex justify-between"><span>กล่องวางสำเร็จบนใบนี้:</span> <span className="font-bold text-emerald-600 text-sm">{activePalletData.totalPackedCount} ใบ</span></li>
+                          <li className="flex justify-between"><span>ขนาดแท้จริงพาเลท:</span> <span className="font-bold text-slate-800">{activePalletData.palletSpecification.totalWidthMm}x{activePalletData.palletSpecification.totalLengthMm} mm</span></li>
+                        </ul>
+                        {pallet3DResult.isOverfilled && activePalletTab === (pallet3DResult.pallets.length - 1) && (
+                          <div className="bg-red-50 text-red-700 p-3 rounded-lg text-xs border border-red-200 font-bold mt-2">
+                            ⚠️ หมายเหตุ: ตรวจพบกล่องขนาดใหญ่เกินไปกว่าที่สเปกพาเลททุกรุ่นในระบบจะรองรับได้จำนวน {pallet3DResult.unpackedBoxes.length} ชิ้น
+                          </div>
+                        )}
+                        <div className="mt-auto text-[10px] text-slate-400 text-center">
+                          *ระบบคำนวณสลับไซส์ให้อัตโนมัติเพื่อความประหยัดที่สุด
                         </div>
-                      )}
-                      <ul className="text-sm space-y-3 text-slate-600">
-                        <li className="flex justify-between"><span>กล่องวางสำเร็จ:</span> <span className="font-bold text-emerald-600 text-base">{pallet3DResult.totalPackedCount} ใบ</span></li>
-                        <li className="flex justify-between"><span>ความสูงรวม (จำกัด):</span> <span className="font-bold text-slate-800">{pallet3DResult.palletSpecification.maxHeightMm} mm</span></li>
-                        <li className="flex justify-between"><span>ความหนาฐาน:</span> <span className="font-bold text-slate-800">{pallet3DResult.palletSpecification.baseThicknessMm} mm</span></li>
-                      </ul>
-                      <div className="mt-auto pt-4 text-xs text-slate-400 text-center">
-                        *โมเดล 3D สามารถใช้เมาส์หมุนและซูมดูรายละเอียดได้
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* 🛒 สรุปใบเบิกสโตร์ด่วน (เดิม) */}
+              {/* ส่วนตารางสรุปเดิม ... */}
               <div className="p-6">
                 <div className="mb-4 text-sm font-bold text-gray-500 flex items-center gap-2">{t('planner.quick_summary')}</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -743,6 +741,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </div>
           )}
 
+          {/* ตารางสินค้าคงเดิม ... */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
             <div className="bg-gray-50 p-4 border-b border-gray-200 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-gray-800">
               <span className="flex items-center gap-2">
@@ -800,7 +799,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         </div>
       )}
 
-      {/* Modal ย้ายของ */}
+      {/* Modals ต่างๆ โค้ดเดิมคงไว้ 100% ... */}
       {moveConfig && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-sm border border-gray-200 text-gray-800">
@@ -836,7 +835,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         </div>
       )}
 
-      {/* Modal Print */}
       {showSummaryModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/80 backdrop-blur-sm overflow-y-auto pt-10 pb-10 print:block print:static print:bg-white print:p-0 print:overflow-visible">
           <style type="text/css" media="print">
