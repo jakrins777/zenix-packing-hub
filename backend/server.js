@@ -88,6 +88,7 @@ app.get('/', (req, res) => {
  * ควบคุมความสูงสูงสุดตามสเปกพาเลทแต่ละไซส์ (เพดานไม่เกิน 1500 mm ต่อ Shipment)
  */
 // 🔮 API คำนวณการจัดเรียงกล่องหลากไซส์ลงบนพาเลทแบบ 3 มิติ
+// 🔮 API คำนวณการจัดเรียงกล่องหลากไซส์ลงบนพาเลทแบบ 3 มิติ
 app.post('/api/pallet/calculate', async (req, res) => {
   try {
     const { palletId, shipmentItems } = req.body;
@@ -95,7 +96,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
     if (!palletId) return res.status(400).json({ success: false, message: 'กรุณาระบุรหัสพาเลทที่ใช้' });
     if (!shipmentItems || shipmentItems.length === 0) return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลสินค้า' });
 
-    // ดึงข้อมูลขนาดของพาเลทจากฐานข้อมูลแบบไดนามิก
     const palletSpec = await prisma.pallet.findUnique({ where: { palletId } });
     if (!palletSpec) return res.status(404).json({ success: false, message: 'ไม่พบสเปกพาเลทรหัสนี้ในระบบ' });
 
@@ -107,7 +107,8 @@ app.post('/api/pallet/calculate', async (req, res) => {
     const USABLE_HEIGHT = PALLET_MAX_HEIGHT - PALLET_BASE_THICKNESS;
     const MAX_WEIGHT_CAPACITY = palletSpec.maxWeight;
 
-    const palletBin = new Bin(palletSpec.palletId, PALLET_WIDTH, PALLET_LENGTH, USABLE_HEIGHT, MAX_WEIGHT_CAPACITY);
+    // 🌟 แก้ไข 1: เรียงพารามิเตอร์ของพาเลทให้ถูกต้องตามไลบรารี (กว้าง, สูง, ลึก/ยาว)
+    const palletBin = new Bin(palletSpec.palletId, PALLET_WIDTH, USABLE_HEIGHT, PALLET_LENGTH, MAX_WEIGHT_CAPACITY);
     const packer = new Packer();
     packer.addBin(palletBin);
 
@@ -128,7 +129,15 @@ app.post('/api/pallet/calculate', async (req, res) => {
       const totalBoxesNeeded = Math.ceil(sItem.qtyToPack / (itemData.stdPackQty || 1));
 
       for (let i = 0; i < totalBoxesNeeded; i++) {
-        packer.addItem(new Item(`${itemData.itemId}-BOX-${i + 1}`, w, l, h, unitWeight));
+        // 🌟 แก้ไข 2: สลับตำแหน่ง h กับ l ตอนสร้างกล่องให้ตรงกับแกน Y (ความสูง) และ Z (ความลึก/ยาว)
+        const newItem = new Item(`${itemData.itemId}-BOX-${i + 1}`, w, h, l, unitWeight);
+
+        // 🌟 แก้ไข 3: ล็อกการหมุน! บังคับให้วางแนวนอนเท่านั้น 
+        // รหัส 0 = วางปกติ (กว้าง, สูง, ยาว)
+        // รหัส 3 = หมุน 90 องศาแนวราบ (ยาว, สูง, กว้าง)
+        newItem.allowedRotations = [0, 3];
+
+        packer.addItem(newItem);
       }
     }
 
@@ -141,7 +150,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
       weight: packedItem.weight
     }));
 
-    // ✅ ตรงนี้คือจุดที่แก้บั๊ก packer.unfitItems เรียบร้อยแล้ว
     const unpackedResults = packer.unfitItems.map(item => item.name);
 
     res.json({
@@ -161,7 +169,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
     });
 
   } catch (error) {
-    // 🛑 ปีกกาพวกนี้แหละครับที่มักจะโดนเผลอลบทิ้งตอนวางโค้ดทับ
     res.status(500).json({ success: false, message: 'การคำนวณล้มเหลว: ' + error.message });
   }
 });
