@@ -30,12 +30,21 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   useEffect(() => {
     const fetchPallets = async () => {
       try {
-        const response = await axios.get(`${NODE_API_URL}/api/pallets`);
-        if (response.data.success) {
-          setPalletsList(response.data.data);
+        // อ้างอิงชื่อตาราง 'Pallet' (ตัว P ใหญ่) ให้ตรงกับในรูปเป๊ะๆ
+        const { data, error } = await supabase
+          .from('Pallet')
+          .select('*')
+          .order('palletId', { ascending: true });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setPalletsList(data);
         }
       } catch (error) {
-        console.error("โหลดข้อมูลพาเลทไม่สำเร็จ:", error);
+        console.error("โหลดข้อมูลพาเลทไม่สำเร็จ:", error.message);
       }
     };
     fetchPallets();
