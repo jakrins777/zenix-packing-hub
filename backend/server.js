@@ -336,6 +336,90 @@ app.delete('/api/boxes/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: 'ไม่สามารถลบได้' }); }
 });
 
+app.get('/api/box/patch-sizes', async (req, res) => {
+  try {
+    // ข้อมูลกล่องทั้งหมดที่เราเพิ่งแกะกันมา
+    const boxData = [
+      { desc: "540 x 570 x 140 mm", w: 540, l: 570, h: 140 },
+      { desc: "610 x 1030 x 120 mm.", w: 610, l: 1030, h: 120 },
+      { desc: "880 x 550 x 360mm with Cover", w: 550, l: 880, h: 360 },
+      { desc: "BOX + PARTITION L120xW80xH50 Cm.", w: 800, l: 1200, h: 500 },
+      { desc: "BOX and Foam  size 600x920x1240 mm", w: 600, l: 920, h: 1240 },
+      { desc: "Box-Partition 14\"x12.3\"x4.25\"", w: 312, l: 356, h: 108 },
+      { desc: "Cardboard box 20x20x12 Inch+Partition20", w: 508, l: 508, h: 305 },
+      { desc: "CARTON BOX (ID) L1015xW790xH370 mm.", w: 790, l: 1015, h: 370 },
+      { desc: "CARTON BOX (ID) L1085xW923xH430 mm.", w: 923, l: 1085, h: 430 },
+      { desc: "CARTON BOX (ID) L1195xW1085xH555 mm.", w: 1085, l: 1195, h: 555 },
+      { desc: "CARTON BOX (ID) L1238xW518xH565 mm.", w: 518, l: 1238, h: 565 },
+      { desc: "CARTON BOX (ID) L1304xW1155xH665 mm.", w: 1155, l: 1304, h: 665 },
+      { desc: "CARTON BOX (ID) L520xW440xH310 mm.", w: 440, l: 520, h: 310 },
+      { desc: "CARTON BOX (ID) L525xW435xH300 mm.", w: 435, l: 525, h: 300 },
+      { desc: "CARTON BOX (ID) L569xW553xH85 mm.", w: 553, l: 569, h: 85 },
+      { desc: "CARTON BOX (ID) L693xW358xH165 mm.", w: 358, l: 693, h: 165 },
+      { desc: "CARTON BOX (ID) L903xW514xH265 mm.", w: 514, l: 903, h: 265 },
+      { desc: "CARTON BOX L1200xW800xH100 mm(No PTN)", w: 800, l: 1200, h: 100 },
+      { desc: "CARTON BOX L1200xW800xH100 mm(Short PTN)", w: 800, l: 1200, h: 100 },
+      { desc: "CARTON BOX L1200xW800xH100 mm(Long PTN)", w: 800, l: 1200, h: 100 },
+      { desc: "CARTON BOX (ID.) L1200xW800xH141 mm.", w: 800, l: 1200, h: 141 },
+      { desc: "CARTON BOX (ID.) L1200xW800xH340 mm.", w: 800, l: 1200, h: 340 },
+      { desc: "CARTON BOX (ID.) L1400xW630xH150 mm.", w: 630, l: 1400, h: 150 },
+      { desc: "CARTON BOX (ID.) L2010xW630xH150 mm.", w: 630, l: 2010, h: 150 },
+      { desc: "CARTON BOX (ID.) W650xL1280xH100 mm.", w: 650, l: 1280, h: 100 },
+      { desc: "CARTON BOX (OD.) 450x445x200 mm.", w: 445, l: 450, h: 200 },
+      { desc: "CARTON BOX (OD.) L1650xW750xH150 mm.", w: 750, l: 1650, h: 150 },
+      { desc: "Carton Box 390x310x130mm. with Cover", w: 310, l: 390, h: 130 },
+      { desc: "Carton Box 426x403x199mm.", w: 403, l: 426, h: 199 },
+      { desc: "Carton Box 600x360x310mm.", w: 360, l: 600, h: 310 },
+      { desc: "CARTON BOX AMT 1210x740x660 mm.", w: 740, l: 1210, h: 660 },
+      { desc: "CARTON BOX AMT 1310x805x770 mm.", w: 805, l: 1310, h: 770 },
+      { desc: "CARTON BOX AMT 710x740x325 mm.", w: 710, l: 740, h: 325 },
+      { desc: "CARTON BOX AMT 910x740x515 mm.", w: 740, l: 910, h: 515 },
+      { desc: "CARTON BOX L540xW440xH310 mm.", w: 440, l: 540, h: 310 },
+      { desc: "CARTON BOX MC165 L1200xW800xH141 mm.", w: 800, l: 1200, h: 141 },
+      { desc: "Carton Box PAD 1112 x 555 x 108 mm", w: 555, l: 1112, h: 108 },
+      { desc: "CARTON-BOX-F-600*600*200 mm.", w: 600, l: 600, h: 200 },
+      { desc: "CARTON-T2500 Kit Box", w: 0, l: 0, h: 0 },
+      { desc: "Corner Board 50 x 50 x T5mm x L1000mm.", w: 50, l: 1000, h: 5 },
+      { desc: "Packaging Box size 640x900x1300 mm.", w: 640, l: 900, h: 1300 },
+      { desc: "PAD L520xW430 mm. (SPW20230323)", w: 430, l: 520, h: 0 },
+      { desc: "Partition L520xW140 mm. (SPW20230323)", w: 140, l: 520, h: 0 },
+      { desc: "SET PACKING BOX ID. W560xL875x1190 mm.", w: 560, l: 875, h: 1190 },
+      { desc: "SET PACKING BOX ID. W870xL570x1230 mm.", w: 570, l: 870, h: 1230 },
+      { desc: "CARTON BOX (ID.) 430 x 600 x 100 mm.", w: 430, l: 600, h: 100 },
+      { desc: "CARTON BOX (ID) L365xW305xH150 mm.", w: 305, l: 365, h: 150 },
+      { desc: "CARTON BOX (ID) L520xW440xH310 mm.+PTN", w: 440, l: 520, h: 310 },
+      { desc: "CARTON BOX  L1000xW1000xH100 mm.", w: 1000, l: 1000, h: 100 }
+    ];
+
+    let log = [];
+    let updatedCount = 0;
+
+    for (const item of boxData) {
+      // ค้นหาด้วยชื่อ Description แล้วอัปเดต "แค่ 3 ค่า"
+      const result = await prisma.box.updateMany({
+        where: { description: item.desc },
+        data: { 
+          width: String(item.w), // แปลงเป็น String ถ้า Schema พี่ใช้ String นะครับ
+          length: String(item.l), 
+          height: String(item.h) 
+        }
+      });
+      
+      if (result.count > 0) {
+        log.push(`✅ อัปเดตไซส์ของ ${item.desc} สำเร็จ`);
+        updatedCount += result.count;
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: `อัปเดตขนาดกล่องสำเร็จทั้งหมด ${updatedCount} รายการ โดยความจุและข้อมูลเดิมไม่หาย!`, 
+      details: log 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 // ==========================================================================
 // 🏷️ ITEMS CRUD (จัดการ Master Data สินค้า)
 // ==========================================================================
