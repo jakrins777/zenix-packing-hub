@@ -135,6 +135,7 @@ app.post('/api/pallet/calculate', async (req, res) => {
     }
 
     // ประมวลผลจัดวางพื้นที่ 3 มิติ
+    // ประมวลผลจัดวางพื้นที่ 3 มิติ
     packer.pack();
 
     const packedResults = palletBin.items.map(packedItem => ({
@@ -144,7 +145,8 @@ app.post('/api/pallet/calculate', async (req, res) => {
       weight: packedItem.weight
     }));
 
-    const unpackedResults = palletBin.unfittedItems.map(item => item.name);
+    // ✅ แก้ไขบั๊กตรงนี้: เปลี่ยนจาก palletBin.unfittedItems เป็น packer.unfitItems
+    const unpackedResults = packer.unfitItems.map(item => item.name);
 
     res.json({
       success: true,
@@ -161,10 +163,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
       totalPackedCount: packedResults.length,
       isOverfilled: unpackedResults.length > 0
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'การคำนวณล้มเหลว: ' + error.message });
-  }
-});
 
 // 🪵 PALLETS CRUD ROUTE (จัดการพาเลท)
 app.get('/api/pallets', async (req, res) => {
