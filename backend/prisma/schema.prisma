@@ -110,7 +110,7 @@ model Report {
   data        String   // เก็บข้อมูลตารางรายก้อน (แปลงเป็น JSON String)
 }
 
-mmodel Pallet {
+model Pallet {
   palletId       String   @id // รหัสพาเลท เช่น "PCK0000044"
   description    String?  // คำอธิบาย เช่น "PALLET AMT กลาง"
   
@@ -123,7 +123,7 @@ mmodel Pallet {
   
   
   currentStock   Int      @default(0)
-  minStockLevel  Int      @default(5)      // จุดแจ้งเตือนสต็อกต่ำ
+
   status         String   @default("ACTIVE") // ACTIVE, MAINTENANCE, INACTIVE
   
   createdAt      DateTime @default(now())
