@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 import axios from 'axios';
 import Pallet3DViewer from './Pallet3DViewer';
 
-const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'https://ชื่อโปรเจกต์พี่.onrender.com';
+const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'https://zenix-packing-hub.onrender.com/';
 
 export default function PackingPlanner({ items, boxes, currentUser, fetchReportsData, fetchLogsData, fetchAdminData }) {
   const { t } = useTranslation();
