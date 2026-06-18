@@ -19,7 +19,11 @@
     "react-hot-toast": "^2.6.0",
     "react-i18next": "^17.0.8",
     "react-to-print": "^3.3.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "@react-three/drei": "^9.102.6",
+    "@react-three/fiber": "^8.16.0",
+    "axios": "^1.6.8",
+    "three": "^0.162.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
