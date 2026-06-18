@@ -109,3 +109,23 @@ model Report {
   totalBoxes  Int      // จำนวนกล่องรวมที่ต้องใช้ในรอบนั้น
   data        String   // เก็บข้อมูลตารางรายก้อน (แปลงเป็น JSON String)
 }
+
+mmodel Pallet {
+  palletId       String   @id // รหัสพาเลท เช่น "PCK0000044"
+  description    String?  // คำอธิบาย เช่น "PALLET AMT กลาง"
+  
+  // ขนาดมิติ (หน่วย mm)
+  width          Int      // ความกว้าง
+  length         Int      // ความยาว
+  baseThickness  Int      // ความหนาฐานพาเลท (ความสูงตัวพาเลทเปล่า)
+  maxHeight      Int      @default(1500) // ข้อจำกัดความสูงสูงสุดรวม (150 cm)
+  
+  
+  
+  currentStock   Int      @default(0)
+  minStockLevel  Int      @default(5)      // จุดแจ้งเตือนสต็อกต่ำ
+  status         String   @default("ACTIVE") // ACTIVE, MAINTENANCE, INACTIVE
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
