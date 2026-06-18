@@ -185,12 +185,29 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
       realPacker.pack();
 
-      const packedBoxes = realBin.items.map(packedItem => ({
-        boxId: packedItem.name,
-        position: { x: packedItem.position[0], y: packedItem.position[1], z: packedItem.position[2] },
-        dimensions: { width: packedItem.width, length: packedItem.depth, height: packedItem.height },
-        weight: packedItem.weight
-      }));
+      // 🌟 ดักจับการหมุนกล่อง (Rotation) เพื่อสลับแกน กว้าง/ยาว ให้ตรงกับที่มันถูกวางจริง
+      const packedBoxes = realBin.items.map(packedItem => {
+        let rW = packedItem.width;
+        let rH = packedItem.height;
+        let rL = packedItem.depth;
+
+        // เช็ครหัสการหมุน ถ้ามีการหมุน 90 องศาแนวราบ (case 3) จะสลับกว้างกับยาว
+        switch (packedItem.rotationType) {
+          case 1: rW = packedItem.height; rH = packedItem.width; rL = packedItem.depth; break;
+          case 2: rW = packedItem.height; rH = packedItem.depth; rL = packedItem.width; break;
+          case 3: rW = packedItem.depth; rH = packedItem.height; rL = packedItem.width; break;
+          case 4: rW = packedItem.depth; rH = packedItem.width; rL = packedItem.height; break;
+          case 5: rW = packedItem.width; rH = packedItem.depth; rL = packedItem.height; break;
+          default: break; // case 0 (ไม่หมุน วางปกติ)
+        }
+
+        return {
+          boxId: packedItem.name,
+          position: { x: packedItem.position[0], y: packedItem.position[1], z: packedItem.position[2] },
+          dimensions: { width: rW, length: rL, height: rH },
+          weight: packedItem.weight
+        };
+      });
 
       palletsResult.push({
         palletNo: palletIndex,
