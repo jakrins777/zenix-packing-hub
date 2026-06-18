@@ -87,6 +87,7 @@ app.get('/', (req, res) => {
  * 🔮 API คำนวณการจัดเรียงกล่องหลากไซส์ลงบนพาเลทแบบ 3 มิติ (Mixed SKUs)
  * ควบคุมความสูงสูงสุดตามสเปกพาเลทแต่ละไซส์ (เพดานไม่เกิน 1500 mm ต่อ Shipment)
  */
+// 🔮 API คำนวณการจัดเรียงกล่องหลากไซส์ลงบนพาเลทแบบ 3 มิติ
 app.post('/api/pallet/calculate', async (req, res) => {
   try {
     const { palletId, shipmentItems } = req.body;
@@ -100,10 +101,9 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
     const PALLET_WIDTH = palletSpec.width;
     const PALLET_LENGTH = palletSpec.length;
-    const PALLET_MAX_HEIGHT = palletSpec.maxHeight; // เช่น 1500 mm (150 cm)
-    const PALLET_BASE_THICKNESS = palletSpec.baseThickness; // ความสูงคานพาเลทเปล่า
+    const PALLET_MAX_HEIGHT = palletSpec.maxHeight;
+    const PALLET_BASE_THICKNESS = palletSpec.baseThickness;
 
-    // ความสูงสุทธิที่เหลือให้วางซ้อนกล่องสินค้าได้จริง
     const USABLE_HEIGHT = PALLET_MAX_HEIGHT - PALLET_BASE_THICKNESS;
     const MAX_WEIGHT_CAPACITY = palletSpec.maxWeight;
 
@@ -111,7 +111,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
     const packer = new Packer();
     packer.addBin(palletBin);
 
-    // วนลูปเตรียมกล่องสินค้าเข้าสู่ระบบคำนวณ
     for (const sItem of shipmentItems) {
       const itemData = await prisma.item.findUnique({
         where: { itemId: sItem.itemId },
@@ -128,14 +127,11 @@ app.post('/api/pallet/calculate', async (req, res) => {
       const unitWeight = (itemData.itemWeight * (itemData.stdPackQty || 1));
       const totalBoxesNeeded = Math.ceil(sItem.qtyToPack / (itemData.stdPackQty || 1));
 
-      // แตกจำนวนกล่องออกเป็นใบเดี่ยวๆ เพื่อคำนวณพิกัดทีละชิ้น แบบ Free Rotation
       for (let i = 0; i < totalBoxesNeeded; i++) {
         packer.addItem(new Item(`${itemData.itemId}-BOX-${i + 1}`, w, l, h, unitWeight));
       }
     }
 
-    // ประมวลผลจัดวางพื้นที่ 3 มิติ
-    // ประมวลผลจัดวางพื้นที่ 3 มิติ
     packer.pack();
 
     const packedResults = palletBin.items.map(packedItem => ({
@@ -145,7 +141,7 @@ app.post('/api/pallet/calculate', async (req, res) => {
       weight: packedItem.weight
     }));
 
-    // ✅ แก้ไขบั๊กตรงนี้: เปลี่ยนจาก palletBin.unfittedItems เป็น packer.unfitItems
+    // ✅ ตรงนี้คือจุดที่แก้บั๊ก packer.unfitItems เรียบร้อยแล้ว
     const unpackedResults = packer.unfitItems.map(item => item.name);
 
     res.json({
@@ -163,6 +159,12 @@ app.post('/api/pallet/calculate', async (req, res) => {
       totalPackedCount: packedResults.length,
       isOverfilled: unpackedResults.length > 0
     });
+
+  } catch (error) {
+    // 🛑 ปีกกาพวกนี้แหละครับที่มักจะโดนเผลอลบทิ้งตอนวางโค้ดทับ
+    res.status(500).json({ success: false, message: 'การคำนวณล้มเหลว: ' + error.message });
+  }
+});
 
 // 🪵 PALLETS CRUD ROUTE (จัดการพาเลท)
 app.get('/api/pallets', async (req, res) => {
