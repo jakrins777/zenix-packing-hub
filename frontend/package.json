@@ -20,8 +20,8 @@
     "react-i18next": "^17.0.8",
     "react-to-print": "^3.3.0",
     "xlsx": "^0.18.5",
-    "@react-three/drei": "next",
-    "@react-three/fiber": "next",
+    "@react-three/drei": "^9.102.6",
+    "@react-three/fiber": "^8.0.27",
     "axios": "^1.6.8",
     "three": "^0.162.0"
   },
