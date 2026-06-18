@@ -395,13 +395,13 @@ app.get('/api/box/patch-sizes', async (req, res) => {
     let updatedCount = 0;
 
     for (const item of boxData) {
-      // ค้นหาด้วยชื่อ Description แล้วอัปเดต "แค่ 3 ค่า"
+      // ค้นหาด้วยชื่อ Description แล้วอัปเดต "แค่ 3 ค่า" แบบเป็นตัวเลขเพียวๆ
       const result = await prisma.box.updateMany({
         where: { description: item.desc },
         data: { 
-          width: String(item.w), // แปลงเป็น String ถ้า Schema พี่ใช้ String นะครับ
-          length: String(item.l), 
-          height: String(item.h) 
+          width: item.w,    // เอา String() ออก ส่งเป็นตัวเลข
+          length: item.l,   // เอา String() ออก
+          height: item.h    // เอา String() ออก
         }
       });
       
