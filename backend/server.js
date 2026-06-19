@@ -158,13 +158,8 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
           boxesRemaining.forEach(box => {
             const item = new Item(box.name, box.w, box.h, box.l, box.weight);
-
-            // 🌟 บังคับหมุนแนวนอนเท่านั้น! ป้องกันกล่องตั้งโด่
-            // รหัส 0 = ทรงเดิม (กว้าง x สูง x ยาว)
-            // รหัส 3 = หมุน 90 องศาแนวราบ (ยาว x สูง x กว้าง)
-            item.allowedRotations = [0, 3];
-
-            realPacker.addItem(item);
+            item.allowedRotations = [0, 3]; // นวนนอนเท่านั้น
+            testPacker.addItem(item);
           });
 
           testPacker.pack();
@@ -192,7 +187,12 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
       boxesRemaining.forEach(box => {
         const item = new Item(box.name, box.w, box.h, box.l, box.weight);
+
+        // 🌟 บังคับหมุนแนวนอนเท่านั้น! ป้องกันกล่องตั้งโด่
+        // รหัส 0 = ทรงเดิม (กว้าง x สูง x ยาว)
+        // รหัส 3 = หมุน 90 องศาแนวราบ (ยาว x สูง x กว้าง)
         item.allowedRotations = [0, 3];
+
         realPacker.addItem(item);
       });
 
