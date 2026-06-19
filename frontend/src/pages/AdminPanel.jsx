@@ -1,21 +1,25 @@
 /* eslint-disable no-unused-vars */
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // 🌟 เพิ่ม useEffect
+import axios from 'axios'; // 🌟 เพิ่ม axios สำหรับดึงข้อมูลพาเลท
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import BoxCodenameUpdater from './BoxCodenameUpdater';
-import { useTranslation } from 'react-i18next'; // 🌟 เพิ่ม Import แปลภาษา
+import { useTranslation } from 'react-i18next';
 
 export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, items, boxes, users, refreshAdminData }) {
-  const { t } = useTranslation(); // 🌟 เรียกใช้งาน Hook แปลภาษา
+  const { t } = useTranslation();
 
   const [itemForm, setItemForm] = useState({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1 });
   const [editingItemId, setEditingItemId] = useState(null);
 
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [bulkForm, setBulkForm] = useState({ defaultPckId: '', supplier: '' });
-  
-  const [boxForm, setBoxForm] = useState({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 });
+
+  const [boxForm, setBoxForm] = useState({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null }); // 🌟 เผื่อฟิลด์ boundPalletId ไว้เลย
   const [editingBoxId, setEditingBoxId] = useState(null);
+
+  // 🌟 1. ประกาศตัวแปรเก็บข้อมูลพาเลท
+  const [palletsList, setPalletsList] = useState([]);
 
   const [userForm, setUserForm] = useState({ username: '', passwordHash: '', firstName: '', role: 'operator' });
   const [editingUserId, setEditingUserId] = useState(null);
@@ -25,17 +29,34 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const [boxSearchTerm, setBoxSearchTerm] = useState('');
   const [boxSortBy, setBoxSortBy] = useState('id_asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50; 
+  const itemsPerPage = 50;
   const [filterCustomer, setFilterCustomer] = useState('All');
   const [filterBoxStatus, setFilterBoxStatus] = useState('All');
+
+  // 🌟 2. ดึงข้อมูลพาเลทจากหลังบ้านตอนเปิดหน้าเว็บ
+  useEffect(() => {
+    const fetchPalletsForDropdown = async () => {
+      try {
+        const response = await axios.get('https://zenix-packing-hub.onrender.com/api/pallet');
+        if (response.data && Array.isArray(response.data)) {
+          setPalletsList(response.data);
+        } else if (response.data && response.data.pallets) {
+          setPalletsList(response.data.pallets);
+        } else if (response.data && response.data.data) {
+          setPalletsList(response.data.data);
+        }
+      } catch (error) {
+        console.error('ดึงข้อมูลพาเลทไม่สำเร็จ:', error);
+      }
+    };
+    fetchPalletsForDropdown();
+  }, []);
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
 
-    // บังคับให้ boxesPerUnit เป็น 1 เสมอถ้าไม่ได้กรอกมา เพื่อป้องกันค่าว่าง (Null)
     const payload = {
       ...itemForm,
-      // 🌟 เติม (itemForm.itemName || '') เผื่อกรณีค่าเป็น undefined ระบบจะได้ไม่พังครับ
       itemName: (itemForm.itemName || '').trim() === '' ? itemForm.itemId : itemForm.itemName,
       boxesPerUnit: itemForm.boxesPerUnit ? Number(itemForm.boxesPerUnit) : 1,
       updatedAt: new Date().toISOString()
@@ -55,7 +76,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
       if (!error) {
         toast.success(t('toast.save_item_success'), { id: toastId });
-        // 🌟 เพิ่ม boxesPerUnit: 1 เข้าไปในการรีเซ็ตฟอร์ม
         setItemForm({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1, boxesPerUnit: 1 });
         setEditingItemId(null);
         if (refreshAdminData) refreshAdminData();
@@ -80,7 +100,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const handleSelectAllCurrentPage = () => {
     const currentPageIds = currentItems.map(item => item.itemId || item.itemid).filter(Boolean);
     const allSelected = currentPageIds.every(id => selectedItemIds.includes(id));
-    
+
     if (allSelected) {
       setSelectedItemIds(prev => prev.filter(id => !currentPageIds.includes(id)));
     } else {
@@ -112,8 +132,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
       if (!error) {
         toast.success(t('toast.bulk_update_success', { count: selectedItemIds.length }), { id: toastId });
-        setSelectedItemIds([]); 
-        setBulkForm({ defaultPckId: '', supplier: '' }); 
+        setSelectedItemIds([]);
+        setBulkForm({ defaultPckId: '', supplier: '' });
         if (refreshAdminData) refreshAdminData();
       } else {
         toast.error(t('toast.save_error') + error.message, { id: toastId });
@@ -154,26 +174,27 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
   const handleBoxSubmit = async (e) => {
     e.preventDefault();
-    const payload = { 
+    const payload = {
       pckId: boxForm.pckId,
       codename: boxForm.codename,
       description: boxForm.description,
       maxCapacity: boxForm.maxCapacity,
       currentStock: boxForm.currentStock,
-      updatedAt: new Date().toISOString() 
+      boundPalletId: boxForm.boundPalletId, // 🌟 เพิ่มการส่งค่าพาเลทที่ผูก
+      updatedAt: new Date().toISOString()
     };
 
     const toastId = toast.loading(t('toast.saving_box'));
     try {
       let error;
-      if (editingBoxId) { const { error: updateError } = await supabase.from('boxes').update(payload).eq('pckId', editingBoxId); error = updateError; } 
+      if (editingBoxId) { const { error: updateError } = await supabase.from('boxes').update(payload).eq('pckId', editingBoxId); error = updateError; }
       else { const { error: insertError } = await supabase.from('boxes').insert([payload]); error = insertError; }
-      if (!error) { 
-        toast.success(t('toast.save_box_success'), { id: toastId }); 
-        setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 }); 
-        setEditingBoxId(null); 
-        if (refreshAdminData) refreshAdminData(); 
-      } 
+      if (!error) {
+        toast.success(t('toast.save_box_success'), { id: toastId });
+        setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null });
+        setEditingBoxId(null);
+        if (refreshAdminData) refreshAdminData();
+      }
       else { if (error.code === '23505' || error.message.includes('duplicate key')) { toast.error(t('toast.save_box_duplicate'), { id: toastId }); } else { toast.error(t('toast.save_error') + error.message, { id: toastId }); } }
     } catch (err) { toast.error(t('toast.save_box_error'), { id: toastId }); }
   };
@@ -187,10 +208,10 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const handleExportItems = () => {
     const headers = ["itemId", "itemName", "Customer", "itemWeight", "defaultPckId", "stdPackQty"];
     const csvRows = [
-      headers.join(','), 
+      headers.join(','),
       ...(items || []).map(item => [
         item.itemId || '',
-        `"${(item.itemName || '').replace(/"/g, '""')}"`, 
+        `"${(item.itemName || '').replace(/"/g, '""')}"`,
         `"${(item.supplier || '').replace(/"/g, '""')}"`,
         item.itemWeight || 0,
         item.defaultPckId || '',
@@ -211,7 +232,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const handleExportBoxes = () => {
     const headers = ["pckId", "codename", "description", "maxCapacity", "currentStock"];
     const csvRows = [
-      headers.join(','), 
+      headers.join(','),
       ...(boxes || []).map(box => [
         box.pckId || '',
         `"${(box.codename || '').replace(/"/g, '""')}"`,
@@ -238,7 +259,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     const toastId = toast.loading(t('toast.saving_user'));
     try {
       let res;
-      if (editingUserId) { res = await fetch(`/api/users/${editingUserId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } 
+      if (editingUserId) { res = await fetch(`/api/users/${editingUserId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); }
       else { res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); }
       const data = await res.json();
       if (data.success) { toast.success(data.message, { id: toastId }); setEditingUserId(null); setUserForm({ username: '', passwordHash: '', firstName: '', role: 'operator' }); if (refreshAdminData) refreshAdminData(); } else { toast.error(t('toast.save_error') + data.message, { id: toastId }); }
@@ -253,55 +274,55 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
   const handleFileUpload = async (e) => {
     const files = e.target.files; if (!files || files.length === 0) return; const formData = new FormData(); for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); } const toastId = toast.loading(t('toast.importing_item'));
-    try { const res = await fetch('/api/items/upload', { method: 'POST', body: formData }); const data = await res.json(); if (data.success) { toast.success(data.message, { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(data.message, { id: toastId }); } } catch (err) { toast.error(t('toast.import_error'), { id: toastId }); } e.target.value = null; 
+    try { const res = await fetch('/api/items/upload', { method: 'POST', body: formData }); const data = await res.json(); if (data.success) { toast.success(data.message, { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(data.message, { id: toastId }); } } catch (err) { toast.error(t('toast.import_error'), { id: toastId }); } e.target.value = null;
   };
 
   const handleBoxFileUpload = async (e) => {
     const files = e.target.files; if (!files || files.length === 0) return; const formData = new FormData(); for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); } const toastId = toast.loading(t('toast.importing_box'));
-    try { const res = await fetch('/api/boxes/upload', { method: 'POST', body: formData }); const data = await res.json(); if (data.success) { toast.success(data.message, { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(data.message, { id: toastId }); } } catch (err) { toast.error(t('toast.import_error'), { id: toastId }); } e.target.value = null; 
+    try { const res = await fetch('/api/boxes/upload', { method: 'POST', body: formData }); const data = await res.json(); if (data.success) { toast.success(data.message, { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(data.message, { id: toastId }); } } catch (err) { toast.error(t('toast.import_error'), { id: toastId }); } e.target.value = null;
   };
 
-  const processedItems = (items || []).filter(item => { 
-    const id = item.itemId || item.itemid; 
-    const name = item.itemName || item.itemname; 
+  const processedItems = (items || []).filter(item => {
+    const id = item.itemId || item.itemid;
+    const name = item.itemName || item.itemname;
     const sup = item.supplier;
-    if (!id) return false; 
-    
+    if (!id) return false;
+
     const rawSearchTerm = String(searchTerm || '').toLowerCase().trim();
     if (!rawSearchTerm) return true;
 
     const searchWords = rawSearchTerm.split(/[\s,]+/).filter(Boolean);
 
-    return searchWords.some(word => 
-      String(id || '').toLowerCase().includes(word) || 
-      String(name || '').toLowerCase().includes(word) || 
+    return searchWords.some(word =>
+      String(id || '').toLowerCase().includes(word) ||
+      String(name || '').toLowerCase().includes(word) ||
       String(sup || '').toLowerCase().includes(word)
     );
-  }).sort((a, b) => { 
-    if (!a || !b) return 0; 
-    const idA = String(a.itemId || a.itemid || ''); 
-    const idB = String(b.itemId || b.itemid || ''); 
-    const nameA = String(a.itemName || a.itemname || ''); 
+  }).sort((a, b) => {
+    if (!a || !b) return 0;
+    const idA = String(a.itemId || a.itemid || '');
+    const idB = String(b.itemId || b.itemid || '');
+    const nameA = String(a.itemName || a.itemname || '');
     const nameB = String(b.itemName || b.itemname || '');
-    if (sortBy === 'id_asc') return idA.localeCompare(idB); 
-    if (sortBy === 'id_desc') return idB.localeCompare(idA); 
-    if (sortBy === 'name_asc') return nameA.localeCompare(nameB); 
-    if (sortBy === 'name_desc') return nameB.localeCompare(nameA); 
-    return 0; 
+    if (sortBy === 'id_asc') return idA.localeCompare(idB);
+    if (sortBy === 'id_desc') return idB.localeCompare(idA);
+    if (sortBy === 'name_asc') return nameA.localeCompare(nameB);
+    if (sortBy === 'name_desc') return nameB.localeCompare(nameA);
+    return 0;
   });
 
-  const processedBoxes = (boxes || []).filter(box => { 
-    const id = box.pckId || box.pckid; if (!id) return false; 
-    const term = boxSearchTerm.toLowerCase(); 
-    return ((id || '').toLowerCase().includes(term) || (box.description || '').toLowerCase().includes(term) || (box.codename || '').toLowerCase().includes(term)); 
-  }).sort((a, b) => { 
-    if (!a || !b) return 0; const idA = String(a.pckId || a.pckid || ''); const idB = String(b.pckId || b.pckid || ''); if (boxSortBy === 'id_asc') return idA.localeCompare(idB, undefined, {numeric: true}); if (boxSortBy === 'id_desc') return idB.localeCompare(idA, undefined, {numeric: true}); return 0; 
+  const processedBoxes = (boxes || []).filter(box => {
+    const id = box.pckId || box.pckid; if (!id) return false;
+    const term = boxSearchTerm.toLowerCase();
+    return ((id || '').toLowerCase().includes(term) || (box.description || '').toLowerCase().includes(term) || (box.codename || '').toLowerCase().includes(term));
+  }).sort((a, b) => {
+    if (!a || !b) return 0; const idA = String(a.pckId || a.pckid || ''); const idB = String(b.pckId || b.pckid || ''); if (boxSortBy === 'id_asc') return idA.localeCompare(idB, undefined, { numeric: true }); if (boxSortBy === 'id_desc') return idB.localeCompare(idA, undefined, { numeric: true }); return 0;
   });
 
   const uniqueCustomers = ['All', ...new Set((items || []).map(item => item.supplier || '-').filter(sup => sup !== '-'))];
-  
-  const filteredData = processedItems.filter(item => { 
-    if (!item) return false; 
+
+  const filteredData = processedItems.filter(item => {
+    if (!item) return false;
     const matchCustomer = filterCustomer === 'All' ? true : (item.supplier || '-') === filterCustomer;
     let matchBoxStatus = true;
     if (filterBoxStatus === 'NoBox') {
@@ -309,14 +330,14 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     } else if (filterBoxStatus === 'HasBox') {
       matchBoxStatus = !!item.defaultPckId && String(item.defaultPckId).trim() !== '';
     }
-    return matchCustomer && matchBoxStatus; 
+    return matchCustomer && matchBoxStatus;
   });
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-  
+
   return (
     <div className="bg-transparent rounded-xl p-2 md:p-6 ">
       {/* Menu Tabs */}
@@ -565,8 +586,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       className="w-full p-3 border border-amber-200 rounded-lg bg-amber-50 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-gray-800 font-medium"
                     >
                       <option value="">-- ไม่ผูกพาเลท (ให้ระบบสุ่มหาให้อัตโนมัติ) --</option>
-                      {/* ดึงรายการพาเลทมาแสดง (สมมติว่าใช้ตัวแปร pallets หรือ palletsList ในคอมโพเนนต์นี้) */}
-                      {palletsList && palletsList.map(p => (
+                      {/* 🌟 2. เติมเครื่องหมาย ? ป้องกัน Error ถ้าข้อมูลพาเลทยังไม่มา */}
+                      {palletsList?.map(p => (
                         <option key={p.palletId} value={p.palletId}>{p.palletId} ({p.description})</option>
                       ))}
                     </select>
@@ -574,7 +595,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
                   <div className="flex space-x-2 pt-4">
                     <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold py-3 px-4 rounded-lg shadow-sm">{t('common.save')}</button>
-                    {/* 🌟 2. เคลียร์ค่า boundPalletId ด้วยตอนกด Cancel */}
+                    {/* 🌟 3. เคลียร์ค่า boundPalletId ด้วยตอนกด Cancel */}
                     {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">{t('common.cancel')}</button>}
                   </div>
                 </form>
@@ -646,7 +667,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                               {box?.description || '-'}
                               <div className="mt-1 flex flex-wrap gap-2">
                                 {box?.codename && <span className="text-xs text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded font-bold">{t('box.codename_label')} {box.codename}</span>}
-                                {/* 🌟 3. โชว์สถานะการผูกพาเลทในตารางด้วย */}
+                                {/* 🌟 4. โชว์สถานะการผูกพาเลทในตารางด้วย */}
                                 {box?.boundPalletId && <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded font-bold">🪵 พาเลท: {box.boundPalletId}</span>}
                               </div>
                             </td>
@@ -654,7 +675,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                               <span className="font-black text-2xl text-[#0066CC] print:text-black">{box?.currentStock || 0}</span>
                             </td>
                             <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap print:hidden">
-                              {/* 🌟 4. ดึงค่า boundPalletId ตอนกดแก้ไขด้วย */}
+                              {/* 🌟 5. ดึงค่า boundPalletId ตอนกดแก้ไขด้วย */}
                               <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, codename: box.codename || '', description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0, boundPalletId: box.boundPalletId || null }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit')}</button>
                               <button onClick={() => handleBoxDelete(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
                             </td>
