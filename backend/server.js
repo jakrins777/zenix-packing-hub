@@ -152,12 +152,29 @@ app.post('/api/pallet/calculate', async (req, res) => {
         testPacker.addBin(testBin);
 
         boxesToTry.forEach(box => {
-          const item = new Item(box.name, box.w, box.h, box.l, box.weight);
-          item.allowedRotations = [0, 3]; // แนวนอน
+          // 🌟 1. จับขนาดทั้ง 3 ด้านมาเรียงจากน้อยไปมาก
+          let dims = [box.w, box.l, box.h].sort((a, b) => a - b);
+          let finalW, finalL, finalH;
+
+          const boxIsChair = box.name.toUpperCase().includes('CHAIR') || box.name.includes('เก้าอี้');
+
+          if (boxIsChair) {
+            // 🪑 เก้าอี้: เอาด้านยาวที่สุด (dims[2]) ตั้งเป็นความสูง
+            finalW = dims[0];
+            finalL = dims[1];
+            finalH = dims[2];
+          } else {
+            // 📦 กล่องทั่วไป: เอาด้านสั้นที่สุด (dims[0]) เป็นความสูง เพื่อบังคับให้นอนราบ
+            finalW = dims[1];
+            finalL = dims[2];
+            finalH = dims[0];
+          }
+
+          const item = new Item(box.name, finalW, finalH, finalL, box.weight);
+          // ล็อกให้หมุนได้แค่แนวนอน (ห้ามพลิกตะแคงอีก)
+          item.allowedRotations = [0, 3];
           testPacker.addItem(item);
         });
-
-        testPacker.pack();
 
         const packedCount = testBin.items.length;
         const palletVolume = pallet.width * pallet.length * pallet.maxHeight;
@@ -185,12 +202,25 @@ app.post('/api/pallet/calculate', async (req, res) => {
       realPacker.addBin(realBin);
 
       boxesToTry.forEach(box => {
-        const item = new Item(box.name, box.w, box.h, box.l, box.weight);
+        let dims = [box.w, box.l, box.h].sort((a, b) => a - b);
+        let finalW, finalL, finalH;
+
+        const boxIsChair = box.name.toUpperCase().includes('CHAIR') || box.name.includes('เก้าอี้');
+
+        if (boxIsChair) {
+          finalW = dims[0];
+          finalL = dims[1];
+          finalH = dims[2];
+        } else {
+          finalW = dims[1];
+          finalL = dims[2];
+          finalH = dims[0];
+        }
+
+        const item = new Item(box.name, finalW, finalH, finalL, box.weight);
         item.allowedRotations = [0, 3];
         realPacker.addItem(item);
       });
-
-      realPacker.pack();
 
       // 6. แปลงผลลัพธ์และแก้ปัญหากล่องทะลุ/กล่องลอย
       const packedBoxes = realBin.items.map(packedItem => {
