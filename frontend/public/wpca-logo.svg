@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" rx="45" fill="#004080" />
+  
+  <polygon points="100,30 35,67 35,142 100,180" fill="#0059b3" />
+  <polygon points="100,30 165,67 165,142 100,180" fill="#0073e6" />
+  <polygon points="35,142 165,142 100,180" fill="#003366" />
+
+  <polygon points="35,67 165,67 100,150" fill="#ffffff" />
+  <polygon points="35,67 100,105 100,150" fill="#e6f2ff" />
+  <polygon points="165,67 100,105 100,30" fill="#cce6ff" />
+
+  <text 
+    x="100" 
+    y="125" 
+    font-family="Arial, Helvetica, sans-serif" 
+    font-weight="900" 
+    font-size="28" 
+    fill="#004080" 
+    text-anchor="middle" 
+    letter-spacing="2"
+  >
+    WPCA
+  </text>
+</svg>

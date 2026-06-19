@@ -583,7 +583,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
           <div className="flex gap-4">
             <button onClick={handleBulkCalculate} className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-4 rounded-xl shadow-md transition-all transform active:scale-95 text-lg">
-              🧮 {t('planner.btn_calculate')}
+               {t('planner.btn_calculate')}
             </button>
             <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); setPallet3DResult(null); toast(t('planner.clear_success'), { icon: '🧹' }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 font-bold py-4 px-8 rounded-xl transition-all">
               {t('common.clear')}
@@ -599,7 +599,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden text-gray-800 border border-gray-200">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 border-b border-gray-200 gap-4">
                 <h3 className="text-xl font-bold text-[#0066CC] flex items-center gap-2">
-                  📦 {t('planner.summary_title')}
+                   {t('planner.summary_title')}
                 </h3>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -610,7 +610,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                     <span>📊</span> Export
                   </button>
                   <button onClick={() => setShowSummaryModal(true)} className="flex-1 sm:flex-none bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
-                    📋 {t('planner.btn_view_print')}
+                     {t('planner.btn_view_print')}
                   </button>
                 </div>
               </div>
@@ -627,7 +627,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                         onClick={() => setActivePalletTab(idx)}
                         className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${activePalletTab === idx ? 'bg-[#0066CC] text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                       >
-                        📦 ใบที่ {p.palletNo} ({p.palletSpecification.palletId})
+                         ใบที่ {p.palletNo} ({p.palletSpecification.palletId})
                       </button>
                     ))}
                   </div>
@@ -719,7 +719,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
                       <div className="mt-auto pt-4 border-t border-gray-200">
                         <div className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-2">
-                          <span>📋</span> {t('planner.packing_plan')}
+                          <span></span> {t('planner.packing_plan')}
                         </div>
                         <div className="space-y-3 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
                           {sum.boxesBreakdown.map((b) => (
@@ -777,10 +777,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
             <div className="bg-gray-50 p-4 border-b border-gray-200 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-gray-800">
               <span className="flex items-center gap-2">
-                <span>📋</span> {t('planner.items_to_pack', { count: calcResults.length })}
+                <span></span> {t('planner.items_to_pack', { count: calcResults.length })}
               </span>
               <button onClick={handleSaveReport} className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-6 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-bold">
-                <span>💾</span> {t('planner.btn_confirm_save')}
+                <span></span> {t('planner.btn_confirm_save')}
               </button>
             </div>
             <div className="overflow-x-auto">
@@ -927,7 +927,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </table>
 
             <h3 className="text-lg font-bold text-gray-800 print:text-black mb-4 flex items-center gap-2 pt-4 border-t border-gray-200 print:border-gray-300">
-              <span>📦</span> {t('planner.print_step2')}
+              <span></span> {t('planner.print_step2')}
             </h3>
             <div className="space-y-6">
               {boxSummary.map((sum, idx) => (
@@ -996,7 +996,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 {t('common.back')}
               </button>
               <button onClick={() => window.print()} className="px-6 py-2.5 bg-[#0066CC] hover:bg-[#0052a3] text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-sm">
-                🖨️ {t('planner.btn_print_instruction')}
+                {t('planner.btn_print_instruction')}
               </button>
             </div>
           </div>

@@ -52,8 +52,8 @@ export default function Login({ onLogin }) {
           <div className="bg-blue-50 text-[#0066CC] border border-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
             <span className="text-3xl">📦</span>
           </div>
-          <h2 className="text-3xl font-black text-gray-800 tracking-tight">Zenix WMS</h2>
-          <p className="text-gray-500 font-medium mt-1">Warehouse Management System</p>
+          <h2 className="text-3xl font-black text-gray-800 tracking-tight">Zenix WPCA</h2>
+          <p className="text-gray-500 font-medium mt-1">Warehouse Packaging Calculation Application</p>
         </div>
 
         {error && (
@@ -103,7 +103,7 @@ export default function Login({ onLogin }) {
               </>
             ) : (
               <>
-                <span>🚀</span> {t('login.submit_btn')}
+                <span></span> {t('login.submit_btn')}
               </>
             )}
           </button>
