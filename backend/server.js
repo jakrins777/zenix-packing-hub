@@ -188,7 +188,7 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
       realPacker.pack();
 
-      // 🌟 5. ดักจับการหมุนกล่อง (แก้กล่องทะลุพาเลทรูปตัว L)
+      // 🌟 5. ดักจับการหมุนกล่อง (แก้กล่องทะลุพาเลท)
       const packedBoxes = realBin.items.map(packedItem => {
         let rW = packedItem.width;
         let rH = packedItem.height;
@@ -210,6 +210,37 @@ app.post('/api/pallet/calculate', async (req, res) => {
           weight: packedItem.weight
         };
       });
+
+      // 🌟🌟 5.5 ระบบแรงโน้มถ่วงจำลอง (Gravity Drop) ดึงกล่องที่ลอยอยู่ให้ร่วงลงมาติดพื้น 🌟🌟
+      // 1. เรียงกล่องจากล่างขึ้นบน (แกน Y ต่ำไปสูง)
+      packedBoxes.sort((a, b) => a.position.y - b.position.y);
+
+      // 2. ดึงกล่องลงมาทีละใบ
+      for (let i = 0; i < packedBoxes.length; i++) {
+        let currentBox = packedBoxes[i];
+        let maxSupportY = 0; // ค่าเริ่มต้นคือพื้นพาเลท (Y = 0)
+
+        // เช็คกับกล่องทุกใบที่อยู่ต่ำกว่า
+        for (let j = 0; j < i; j++) {
+          let lowerBox = packedBoxes[j];
+
+          // ตรวจสอบว่ากล่องซ้อนทับกันในแนวตั้งหรือไม่ (มองจากด้านบน แกน X และ Z ตัดกันไหม)
+          let overlapX = (currentBox.position.x < lowerBox.position.x + lowerBox.dimensions.width) &&
+            (currentBox.position.x + currentBox.dimensions.width > lowerBox.position.x);
+          let overlapZ = (currentBox.position.z < lowerBox.position.z + lowerBox.dimensions.length) &&
+            (currentBox.position.z + currentBox.dimensions.length > lowerBox.position.z);
+
+          if (overlapX && overlapZ) {
+            // ถ้าซ้อนทับกันแปลว่าร่วงลงมาต้องชนกล่องใบนี้ หาจุดสูงสุดของกล่องใบนี้
+            let topOfLowerBox = lowerBox.position.y + lowerBox.dimensions.height;
+            if (topOfLowerBox > maxSupportY) {
+              maxSupportY = topOfLowerBox;
+            }
+          }
+        }
+        // อัปเดตความสูงของกล่องปัจจุบันให้ตกลงมาชนพอดี
+        currentBox.position.y = maxSupportY;
+      }
 
       palletsResult.push({
         palletNo: palletIndex,
@@ -235,7 +266,7 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
       palletIndex++;
     }
-
+    
     res.json({
       success: true,
       pallets: palletsResult,
