@@ -3,9 +3,8 @@ import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Edges, Html } from '@react-three/drei';
 
-// 📦 คอมโพเนนต์สำหรับวาดกล่องแต่ละใบ
+// 📦 คอมโพเนนต์สำหรับวาดกล่องแต่ละใบ (ปรับเป็นสีน้ำตาลกล่องลัง)
 const PackedBox = ({ position, dimensions, boxId }) => {
-    // 🌟 State สำหรับเช็คว่าเมาส์ชี้อยู่หรือไม่
     const [hovered, setHovered] = useState(false);
 
     const w = dimensions.width / 1000;
@@ -16,33 +15,32 @@ const PackedBox = ({ position, dimensions, boxId }) => {
     const y = position.y / 1000 + h / 2;
     const z = position.z / 1000 + l / 2;
 
-    // ปรับสีกล่องแบบสุ่มตามชื่อกล่อง
-    const hash = boxId.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
-    const hue = Math.abs(hash) % 360;
-    const baseColor = `hsl(${hue}, 30%, 85%)`;
-    const highlightColor = `hsl(${hue}, 70%, 75%)`; // สีจะสว่างขึ้นเมื่อเอาเมาส์ชี้
+    // 🪵 กำหนดโทนสีน้ำตาลกล่องกระดาษคราฟท์ (Cardboard Brown)
+    const baseBoxColor = '#8B5A2B';       // สีน้ำตาลกล่องลังปกติ
+    const highlightBoxColor = '#A27246';  // สีน้ำตาลสว่างขึ้นเล็กน้อยเวลาเมาส์ชี้ (Hover)
+    const edgeColor = '#5C3A21';          // เส้นขอบกล่องสีน้ำตาลเข้ม เพิ่มความคมชัด
 
     return (
         <mesh
             position={[x, y, z]}
             onPointerOver={(e) => {
-                e.stopPropagation(); // ป้องกันไม่ให้ทะลุไปโดนกล่องด้านหลัง
+                e.stopPropagation();
                 setHovered(true);
             }}
             onPointerOut={() => setHovered(false)}
         >
             <boxGeometry args={[w, h, l]} />
-            {/* เปลี่ยนสีและเส้นขอบเมื่อ Hover */}
-            <meshStandardMaterial color={hovered ? highlightColor : baseColor} roughness={0.3} opacity={0.9} transparent />
-            <Edges linewidth={hovered ? 2 : 1} threshold={15} color={hovered ? "#0F172A" : "#475569"} />
+            {/* ใช้สีน้ำตาลตามสถานะการ Hover */}
+            <meshStandardMaterial color={hovered ? highlightBoxColor : baseBoxColor} roughness={0.4} opacity={0.95} transparent />
+            <Edges linewidth={hovered ? 2 : 1} threshold={15} color={hovered ? "#2D190B" : edgeColor} />
 
-            {/* 🌟 ป้าย Tooltip ที่จะแสดงเมื่อเอาเมาส์ชี้ */}
+            {/* 🌟 ป้าย Tooltip ปรับปรุงใหม่ แสดง "ชื่อกล่อง" ชัดเจน */}
             {hovered && (
                 <Html position={[0, h / 2 + 0.05, 0]} center zIndexRange={[100, 0]}>
-                    <div className="bg-slate-800 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-slate-600 font-bold">
-                        🏷️ {boxId}
-                        <div className="text-[10px] text-slate-300 font-normal mt-1 border-t border-slate-600 pt-1">
-                            ไซส์: {dimensions.width} x {dimensions.height} x {dimensions.length} mm
+                    <div className="bg-slate-900/95 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-amber-600/40 font-bold backdrop-blur-sm">
+                        <span className="text-amber-400">📦 ชื่อกล่อง:</span> {boxId}
+                        <div className="text-[10px] text-slate-300 font-normal mt-1 border-t border-slate-700 pt-1">
+                            📐 ขนาด: {dimensions.width} x {dimensions.height} x {dimensions.length} มม.
                         </div>
                     </div>
                 </Html>
@@ -51,7 +49,7 @@ const PackedBox = ({ position, dimensions, boxId }) => {
     );
 };
 
-// 🏭 คอมโพเนนต์หลักสำหรับวาดทั้งพาเลท
+// 🏭 คอมโพเนนต์หลักสำหรับวาดพาเลทและกล่องทั้งหมด
 export default function Pallet3DViewer({ palletData }) {
     if (!palletData || !palletData.success) {
         return (
@@ -78,14 +76,14 @@ export default function Pallet3DViewer({ palletData }) {
                 <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
                 <pointLight position={[-5, 5, -5]} intensity={0.4} />
 
-                {/* 🪵 ฐานพาเลท */}
+                {/* 🪵 ฐานพาเลท ปรับเป็นสีไม้ธรรมชาติโทนอ่อนกว่าตัวกล่อง (Burlywood) */}
                 <mesh position={[pWidth / 2, -pBaseThickness / 2, pLength / 2]}>
                     <boxGeometry args={[pWidth, pBaseThickness, pLength]} />
-                    <meshStandardMaterial color="#E2E8F0" roughness={0.7} />
-                    <Edges linewidth={1} color="#94A3B8" />
+                    <meshStandardMaterial color="#DEB887" roughness={0.6} />
+                    <Edges linewidth={1.5} color="#A0845C" /> {/* เส้นขอบพาเลทสีไม้เข้มขรึม */}
                 </mesh>
 
-                {/* 📦 กล่องสินค้า (แยกไปใช้คอมโพเนนต์ PackedBox ที่มี Hover ด้านบน) */}
+                {/* 📦 กล่องสินค้าสีน้ำตาลล้วน */}
                 {packedBoxes.map((box, index) => (
                     <PackedBox key={box.boxId || index} position={box.position} dimensions={box.dimensions} boxId={box.boxId} />
                 ))}
