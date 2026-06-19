@@ -238,31 +238,35 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   };
 
   const handleCalculate3DPallet = async () => {
-    const validItems = calcResults.filter(r => !r.error);
-    if (validItems.length === 0) return toast.error('กรุณาคำนวณกล่องก่อนครับ');
+    // เช็คจาก boxSummary แทน ถ้ายังไม่มีการสรุปกล่องให้แจ้งเตือน
+    if (!boxSummary || boxSummary.length === 0) return toast.error('กรุณาคำนวณกล่องก่อนครับ');
 
     setIsCalculating3D(true);
     const toastId = toast.loading('กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ...');
 
     try {
-      // 🌟 1. ยุบรวมจำนวนสินค้า (Qty) ของรหัสเดียวกันเข้าด้วยกันก่อน เพื่อป้องกันหลังบ้านปัดเศษกล่องเกินจริง
-      const aggregatedItems = {};
-      validItems.forEach(item => {
-        if (!aggregatedItems[item.itemCode]) {
-          aggregatedItems[item.itemCode] = 0;
+      // 🌟 1. ดึงข้อมูล "กล่อง 32 ใบ" ที่หน้าบ้านคำนวณเสร็จแล้ว เตรียมส่งให้ 3D
+      const boxesToPack = [];
+      boxSummary.forEach(group => {
+        // ค้นหาไซส์กล่องจากฐานข้อมูลกล่อง (boxes) ที่โหลดมาไว้แล้วในหน้าบ้าน
+        const boxData = boxes.find(b => b.pckId === group.boxType);
+        if (!boxData) return;
+
+        // วนลูปสร้างกล่องตามจำนวน totalBoxes ที่หน้าบ้านสรุปไว้เป๊ะๆ
+        for (let i = 0; i < group.totalBoxes; i++) {
+          boxesToPack.push({
+            name: `${group.boxCodename || group.boxType}-#${i + 1}`,
+            w: Number(boxData.width) || 300,
+            l: Number(boxData.length) || 400,
+            h: Number(boxData.height) || 200,
+            weight: 10 // น้ำหนักตั้งต้น
+          });
         }
-        aggregatedItems[item.itemCode] += item.qty;
       });
 
-      // 🌟 2. แปลงข้อมูลที่ยุบรวมแล้วให้อยู่ในรูปแบบโครงสร้างที่หลังบ้านต้องการ
-      const shipmentItems = Object.entries(aggregatedItems).map(([itemId, qty]) => ({
-        itemId: itemId,
-        qtyToPack: qty
-      }));
-
-      // 🌟 3. ยิงข้อมูลไปหา API หลังบ้านตามปกติ
+      // 🌟 2. ส่ง "boxesToPack" ไปให้หลังบ้านแทนรายการสินค้า
       const response = await axios.post('https://zenix-packing-hub.onrender.com/api/pallet/calculate', {
-        shipmentItems: shipmentItems
+        boxesToPack: boxesToPack
       });
 
       if (response.data.success) {
@@ -281,12 +285,16 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const handleExportPlanToExcel = () => {
     if (!boxSummary || boxSummary.length === 0) return toast.error('ไม่มีข้อมูลแผนการแพ็คสำหรับ Export');
 
+    // --- 1. เตรียมข้อมูล Sheet: Packing Plan (รายละเอียดการแพ็ค) ---
     const exportData = [];
     boxSummary.forEach((group) => {
       const boxName = group.boxCodename || group.boxType;
+      const pckNo = group.boxType;
+
       group.boxesBreakdown.forEach((box) => {
         if (box.items.length === 0) {
           exportData.push({
+            'PCK No.': pckNo,
             'Box Type (ชนิดกล่อง)': boxName,
             'Box No (ใบที่)': `Box #${box.boxNo}`,
             'Item Code': 'EMPTY BOX (กล่องเปล่า)',
@@ -299,6 +307,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         } else {
           box.items.forEach((item) => {
             exportData.push({
+              'PCK No.': pckNo,
               'Box Type (ชนิดกล่อง)': boxName,
               'Box No (ใบที่)': `Box #${box.boxNo}`,
               'Item Code': item.itemCode,
@@ -313,10 +322,39 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       });
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Packing Plan");
+    // --- 2. เตรียมข้อมูล Sheet: Box Summary (สรุปยอดเบิกกล่อง) ---
+    const summaryMap = {};
+    boxSummary.forEach(group => {
+      // ถ้ารหัสซ้ำกัน ให้จับบวกรวมกันเลย
+      if (!summaryMap[group.boxType]) {
+        summaryMap[group.boxType] = {
+          pckNo: group.boxType,
+          boxName: group.boxCodename || group.boxType,
+          total: 0
+        };
+      }
+      summaryMap[group.boxType].total += group.totalBoxes;
+    });
 
+    // แปลงข้อมูลที่รวมแล้วให้อยู่ในรูปแบบที่ Excel เข้าใจ
+    const summaryData = Object.values(summaryMap).map(item => ({
+      'PCK No.': item.pckNo,
+      'Box Type (ชนิดกล่อง)': item.boxName,
+      'Total Boxes (รวมจำนวนกล่อง/ใบ)': item.total
+    }));
+
+    // --- 3. สร้างไฟล์ Excel และยัด Sheet ทั้ง 2 แผ่นลงไป ---
+    const workbook = XLSX.utils.book_new();
+
+    // ใส่ Sheet สรุปไว้หน้าแรก (ทีมงานสโตร์เปิดมาเจอเลย)
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(workbook, wsSummary, "Box Summary");
+
+    // ใส่ Sheet รายละเอียดไว้หน้าที่สอง
+    const wsPlan = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(workbook, wsPlan, "Packing Plan");
+
+    // สั่งดาวน์โหลด
     const dateStr = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(workbook, `Packing_Plan_${dateStr}.xlsx`);
     toast.success('ดาวน์โหลดไฟล์ Excel สำเร็จ!');
