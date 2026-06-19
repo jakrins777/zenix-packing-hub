@@ -238,13 +238,12 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   };
 
   const handleCalculate3DPallet = async () => {
-    if (!selectedPallet) return toast.error('กรุณาเลือกชนิดพาเลทก่อนครับ');
-
+    // 🌟 เอาคำสั่งบรรทัดที่เช็ค !selectedPallet ออกไปเลยครับ เพราะระบบคิดให้เองแล้ว
     const validItems = calcResults.filter(r => !r.error);
     if (validItems.length === 0) return toast.error('กรุณาคำนวณกล่องก่อนครับ');
 
     setIsCalculating3D(true);
-    const toastId = toast.loading('กำลังประมวลผลจัดเรียงโมเดลพาเลทคำนวณพื้นที่...');
+    const toastId = toast.loading('กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ...');
 
     try {
       const shipmentItems = validItems.map(item => ({
@@ -252,15 +251,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         qtyToPack: item.qty
       }));
 
-      const response = await axios.post(`${NODE_API_URL}/api/pallet/calculate`, {
-        palletId: selectedPallet,
+      // 🌟 ยิงข้อมูลไปโดยส่งแค่รายการสินค้าเพียวๆ ไม่ต้องแนบรหัสพาเลทไปแล้วครับ
+      const response = await axios.post('https://zenix-packing-hub.onrender.com/api/pallet/calculate', {
         shipmentItems: shipmentItems
       });
 
       if (response.data.success) {
         setPallet3DResult(response.data);
-        setActivePalletTab(0); // 🌟 รีเซ็ตให้แสดงผลพาเลทใบที่ 1 ก่อนเสมอ
-        toast.success(`คำนวณสำเร็จ! ใช้พาเลทรวมทั้งหมด ${response.data.totalPalletsUsed} ใบ`, { id: toastId });
+        setActivePalletTab(0); // รีเซ็ตหน้าต่างไปที่พาเลทใบแรก
+        toast.success(`คำนวณสำเร็จ! ระบบจัดสรรพาเลทที่เหมาะสมที่สุดให้รวม ${response.data.totalPalletsUsed} ใบ`, { id: toastId });
       } else {
         toast.error('ล้มเหลว: ' + response.data.message, { id: toastId });
       }
@@ -497,8 +496,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200 text-gray-800 print:hidden">
         <h2 className="text-2xl font-black text-[#0066CC] mb-4">{t('planner.title')}</h2>
 
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <div className="mb-6">
+          <div className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200">
             <div className="text-sm font-bold text-[#0066CC] mb-3">{t('planner.select_mode')}</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <label className={`cursor-pointer flex items-center p-3 rounded-lg border-2 transition-all ${packingMode === 'consolidate' ? 'bg-[#0066CC] border-[#0066CC] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#0066CC]/50'}`}>
@@ -523,27 +522,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 </div>
               </label>
             </div>
-          </div>
-
-          {/* โซนเลือกพาเลทใบแรก - แก้ไขให้แสดงขนาดต่อท้าย */}
-          <div className="md:col-span-1 p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col justify-center">
-            <div className="text-sm font-bold text-[#0066CC] mb-3">🪵 เลือกพาเลทใบแรก</div>
-            <select
-              value={selectedPallet}
-              onChange={(e) => setSelectedPallet(e.target.value)}
-              // เพิ่ม shadow-sm และ font-medium เพื่อความสวยงามอ่านง่าย
-              className="w-full p-3 rounded-lg border border-blue-200 text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0066CC] bg-white text-xs shadow-sm"
-            >
-              <option value="">-- ไม่ระบุพาเลท --</option>
-              {palletsList.map(p => (
-                // 🌟 หัวใจสำคัญอยู่ตรงนี้: เพิ่มการแสดงขนาด กว้าง x ยาว x สูง (มม.)
-                <option key={p.palletId} value={p.palletId} className="font-mono">
-                  {p.palletId} ({p.width} x {p.length} x {p.maxHeight} มม.)
-                </option>
-              ))}
-            </select>
-            {/* คำแนะนำเล็กๆ ใต้ Dropdown */}
-            <div className="text-[10px] text-gray-400 mt-1.5 px-1">* ระบบจะแตกพาเลทใบต่อไปอัตโนมัติหากของล้น</div>
           </div>
         </div>
 
