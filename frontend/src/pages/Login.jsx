@@ -47,11 +47,16 @@ export default function Login({ onLogin }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 font-sans">
       <div className="bg-white border border-gray-200 p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-md animate-fade-in-up">
-
         <div className="text-center mb-8">
-          <div className="bg-blue-50 text-[#0066CC] border border-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <span className="text-3xl">📦</span>
+          {/* ส่วนโลโก้ที่แก้ไขใหม่ */}
+          <div className="mx-auto mb-4 w-20 h-20 flex items-center justify-center transition-transform hover:scale-105 duration-300">
+            <img
+              src="/wpca-logo.svg"
+              alt="WPCA Logo"
+              className="w-full h-full object-contain drop-shadow-md"
+            />
           </div>
+
           <h2 className="text-3xl font-black text-gray-800 tracking-tight">Zenix WPCA</h2>
           <p className="text-gray-500 font-medium mt-1">Warehouse Packaging Calculation Application</p>
         </div>

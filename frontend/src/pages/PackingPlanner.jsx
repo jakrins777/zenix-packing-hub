@@ -264,6 +264,22 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         }
       });
 
+      group.boxesBreakdown.forEach(b => {
+        const totalItemsInThisBox = b.items.reduce((sum, item) => sum + item.qty, 0);
+
+        boxesToPack.push({
+          name: `${group.boxCodename || group.boxType}-#${b.boxNo}`,
+          w: Number(boxData.width) || 300,
+          l: Number(boxData.length) || 400,
+          h: Number(boxData.height) || 200,
+          weight: 10,
+          itemCap: group.boxCap || 0,
+          packedQty: totalItemsInThisBox || 0,
+          // 🌟 แนบรหัสพาเลทที่ผูกไว้ส่งไปด้วย (ถ้าไม่มีก็เป็น null)
+          boundPalletId: boxData.boundPalletId || null
+        });
+      });
+
       // 🌟 2. ส่ง "boxesToPack" ไปให้หลังบ้านแทนรายการสินค้า
       const response = await axios.post('https://zenix-packing-hub.onrender.com/api/pallet/calculate', {
         boxesToPack: boxesToPack

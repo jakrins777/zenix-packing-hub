@@ -147,29 +147,45 @@ app.post('/api/pallet/calculate', async (req, res) => {
     while (boxesRemaining.length > 0) {
       let bestPalletCandidate = null;
       let maxPackedCount = -1;
-      let minPalletVolume = Infinity; // ใช้เทียบเพื่อหาพาเลทใบที่ "เล็กและพอดีที่สุด"
+      let minPalletVolume = Infinity;
 
-      // วิ่งทดสอบสเปกพาเลททุกแบบในระบบ
-      for (const pallet of allPalletsList) {
+      // 🌟 1. ดูกล่องคิวแรกสุดว่าโดนผูกกับพาเลทไหนไว้ไหม?
+      const targetBox = boxesRemaining[0];
+
+      // กำหนดรายการพาเลทที่จะใช้ทดสอบ
+      let candidatePallets = allPalletsList;
+      if (targetBox.boundPalletId) {
+        // ถ้าผูกไว้ ให้กรองเหลือแค่พาเลทที่ตรงกับรหัสที่ผูกไว้เท่านั้น!
+        candidatePallets = allPalletsList.filter(p => p.palletId === targetBox.boundPalletId);
+        if (candidatePallets.length === 0) {
+          throw new Error(`ไม่พบพาเลทรหัส ${targetBox.boundPalletId} ที่ผูกไว้กับกล่อง ${targetBox.name}`);
+        }
+      }
+
+      // คัดเฉพาะกล่องที่ไม่ได้ผูกพาเลท หรือผูกกับพาเลทรหัสเดียวกัน มาแพ็คด้วยกันได้
+      const boxesToTry = boxesRemaining.filter(b =>
+        !b.boundPalletId || b.boundPalletId === targetBox.boundPalletId
+      );
+
+      // 🌟 2. วิ่งทดสอบสเปกพาเลท (ใช้ candidatePallets แทน allPalletsList)
+      for (const pallet of candidatePallets) {
         const usableHeight = pallet.maxHeight - pallet.baseThickness;
         const testBin = new Bin(pallet.palletId, pallet.width, usableHeight, pallet.length, pallet.maxWeight);
         const testPacker = new Packer();
         testPacker.addBin(testBin);
 
-        boxesRemaining.forEach(box => {
+        // โยนเฉพาะกล่องที่เข้าพวกกันลงไปทดสอบ
+        boxesToTry.forEach(box => {
           const item = new Item(box.name, box.w, box.h, box.l, box.weight);
-          item.allowedRotations = [0, 3]; // ล็อกให้วางแนวนอนราบกับพื้นเท่านั้น
+          item.allowedRotations = [0, 3];
           testPacker.addItem(item);
         });
 
         testPacker.pack();
 
         const packedCount = testBin.items.length;
-        const palletVolume = pallet.width * pallet.length * pallet.maxHeight; // ปริมาตรพาเลทตัวนี้
+        const palletVolume = pallet.width * pallet.length * pallet.maxHeight;
 
-        // 🔥 ลอจิกการตัดสินใจเลือกพาเลทที่เหมาะสมและพอดีที่สุด:
-        // เงื่อนไขที่ 1: เลือกพาเลทที่ยัดกล่องลงไปได้ "จำนวนชิ้นเยอะที่สุด" ก่อน
-        // เงื่อนไขที่ 2: ถ้าจำนวนชิ้นเท่ากัน ให้เลือกพาเลทใบที่ "ปริมาตรเล็กที่สุด" เพื่อความกระชับและพอดีเป๊ะ ไม่เหลือที่ว่างสิ้นเปลือง
         if (packedCount > maxPackedCount) {
           maxPackedCount = packedCount;
           minPalletVolume = palletVolume;
@@ -182,20 +198,20 @@ app.post('/api/pallet/calculate', async (req, res) => {
         }
       }
 
-      // ดักกรณีไม่มีพาเลทไหนใส่กล่องนี้ได้เลย (กล่องใหญ่เกินไป)
       if (maxPackedCount <= 0 || !bestPalletCandidate) {
-        break;
+        // ดักกรณีที่พยายามยัดแล้ว แต่พาเลทที่ผูกไว้มันเล็กเกินไป ใส่กล่องไม่ได้เลย
+        throw new Error(`กล่อง ${targetBox.name} ขนาดใหญ่เกินกว่าจะวางบนพาเลท ${targetBox.boundPalletId || 'ที่ระบบมี'} ได้`);
       }
 
-      // 🌟 5. ดำเนินการแพ็คลงพาเลทที่ดีที่สุดตัวจริงที่ระบบเลือกให้
+      // 🌟 3. ดำเนินการแพ็คจริงลงพาเลทที่ชนะ
       const USABLE_HEIGHT = bestPalletCandidate.maxHeight - bestPalletCandidate.baseThickness;
       const realBin = new Bin(bestPalletCandidate.palletId, bestPalletCandidate.width, USABLE_HEIGHT, bestPalletCandidate.length, bestPalletCandidate.maxWeight);
       const realPacker = new Packer();
       realPacker.addBin(realBin);
 
-      boxesRemaining.forEach(box => {
+      boxesToTry.forEach(box => {
         const item = new Item(box.name, box.w, box.h, box.l, box.weight);
-        item.allowedRotations = [0, 3]; // แนวนอนราบเท่านั้น
+        item.allowedRotations = [0, 3];
         realPacker.addItem(item);
       });
 
