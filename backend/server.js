@@ -128,26 +128,25 @@ app.post('/api/pallet/calculate', async (req, res) => {
     }
 
     // 🌟🌟 ปรับปรุงการเรียงลำดับเพื่อแก้ปัญหากล่องลอยกลางอากาศ
+    // 🌟 1. เรียงลำดับพื้นที่ฐานจากกว้างสุด -> แคบสุด (แก้กล่องลอย)
     boxesRemaining.sort((a, b) => {
       const baseAreaA = a.w * a.l;
       const baseAreaB = b.w * b.l;
       if (baseAreaB !== baseAreaA) return baseAreaB - baseAreaA;
-      return b.h - a.h;
+      return b.h - a.h; // ถ้าฐานเท่ากัน เอากล่องสูงกว่าลงไปก่อน
     });
 
     let palletsResult = [];
     let palletIndex = 1;
 
-    // 3. เริ่มลูปจัดลงพาเลท ตราบใดที่ยังมีกล่องสินค้าเหลืออยู่
+    // 🌟 2. เริ่มลูปจัดลงพาเลท
     while (boxesRemaining.length > 0) {
       let selectedPalletSpec = null;
 
       if (palletIndex === 1) {
-        // พาเลทใบแรก: บังคับใช้ตัวเลือก A ที่ผู้ใช้เลือกมาจากหน้าบ้านตามคำสั่ง
         selectedPalletSpec = allPalletsList.find(p => p.palletId === palletId);
         if (!selectedPalletSpec) return res.status(404).json({ success: false, message: 'ไม่พบสเปกพาเลทแรกในระบบ' });
       } else {
-        // พาเลทใบต่อไป: วิ่งทดสอบสเปกพาเลททุกตัวใน DB เพื่อหาตัวที่จุกล่องที่เหลือได้ "คุ้มค่าที่สุด"
         let bestPalletCandidate = null;
         let maxPackedCount = -1;
 
@@ -158,60 +157,50 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
           boxesRemaining.forEach(box => {
             const item = new Item(box.name, box.w, box.h, box.l, box.weight);
-            item.allowedRotations = [0, 3]; // นวนนอนเท่านั้น
+            item.allowedRotations = [0, 3]; // ล็อกให้วางแนวนอนเท่านั้น (ตอนทดสอบพาเลท)
             testPacker.addItem(item);
           });
 
           testPacker.pack();
 
-          // มองหาพาเลทที่สามารถบรรจุกล่องที่เหลืออยู่ได้จำนวนมากที่สุด
           if (testBin.items.length > maxPackedCount) {
             maxPackedCount = testBin.items.length;
             bestPalletCandidate = pallet;
           }
         }
 
-        // ดักเงื่อนไข: ถ้าไม่มีพาเลทแบบไหนในระบบใส่กล่องนี้ลงเลย (กล่องใหญ่มหึมาเกินไป) ให้หยุดลูปป้องกัน Infinite Loop
-        if (maxPackedCount <= 0) {
-          break;
-        }
-
+        if (maxPackedCount <= 0) break;
         selectedPalletSpec = bestPalletCandidate;
       }
 
-      // 4. ทำการจัดเรียงกล่องลงพาเลทจริงที่ถูกเลือกในรอบนั้นๆ
+      // 🌟 3. สร้างตัว Packer ตัวจริง
       const USABLE_HEIGHT = selectedPalletSpec.maxHeight - selectedPalletSpec.baseThickness;
       const realBin = new Bin(selectedPalletSpec.palletId, selectedPalletSpec.width, USABLE_HEIGHT, selectedPalletSpec.length, selectedPalletSpec.maxWeight);
-      const realPacker = new Packer();
+      const realPacker = new Packer(); // <--- ประกาศตัวแปรก่อนตรงนี้
       realPacker.addBin(realBin);
 
+      // 🌟 4. ยัดกล่องลง Packer ตัวจริง
       boxesRemaining.forEach(box => {
         const item = new Item(box.name, box.w, box.h, box.l, box.weight);
-
-        // 🌟 บังคับหมุนแนวนอนเท่านั้น! ป้องกันกล่องตั้งโด่
-        // รหัส 0 = ทรงเดิม (กว้าง x สูง x ยาว)
-        // รหัส 3 = หมุน 90 องศาแนวราบ (ยาว x สูง x กว้าง)
-        item.allowedRotations = [0, 3];
-
-        realPacker.addItem(item);
+        item.allowedRotations = [0, 3]; // ล็อกให้วางแนวนอนเท่านั้น (ตอนจัดของจริง)
+        realPacker.addItem(item); // <--- ตอนนี้เรียกใช้ได้ปลอดภัยแล้ว
       });
 
       realPacker.pack();
 
-      // 🌟 ดักจับการหมุนกล่อง (Rotation) เพื่อสลับแกน กว้าง/ยาว ให้ตรงกับที่มันถูกวางจริง
+      // 🌟 5. ดักจับการหมุนกล่อง (แก้กล่องทะลุพาเลทรูปตัว L)
       const packedBoxes = realBin.items.map(packedItem => {
         let rW = packedItem.width;
         let rH = packedItem.height;
         let rL = packedItem.depth;
 
-        // เช็ครหัสการหมุน ถ้ามีการหมุน 90 องศาแนวราบ (case 3) จะสลับกว้างกับยาว
         switch (packedItem.rotationType) {
           case 1: rW = packedItem.height; rH = packedItem.width; rL = packedItem.depth; break;
           case 2: rW = packedItem.height; rH = packedItem.depth; rL = packedItem.width; break;
           case 3: rW = packedItem.depth; rH = packedItem.height; rL = packedItem.width; break;
           case 4: rW = packedItem.depth; rH = packedItem.width; rL = packedItem.height; break;
           case 5: rW = packedItem.width; rH = packedItem.depth; rL = packedItem.height; break;
-          default: break; // case 0 (ไม่หมุน วางปกติ)
+          default: break;
         }
 
         return {
@@ -237,15 +226,12 @@ app.post('/api/pallet/calculate', async (req, res) => {
         totalPackedCount: packedBoxes.length
       });
 
-      // 5. ตัดรายการกล่องที่จัดวางลงพาเลทใบนี้สำเร็จออกจากคิวงาน
+      // 🌟 6. ตัดกล่องที่จัดเสร็จแล้วออกจากคิว
       const packedNames = new Set(realBin.items.map(i => i.name));
       const beforeFilterCount = boxesRemaining.length;
       boxesRemaining = boxesRemaining.filter(box => !packedNames.has(box.name));
 
-      // ดักลูปนรกกันพลาดอีกชั้น
-      if (boxesRemaining.length === beforeFilterCount) {
-        break;
-      }
+      if (boxesRemaining.length === beforeFilterCount) break;
 
       palletIndex++;
     }
