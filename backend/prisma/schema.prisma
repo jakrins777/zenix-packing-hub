@@ -54,6 +54,7 @@ model Box {
   updatedAt    DateTime @updatedAt 
   minStockLevel Int     @default(0) // จุดแจ้งเตือนสั่งซื้อ (ถ้าสต็อกต่ำกว่านี้จะแจ้งเตือน)
   codename  String?
+  boundPalletId String?
   
   // Relation: กล่อง 1 ไซส์ สามารถถูกผูกเป็นกล่องมาตรฐานให้กับสินค้าได้หลายชิ้น
   items        Item[]
