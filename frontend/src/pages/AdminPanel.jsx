@@ -544,6 +544,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                     <label className="block text-sm font-bold text-gray-600 mb-1">{t('box.desc')}</label>
                     <input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({ ...boxForm, description: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" />
                   </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-bold text-gray-600 mb-1">{t('box.capacity')}</label>
@@ -555,9 +556,26 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                     </div>
                   </div>
 
+                  {/* 🌟 1. ช่องเพิ่มการผูกกล่องกับพาเลท */}
+                  <div>
+                    <label className="block text-sm font-bold text-amber-600 mb-1">🪵 ผูกกับพาเลท (Pallet Binding)</label>
+                    <select
+                      value={boxForm.boundPalletId || ''}
+                      onChange={(e) => setBoxForm({ ...boxForm, boundPalletId: e.target.value || null })}
+                      className="w-full p-3 border border-amber-200 rounded-lg bg-amber-50 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-gray-800 font-medium"
+                    >
+                      <option value="">-- ไม่ผูกพาเลท (ให้ระบบสุ่มหาให้อัตโนมัติ) --</option>
+                      {/* ดึงรายการพาเลทมาแสดง (สมมติว่าใช้ตัวแปร pallets หรือ palletsList ในคอมโพเนนต์นี้) */}
+                      {palletsList && palletsList.map(p => (
+                        <option key={p.palletId} value={p.palletId}>{p.palletId} ({p.description})</option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="flex space-x-2 pt-4">
                     <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold py-3 px-4 rounded-lg shadow-sm">{t('common.save')}</button>
-                    {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0 }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">{t('common.cancel')}</button>}
+                    {/* 🌟 2. เคลียร์ค่า boundPalletId ด้วยตอนกด Cancel */}
+                    {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">{t('common.cancel')}</button>}
                   </div>
                 </form>
               </div>
@@ -626,13 +644,18 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                             <td className="py-3 px-4 font-mono font-black text-[#0066CC] print:text-black border-r border-transparent print:border-gray-300">{id}</td>
                             <td className="py-3 px-4 text-gray-800 print:text-black font-medium text-sm border-r border-transparent print:border-gray-300">
                               {box?.description || '-'}
-                              {box?.codename && <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded inline-block font-bold mt-1">{t('box.codename_label')} {box.codename}</div>}
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                {box?.codename && <span className="text-xs text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded font-bold">{t('box.codename_label')} {box.codename}</span>}
+                                {/* 🌟 3. โชว์สถานะการผูกพาเลทในตารางด้วย */}
+                                {box?.boundPalletId && <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded font-bold">🪵 พาเลท: {box.boundPalletId}</span>}
+                              </div>
                             </td>
                             <td className="py-3 px-4 text-center border-r border-transparent print:border-gray-300">
                               <span className="font-black text-2xl text-[#0066CC] print:text-black">{box?.currentStock || 0}</span>
                             </td>
                             <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap print:hidden">
-                              <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, codename: box.codename || '', description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit')}</button>
+                              {/* 🌟 4. ดึงค่า boundPalletId ตอนกดแก้ไขด้วย */}
+                              <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, codename: box.codename || '', description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0, boundPalletId: box.boundPalletId || null }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit')}</button>
                               <button onClick={() => handleBoxDelete(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
                             </td>
                           </tr>
