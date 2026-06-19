@@ -127,10 +127,19 @@ app.post('/api/pallet/calculate', async (req, res) => {
       }
     }
 
+    // 🌟🌟 ปรับปรุงการเรียงลำดับเพื่อแก้ปัญหากล่องลอยกลางอากาศ
     boxesRemaining.sort((a, b) => {
-      const volumeA = a.w * a.l * a.h;
-      const volumeB = b.w * b.l * b.h;
-      return volumeB - volumeA;
+      
+      const baseAreaA = a.w * a.l;
+      const baseAreaB = b.w * b.l;
+
+      
+      if (baseAreaB !== baseAreaA) {
+        return baseAreaB - baseAreaA;
+      }
+
+      
+      return b.h - a.h;
     });
 
     let palletsResult = [];
