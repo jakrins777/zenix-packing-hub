@@ -127,6 +127,12 @@ app.post('/api/pallet/calculate', async (req, res) => {
       }
     }
 
+    boxesRemaining.sort((a, b) => {
+      const volumeA = a.w * a.l * a.h;
+      const volumeB = b.w * b.l * b.h;
+      return volumeB - volumeA;
+    });
+
     let palletsResult = [];
     let palletIndex = 1;
 

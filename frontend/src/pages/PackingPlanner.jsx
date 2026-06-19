@@ -525,18 +525,25 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </div>
           </div>
 
+          {/* โซนเลือกพาเลทใบแรก - แก้ไขให้แสดงขนาดต่อท้าย */}
           <div className="md:col-span-1 p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col justify-center">
             <div className="text-sm font-bold text-[#0066CC] mb-3">🪵 เลือกพาเลทใบแรก</div>
             <select
               value={selectedPallet}
               onChange={(e) => setSelectedPallet(e.target.value)}
-              className="w-full p-3 rounded-lg border border-blue-200 text-gray-800 font-bold focus:outline-none focus:ring-2 focus:ring-[#0066CC] bg-white"
+              // เพิ่ม shadow-sm และ font-medium เพื่อความสวยงามอ่านง่าย
+              className="w-full p-3 rounded-lg border border-blue-200 text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#0066CC] bg-white text-xs shadow-sm"
             >
               <option value="">-- ไม่ระบุพาเลท --</option>
               {palletsList.map(p => (
-                <option key={p.palletId} value={p.palletId}>{p.palletId}</option>
+                // 🌟 หัวใจสำคัญอยู่ตรงนี้: เพิ่มการแสดงขนาด กว้าง x ยาว x สูง (มม.)
+                <option key={p.palletId} value={p.palletId} className="font-mono">
+                  {p.palletId} ({p.width} x {p.length} x {p.maxHeight} มม.)
+                </option>
               ))}
             </select>
+            {/* คำแนะนำเล็กๆ ใต้ Dropdown */}
+            <div className="text-[10px] text-gray-400 mt-1.5 px-1">* ระบบจะแตกพาเลทใบต่อไปอัตโนมัติหากของล้น</div>
           </div>
         </div>
 
