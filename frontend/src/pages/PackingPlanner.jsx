@@ -238,7 +238,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   };
 
   const handleCalculate3DPallet = async () => {
-    // 🌟 เอาคำสั่งบรรทัดที่เช็ค !selectedPallet ออกไปเลยครับ เพราะระบบคิดให้เองแล้ว
     const validItems = calcResults.filter(r => !r.error);
     if (validItems.length === 0) return toast.error('กรุณาคำนวณกล่องก่อนครับ');
 
@@ -246,19 +245,29 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const toastId = toast.loading('กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ...');
 
     try {
-      const shipmentItems = validItems.map(item => ({
-        itemId: item.itemCode,
-        qtyToPack: item.qty
+      // 🌟 1. ยุบรวมจำนวนสินค้า (Qty) ของรหัสเดียวกันเข้าด้วยกันก่อน เพื่อป้องกันหลังบ้านปัดเศษกล่องเกินจริง
+      const aggregatedItems = {};
+      validItems.forEach(item => {
+        if (!aggregatedItems[item.itemCode]) {
+          aggregatedItems[item.itemCode] = 0;
+        }
+        aggregatedItems[item.itemCode] += item.qty;
+      });
+
+      // 🌟 2. แปลงข้อมูลที่ยุบรวมแล้วให้อยู่ในรูปแบบโครงสร้างที่หลังบ้านต้องการ
+      const shipmentItems = Object.entries(aggregatedItems).map(([itemId, qty]) => ({
+        itemId: itemId,
+        qtyToPack: qty
       }));
 
-      // 🌟 ยิงข้อมูลไปโดยส่งแค่รายการสินค้าเพียวๆ ไม่ต้องแนบรหัสพาเลทไปแล้วครับ
+      // 🌟 3. ยิงข้อมูลไปหา API หลังบ้านตามปกติ
       const response = await axios.post('https://zenix-packing-hub.onrender.com/api/pallet/calculate', {
         shipmentItems: shipmentItems
       });
 
       if (response.data.success) {
         setPallet3DResult(response.data);
-        setActivePalletTab(0); // รีเซ็ตหน้าต่างไปที่พาเลทใบแรก
+        setActivePalletTab(0);
         toast.success(`คำนวณสำเร็จ! ระบบจัดสรรพาเลทที่เหมาะสมที่สุดให้รวม ${response.data.totalPalletsUsed} ใบ`, { id: toastId });
       } else {
         toast.error('ล้มเหลว: ' + response.data.message, { id: toastId });
