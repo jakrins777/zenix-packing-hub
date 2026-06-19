@@ -238,49 +238,39 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   };
 
   const handleCalculate3DPallet = async () => {
-    // เช็คจาก boxSummary แทน ถ้ายังไม่มีการสรุปกล่องให้แจ้งเตือน
     if (!boxSummary || boxSummary.length === 0) return toast.error('กรุณาคำนวณกล่องก่อนครับ');
 
     setIsCalculating3D(true);
     const toastId = toast.loading('กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ...');
 
     try {
-      // 🌟 1. ดึงข้อมูล "กล่อง 32 ใบ" ที่หน้าบ้านคำนวณเสร็จแล้ว เตรียมส่งให้ 3D
       const boxesToPack = [];
+
+      // 🌟 ลูปรอบนอกสุด: ดึงกลุ่มกล่องหลักมาคำนวณ (มีตัวแปร group ชัดเจน)
       boxSummary.forEach(group => {
-        // ค้นหาไซส์กล่องจากฐานข้อมูลกล่อง (boxes) ที่โหลดมาไว้แล้วในหน้าบ้าน
+        // ค้นหาข้อมูลสเปกกล่องจาก Master Data (มีตัวแปร boxData)
         const boxData = boxes.find(b => b.pckId === group.boxType);
         if (!boxData) return;
 
-        // วนลูปสร้างกล่องตามจำนวน totalBoxes ที่หน้าบ้านสรุปไว้เป๊ะๆ
-        for (let i = 0; i < group.totalBoxes; i++) {
+        // 🌟 ลูปด้านใน: เจาะลึกกล่องแต่ละใบในกลุ่ม (มีตัวแปร b ชัดเจน)
+        group.boxesBreakdown.forEach(b => {
+          // คำนวณยอดชิ้นสินค้าที่แพ็คอยู่ในกล่องใบนี้จริงๆ
+          const totalItemsInThisBox = b.items.reduce((sum, item) => sum + item.qty, 0);
+
           boxesToPack.push({
-            name: `${group.boxCodename || group.boxType}-#${i + 1}`,
+            name: `${group.boxCodename || group.boxType}-#${b.boxNo}`,
             w: Number(boxData.width) || 300,
             l: Number(boxData.length) || 400,
             h: Number(boxData.height) || 200,
-            weight: 10 // น้ำหนักตั้งต้น
+            weight: 10,
+            itemCap: group.boxCap || 0,
+            packedQty: totalItemsInThisBox || 0,
+            boundPalletId: boxData.boundPalletId || null // ผูกรหัสพาเลทจาก Master Data
           });
-        }
-      });
-
-      group.boxesBreakdown.forEach(b => {
-        const totalItemsInThisBox = b.items.reduce((sum, item) => sum + item.qty, 0);
-
-        boxesToPack.push({
-          name: `${group.boxCodename || group.boxType}-#${b.boxNo}`,
-          w: Number(boxData.width) || 300,
-          l: Number(boxData.length) || 400,
-          h: Number(boxData.height) || 200,
-          weight: 10,
-          itemCap: group.boxCap || 0,
-          packedQty: totalItemsInThisBox || 0,
-          // 🌟 แนบรหัสพาเลทที่ผูกไว้ส่งไปด้วย (ถ้าไม่มีก็เป็น null)
-          boundPalletId: boxData.boundPalletId || null
         });
       });
 
-      // 🌟 2. ส่ง "boxesToPack" ไปให้หลังบ้านแทนรายการสินค้า
+      // ยิงข้อมูลกล่องทั้งหมดไปให้ API หลังบ้านคำนวณ 3D
       const response = await axios.post('https://zenix-packing-hub.onrender.com/api/pallet/calculate', {
         boxesToPack: boxesToPack
       });
