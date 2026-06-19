@@ -129,16 +129,9 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
     // 🌟🌟 ปรับปรุงการเรียงลำดับเพื่อแก้ปัญหากล่องลอยกลางอากาศ
     boxesRemaining.sort((a, b) => {
-      
       const baseAreaA = a.w * a.l;
       const baseAreaB = b.w * b.l;
-
-      
-      if (baseAreaB !== baseAreaA) {
-        return baseAreaB - baseAreaA;
-      }
-
-      
+      if (baseAreaB !== baseAreaA) return baseAreaB - baseAreaA;
       return b.h - a.h;
     });
 
@@ -165,8 +158,13 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
           boxesRemaining.forEach(box => {
             const item = new Item(box.name, box.w, box.h, box.l, box.weight);
-            item.allowedRotations = [0, 3]; // นวนนอนเท่านั้น
-            testPacker.addItem(item);
+
+            // 🌟 บังคับหมุนแนวนอนเท่านั้น! ป้องกันกล่องตั้งโด่
+            // รหัส 0 = ทรงเดิม (กว้าง x สูง x ยาว)
+            // รหัส 3 = หมุน 90 องศาแนวราบ (ยาว x สูง x กว้าง)
+            item.allowedRotations = [0, 3];
+
+            realPacker.addItem(item);
           });
 
           testPacker.pack();
