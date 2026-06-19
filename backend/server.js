@@ -84,48 +84,34 @@ app.get('/', (req, res) => {
 // ==========================================================================
 
 
+// 🔮 API คำนวณพาเลท 3D (รองรับระบบผูกพาเลท และแก้กล่องลอย)
 app.post('/api/pallet/calculate', async (req, res) => {
   try {
-    const { shipmentItems } = req.body; // ไม่ต้องง้อ palletId จากหน้าบ้านแล้ว ระบบจะหาให้เองครับ
+    const { boxesToPack } = req.body;
 
-    if (!shipmentItems || shipmentItems.length === 0) {
-      return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลสินค้า' });
+    // 1. ดักจับข้อมูลว่าง
+    if (!boxesToPack || !Array.isArray(boxesToPack) || boxesToPack.length === 0) {
+      return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลกล่องที่จะแพ็ค' });
     }
 
-    // 1. โหลดรายชื่อสเปกพาเลททั้งหมดในระบบที่พร้อมใช้งาน (ACTIVE)
     const allPalletsList = await prisma.pallet.findMany({ where: { status: 'ACTIVE' } });
     if (allPalletsList.length === 0) {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลสเปกพาเลทในระบบ' });
     }
 
-    // 2. แตกรายการสินค้าออกเป็นจำนวนกล่องจริงทั้งหมด
-    let boxesRemaining = [];
-    for (const sItem of shipmentItems) {
-      const itemData = await prisma.item.findUnique({
-        where: { itemId: sItem.itemId },
-        include: { defaultBox: true }
-      });
+    // 🌟 2. สมุดจดความจุและพาเลทผูก ป้องกันไลบรารี 3D ลบข้อมูลทิ้ง
+    const boxExtraData = {};
+    boxesToPack.forEach(b => {
+      boxExtraData[b.name] = {
+        itemCap: b.itemCap,
+        packedQty: b.packedQty,
+        boundPalletId: b.boundPalletId
+      };
+    });
 
-      if (!itemData || !itemData.defaultBox) continue;
+    let boxesRemaining = [...boxesToPack];
 
-      const box = itemData.defaultBox;
-      const w = parseInt(box.width, 10) || 300;
-      const l = parseInt(box.length, 10) || 400;
-      const h = parseInt(box.height, 10) || 200;
-
-      const unitWeight = (itemData.itemWeight * (itemData.stdPackQty || 1));
-      const totalBoxesNeeded = Math.ceil(sItem.qtyToPack / (itemData.stdPackQty || 1));
-
-      for (let i = 0; i < totalBoxesNeeded; i++) {
-        boxesRemaining.push({
-          name: `${itemData.itemId}-BOX-${i + 1}`,
-          w, h, l,
-          weight: unitWeight
-        });
-      }
-    }
-
-    // 🌟 3. จัดเรียงกล่องจากพื้นที่ฐาน (กว้าง x ยาว) ใหญ่สุดไปหาเล็กสุด เพื่อปูพื้นก่อนเสมอ
+    // 3. ปูพื้นพาเลท: เรียงจากฐานใหญ่ไปเล็ก
     boxesRemaining.sort((a, b) => {
       const baseAreaA = a.w * a.l;
       const baseAreaB = b.w * b.l;
@@ -136,41 +122,38 @@ app.post('/api/pallet/calculate', async (req, res) => {
     let palletsResult = [];
     let palletIndex = 1;
 
-    // 🌟 4. วนลูปค้นหาพาเลทที่ดีที่สุด ตราบใดที่ยังมีกล่องเหลืออยู่
+    // 4. เริ่มจัดกล่องลงพาเลท
     while (boxesRemaining.length > 0) {
       let bestPalletCandidate = null;
       let maxPackedCount = -1;
       let minPalletVolume = Infinity;
 
-      // 🌟 1. ดูกล่องคิวแรกสุดว่าโดนผูกกับพาเลทไหนไว้ไหม?
       const targetBox = boxesRemaining[0];
-
-      // กำหนดรายการพาเลทที่จะใช้ทดสอบ
       let candidatePallets = allPalletsList;
+
+      // 🌟 4.1 ถ้ากล่องโดนผูกพาเลทไว้ ให้กรองหาแค่พาเลทนั้น
       if (targetBox.boundPalletId) {
-        // ถ้าผูกไว้ ให้กรองเหลือแค่พาเลทที่ตรงกับรหัสที่ผูกไว้เท่านั้น!
         candidatePallets = allPalletsList.filter(p => p.palletId === targetBox.boundPalletId);
         if (candidatePallets.length === 0) {
-          throw new Error(`ไม่พบพาเลทรหัส ${targetBox.boundPalletId} ที่ผูกไว้กับกล่อง ${targetBox.name}`);
+          // ถ้าหาพาเลทที่ผูกไม่เจอ ให้ตีกลับเป็น Error 400 แจ้ง User ทันที
+          return res.status(400).json({ success: false, message: `ไม่พบพาเลทรหัส ${targetBox.boundPalletId} ที่ผูกไว้กับกล่อง ${targetBox.name} ในระบบครับ` });
         }
       }
 
-      // คัดเฉพาะกล่องที่ไม่ได้ผูกพาเลท หรือผูกกับพาเลทรหัสเดียวกัน มาแพ็คด้วยกันได้
+      // 🌟 4.2 คัดเฉพาะกล่องที่ไม่ได้ผูก หรือผูกพาเลทเดียวกัน มาแพ็คด้วยกัน
       const boxesToTry = boxesRemaining.filter(b =>
         !b.boundPalletId || b.boundPalletId === targetBox.boundPalletId
       );
 
-      // 🌟 2. วิ่งทดสอบสเปกพาเลท (ใช้ candidatePallets แทน allPalletsList)
       for (const pallet of candidatePallets) {
         const usableHeight = pallet.maxHeight - pallet.baseThickness;
         const testBin = new Bin(pallet.palletId, pallet.width, usableHeight, pallet.length, pallet.maxWeight);
         const testPacker = new Packer();
         testPacker.addBin(testBin);
 
-        // โยนเฉพาะกล่องที่เข้าพวกกันลงไปทดสอบ
         boxesToTry.forEach(box => {
           const item = new Item(box.name, box.w, box.h, box.l, box.weight);
-          item.allowedRotations = [0, 3];
+          item.allowedRotations = [0, 3]; // แนวนอน
           testPacker.addItem(item);
         });
 
@@ -192,11 +175,10 @@ app.post('/api/pallet/calculate', async (req, res) => {
       }
 
       if (maxPackedCount <= 0 || !bestPalletCandidate) {
-        // ดักกรณีที่พยายามยัดแล้ว แต่พาเลทที่ผูกไว้มันเล็กเกินไป ใส่กล่องไม่ได้เลย
-        throw new Error(`กล่อง ${targetBox.name} ขนาดใหญ่เกินกว่าจะวางบนพาเลท ${targetBox.boundPalletId || 'ที่ระบบมี'} ได้`);
+        return res.status(400).json({ success: false, message: `กล่อง ${targetBox.name} ขนาดใหญ่เกินกว่าจะวางบนพาเลท ${targetBox.boundPalletId || 'ที่ระบบมี'} ได้` });
       }
 
-      // 🌟 3. ดำเนินการแพ็คจริงลงพาเลทที่ชนะ
+      // 5. แพ็คลงพาเลทจริง
       const USABLE_HEIGHT = bestPalletCandidate.maxHeight - bestPalletCandidate.baseThickness;
       const realBin = new Bin(bestPalletCandidate.palletId, bestPalletCandidate.width, USABLE_HEIGHT, bestPalletCandidate.length, bestPalletCandidate.maxWeight);
       const realPacker = new Packer();
@@ -210,7 +192,7 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
       realPacker.pack();
 
-      // 🌟 6. แปลงพิกัดและดักจับการหมุนแกนให้ถูกต้อง
+      // 6. แปลงผลลัพธ์และแก้ปัญหากล่องทะลุ/กล่องลอย
       const packedBoxes = realBin.items.map(packedItem => {
         let rW = packedItem.width;
         let rH = packedItem.height;
@@ -229,11 +211,14 @@ app.post('/api/pallet/calculate', async (req, res) => {
           boxId: packedItem.name,
           position: { x: packedItem.position[0], y: packedItem.position[1], z: packedItem.position[2] },
           dimensions: { width: rW, length: rL, height: rH },
-          weight: packedItem.weight
+          weight: packedItem.weight,
+          // 🌟 ประกอบข้อมูลกลับจากสมุดจด
+          itemCap: boxExtraData[packedItem.name]?.itemCap || 0,
+          packedQty: boxExtraData[packedItem.name]?.packedQty || 0
         };
       });
 
-      // 🌟 7. ระบบแรงโน้มถ่วงจำลอง (Gravity Drop) ดึงกล่องร่วงลงมาซ้อนกันให้แน่นสมจริง
+      // 🌟 Gravity Drop (ดึงกล่องลงพื้น)
       packedBoxes.sort((a, b) => a.position.y - b.position.y);
       for (let i = 0; i < packedBoxes.length; i++) {
         let currentBox = packedBoxes[i];
@@ -256,7 +241,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
         currentBox.position.y = maxSupportY;
       }
 
-      // บันทึกผลลัพธ์ของพาเลทใบนี้
       palletsResult.push({
         palletNo: palletIndex,
         palletSpecification: {
@@ -272,7 +256,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
         totalPackedCount: packedBoxes.length
       });
 
-      // 🌟 8. ตัดรายการกล่องที่จัดเรียงสำเร็จแล้วออกเพื่อไปคำนวณรอบถัดไป
       const packedNames = new Set(realBin.items.map(i => i.name));
       const beforeFilterCount = boxesRemaining.length;
       boxesRemaining = boxesRemaining.filter(box => !packedNames.has(box.name));
@@ -291,6 +274,7 @@ app.post('/api/pallet/calculate', async (req, res) => {
     });
 
   } catch (error) {
+    console.error("3D Calculate Error: ", error);
     res.status(500).json({ success: false, message: 'การคำนวณล้มเหลว: ' + error.message });
   }
 });
