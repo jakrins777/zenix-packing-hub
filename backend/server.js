@@ -85,6 +85,7 @@ app.get('/', (req, res) => {
 
 
 // 🔮 API คำนวณพาเลท 3D (รองรับระบบผูกพาเลท และแก้กล่องลอย)
+// 🔮 API คำนวณพาเลท 3D (รองรับระบบผูกพาเลท และแก้กล่องลอย)
 app.post('/api/pallet/calculate', async (req, res) => {
   try {
     const { boxesToPack } = req.body;
@@ -135,7 +136,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
       if (targetBox.boundPalletId) {
         candidatePallets = allPalletsList.filter(p => p.palletId === targetBox.boundPalletId);
         if (candidatePallets.length === 0) {
-          // ถ้าหาพาเลทที่ผูกไม่เจอ ให้ตีกลับเป็น Error 400 แจ้ง User ทันที
           return res.status(400).json({ success: false, message: `ไม่พบพาเลทรหัส ${targetBox.boundPalletId} ที่ผูกไว้กับกล่อง ${targetBox.name} ในระบบครับ` });
         }
       }
@@ -145,6 +145,9 @@ app.post('/api/pallet/calculate', async (req, res) => {
         !b.boundPalletId || b.boundPalletId === targetBox.boundPalletId
       );
 
+      // ==========================================
+      // 🧪 PHASE 1: ทดลองจำลองหาพาเลทที่ดีที่สุด
+      // ==========================================
       for (const pallet of candidatePallets) {
         const usableHeight = pallet.maxHeight - pallet.baseThickness;
         const testBin = new Bin(pallet.palletId, pallet.width, usableHeight, pallet.length, pallet.maxWeight);
@@ -152,30 +155,30 @@ app.post('/api/pallet/calculate', async (req, res) => {
         testPacker.addBin(testBin);
 
         boxesToTry.forEach(box => {
-          // 🌟 1. จับขนาดทั้ง 3 ด้านมาเรียงจากน้อยไปมาก
           let dims = [box.w, box.l, box.h].sort((a, b) => a - b);
           let finalW, finalL, finalH;
 
           const boxIsChair = box.name.toUpperCase().includes('CHAIR') || box.name.includes('เก้าอี้');
 
           if (boxIsChair) {
-            // 🪑 เก้าอี้: เอาด้านยาวที่สุด (dims[2]) ตั้งเป็นความสูง
             finalW = dims[0];
             finalL = dims[1];
             finalH = dims[2];
           } else {
-            // 📦 กล่องทั่วไป: เอาด้านสั้นที่สุด (dims[0]) เป็นความสูง เพื่อบังคับให้นอนราบ
             finalW = dims[1];
             finalL = dims[2];
             finalH = dims[0];
           }
 
           const item = new Item(box.name, finalW, finalH, finalL, box.weight);
-          // ล็อกให้หมุนได้แค่แนวนอน (ห้ามพลิกตะแคงอีก)
           item.allowedRotations = [0, 3];
           testPacker.addItem(item);
         });
 
+        // 🚨🚨🚨 พระเอกมาแล้ว: สั่งให้ไลบรารีลั่นไกคำนวณแพ็ค 🚨🚨🚨
+        testPacker.pack();
+
+        // พอ pack() แล้ว testBin.items ถึงจะมีข้อมูลกล่องที่วางสำเร็จโผล่มาครับ
         const packedCount = testBin.items.length;
         const palletVolume = pallet.width * pallet.length * pallet.maxHeight;
 
@@ -195,7 +198,9 @@ app.post('/api/pallet/calculate', async (req, res) => {
         return res.status(400).json({ success: false, message: `กล่อง ${targetBox.name} ขนาดใหญ่เกินกว่าจะวางบนพาเลท ${targetBox.boundPalletId || 'ที่ระบบมี'} ได้` });
       }
 
-      // 5. แพ็คลงพาเลทจริง
+      // ==========================================
+      // 📦 PHASE 2: แพ็คลงพาเลทจริง
+      // ==========================================
       const USABLE_HEIGHT = bestPalletCandidate.maxHeight - bestPalletCandidate.baseThickness;
       const realBin = new Bin(bestPalletCandidate.palletId, bestPalletCandidate.width, USABLE_HEIGHT, bestPalletCandidate.length, bestPalletCandidate.maxWeight);
       const realPacker = new Packer();
@@ -222,6 +227,9 @@ app.post('/api/pallet/calculate', async (req, res) => {
         realPacker.addItem(item);
       });
 
+      // 🚨🚨🚨 ลั่นไกแพ็คจริงรอบสุดท้าย 🚨🚨🚨
+      realPacker.pack();
+
       // 6. แปลงผลลัพธ์และแก้ปัญหากล่องทะลุ/กล่องลอย
       const packedBoxes = realBin.items.map(packedItem => {
         let rW = packedItem.width;
@@ -242,7 +250,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
           position: { x: packedItem.position[0], y: packedItem.position[1], z: packedItem.position[2] },
           dimensions: { width: rW, length: rL, height: rH },
           weight: packedItem.weight,
-          // 🌟 ประกอบข้อมูลกลับจากสมุดจด
           itemCap: boxExtraData[packedItem.name]?.itemCap || 0,
           packedQty: boxExtraData[packedItem.name]?.packedQty || 0
         };
