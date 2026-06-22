@@ -246,23 +246,24 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     try {
       const boxesToPack = [];
 
-      // 🌟 ลูปรอบนอกสุด: ดึงกลุ่มกล่องหลักมาคำนวณ (มีตัวแปร group ชัดเจน)
+      // 🌟 ลูปรอบนอกสุด: ดึงกลุ่มกล่องหลักมาคำนวณ
       boxSummary.forEach(group => {
-        // ค้นหาข้อมูลสเปกกล่องจาก Master Data (มีตัวแปร boxData)
+        // ค้นหาข้อมูลสเปกกล่องจาก Master Data
         const boxData = boxes.find(b => b.pckId === group.boxType);
         if (!boxData) return;
 
-        // 🌟 ลูปด้านใน: เจาะลึกกล่องแต่ละใบในกลุ่ม (มีตัวแปร b ชัดเจน)
+        // 🌟 ลูปด้านใน: เจาะลึกกล่องแต่ละใบในกลุ่ม
         group.boxesBreakdown.forEach(b => {
           // คำนวณยอดชิ้นสินค้าที่แพ็คอยู่ในกล่องใบนี้จริงๆ
           const totalItemsInThisBox = b.items.reduce((sum, item) => sum + item.qty, 0);
 
           boxesToPack.push({
+            pckId: boxData.pckId, // ส่ง ID เผื่อหลังบ้านเอาไปใช้แจ้ง Error
             name: `${group.boxCodename || group.boxType}-#${b.boxNo}`,
-            w: Number(boxData.width) || 300,
-            l: Number(boxData.length) || 400,
-            h: Number(boxData.height) || 200,
-            weight: 10,
+            width: Number(boxData.width) || 300,   // 🚨 แก้จาก w เป็น width
+            length: Number(boxData.length) || 400, // 🚨 แก้จาก l เป็น length
+            height: Number(boxData.height) || 200, // 🚨 แก้จาก h เป็น height
+            weight: Number(boxData.weight) || 10,  // ดึงน้ำหนักจริงจากกล่อง (ถ้ามี)
             itemCap: group.boxCap || 0,
             packedQty: totalItemsInThisBox || 0,
             boundPalletId: boxData.boundPalletId || null // ผูกรหัสพาเลทจาก Master Data
@@ -270,8 +271,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         });
       });
 
-      // ยิงข้อมูลกล่องทั้งหมดไปให้ API หลังบ้านคำนวณ 3D
-      const response = await axios.post('https://zenix-packing-hub.onrender.com/api/pallet/calculate', {
+      // 🌟 เปลี่ยนมาใช้ NODE_API_URL แทนการ Hardcode
+      const response = await axios.post(`${NODE_API_URL}/api/pallet/calculate`, {
         boxesToPack: boxesToPack
       });
 
@@ -284,8 +285,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       }
     } catch (error) {
       toast.error('ระบบขัดข้อง: ' + (error.response?.data?.message || error.message), { id: toastId });
+    } finally {
+      // ย้ายการปิด Loading มาไว้ใน finally เพื่อให้มันปิดเสมอไม่ว่าจะ Error หรือไม่
+      setIsCalculating3D(false);
     }
-    setIsCalculating3D(false);
   };
 
   const handleExportPlanToExcel = () => {
