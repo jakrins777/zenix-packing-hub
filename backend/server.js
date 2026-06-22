@@ -254,11 +254,10 @@ app.post('/api/pallet/calculate', async (req, res) => {
             if (val === 1 || val === 2 || val === 4 || val === 5) {
               currentRotation = 0;
             } else {
-              currentRotation = val; 
+              currentRotation = val;
+            }
           }
-          }
-        }
-        );
+        });
         realPacker.addItem(item);
       });
 
