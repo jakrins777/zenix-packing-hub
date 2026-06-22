@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
-import axios from 'axios';
+import api from '../utils/axiosConfig';
 import Pallet3DViewer from './Pallet3DViewer';
 
 const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'https://zenix-packing-hub.onrender.com';

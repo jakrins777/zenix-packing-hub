@@ -11,36 +11,41 @@ export default function Login({ onLogin }) {
 
   // 🌟 ฟังก์ชันจัดการตอนกดปุ่มเข้าสู่ระบบ
   const handleLogin = async (e) => {
-    e.preventDefault(); // ป้องกันหน้าเว็บรีเฟรช
-    setError('');       // ล้างข้อความ Error เก่าทิ้ง
-    setLoading(true);   // เปิดโหมด Loading (เพื่อให้ปุ่มหมุนๆ หรือกดซ้ำไม่ได้)
+    e.preventDefault(); 
+    setError('');       
+    setLoading(true);   
 
     try {
-      // 🌟 ยิง API ไปหา Backend ที่เราเขียนไว้ ปลอดภัย 100%
+      
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: username.toUpperCase().trim(), // แปลงเป็นพิมพ์ใหญ่เสมอ
-          password: password 
+        body: JSON.stringify({
+          username: username.toUpperCase().trim(), 
+          password: password
         })
       });
 
       const data = await res.json();
 
       if (data.success) {
-        // ถ้าสำเร็จ ให้เซฟข้อมูลลงเครื่อง และเปลี่ยนหน้า
+        
         localStorage.setItem('zenix_user', JSON.stringify(data.user));
+
+        
+        localStorage.setItem('zenix_token', data.token);
+
+        
         onLogin(data.user);
       } else {
-        // ถ้าผิดพลาด (เช่น รหัสผิด) ให้โชว์ข้อความแจ้งเตือน
+        
         setError(data.message);
       }
     } catch (err) {
       setError(t('login.error_server'));
       console.error(err);
     } finally {
-      setLoading(false); // ปิดโหมด Loading
+      setLoading(false); 
     }
   };
 

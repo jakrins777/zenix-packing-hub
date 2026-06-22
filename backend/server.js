@@ -7,6 +7,7 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 // 🌟 เพิ่มไลบรารีคำนวณพื้นที่จัดวาง 3 มิติ
 const { Packer, Bin, Item } = require('bp3d');
+const jwt = require('jsonwebtoken');
 
 const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
@@ -87,7 +88,7 @@ app.get('/', (req, res) => {
 
 
 // 🔮 API คำนวณพาเลท 3D (รองรับระบบผูกพาเลท และแก้กล่องลอย)
-app.post('/api/pallet/calculate', async (req, res) => {
+app.post('/api/pallet/calculate', verifyToken, async (req, res) => {
   try {
     const { boxesToPack } = req.body;
 
@@ -357,14 +358,14 @@ app.post('/api/pallet/calculate', async (req, res) => {
 });
 
 // 🪵 PALLETS CRUD ROUTE (จัดการพาเลท)
-app.get('/api/pallets', async (req, res) => {
+app.get('/api/pallets', verifyToken, async (req, res) => {
   try {
     const pallets = await prisma.pallet.findMany({ orderBy: { palletId: 'asc' } });
     res.json({ success: true, data: pallets });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.post('/api/pallets', async (req, res) => {
+app.post('/api/pallets', verifyToken, async (req, res) => {
   try {
     const { palletId, description, width, length, maxHeight, baseThickness, maxWeight, currentStock } = req.body;
     await prisma.pallet.create({
@@ -383,7 +384,7 @@ app.post('/api/pallets', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.delete('/api/pallets/:id', async (req, res) => {
+app.delete('/api/pallets/:id', verifyToken,verifyAdmin, async (req, res) => {
   try {
     await prisma.pallet.delete({ where: { palletId: req.params.id } });
     res.json({ success: true, message: 'ลบข้อมูลพาเลทสำเร็จ' });
@@ -453,7 +454,7 @@ app.get('/api/pallet/init-data', async (req, res) => {
 // 📦 BOXES CRUD (จัดการ Master Data กล่องทั่วไป)
 // ==========================================================================
 
-app.get('/api/boxes', async (req, res) => {
+app.get('/api/boxes', verifyToken, async (req, res) => {
   try {
     const boxes = await prisma.box.findMany({ orderBy: { pckId: 'asc' } });
     res.json({ success: true, data: boxes });
@@ -500,7 +501,7 @@ app.post('/api/boxes/upload', upload.array('files', 10), async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.put('/api/boxes/:id', async (req, res) => {
+app.put('/api/boxes/:id', verifyToken, async (req, res) => {
   try {
     const { description, maxCapacity, currentStock, minStockLevel, width, length, height } = req.body;
     await prisma.box.update({
@@ -519,14 +520,14 @@ app.put('/api/boxes/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.delete('/api/boxes/:id', async (req, res) => {
+app.delete('/api/boxes/:id', verifyToken,verifyAdmin, async (req, res) => {
   try {
     await prisma.box.delete({ where: { pckId: req.params.id } });
     res.json({ success: true, message: 'ลบข้อมูลกล่องสำเร็จ' });
   } catch (error) { res.status(500).json({ success: false, message: 'ไม่สามารถลบได้' }); }
 });
 
-app.get('/api/box/patch-sizes', async (req, res) => {
+app.get('/api/box/patch-sizes', verifyToken, async (req, res) => {
   try {
     // ข้อมูลกล่องทั้งหมดที่เราเพิ่งแกะกันมา
     const boxData = [
@@ -614,14 +615,14 @@ app.get('/api/box/patch-sizes', async (req, res) => {
 // 🏷️ ITEMS CRUD (จัดการ Master Data สินค้า)
 // ==========================================================================
 
-app.get('/api/items', async (req, res) => {
+app.get('/api/items', verifyToken, async (req, res) => {
   try {
     const items = await prisma.item.findMany({ include: { defaultBox: true }, orderBy: { itemId: 'asc' } });
     res.json({ success: true, data: items });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.get('/api/items/:id', async (req, res) => {
+app.get('/api/items/:id', verifyToken, async (req, res) => {
   try {
     const item = await prisma.item.findUnique({ where: { itemId: req.params.id }, include: { defaultBox: true } });
     if (!item) return res.status(404).json({ success: false, message: 'ไม่พบรหัสสินค้านี้ในระบบ' });
@@ -629,7 +630,7 @@ app.get('/api/items/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
+app.post('/api/items/upload', verifyToken, upload.array('files', 10), async (req, res) => {
   try {
     let allRawData = [];
     for (const file of req.files) {
@@ -679,7 +680,7 @@ app.post('/api/items/upload', upload.array('files', 10), async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.put('/api/items/:id', async (req, res) => {
+app.put('/api/items/:id', verifyToken, async (req, res) => {
   try {
     const updatedItem = await prisma.item.update({
       where: { itemId: req.params.id },
@@ -695,7 +696,7 @@ app.put('/api/items/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.delete('/api/items/:id', async (req, res) => {
+app.delete('/api/items/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     await prisma.item.delete({ where: { itemId: req.params.id } });
     res.json({ success: true, message: 'ลบข้อมูลสินค้าสำเร็จ' });
@@ -706,7 +707,7 @@ app.delete('/api/items/:id', async (req, res) => {
 // 👤 USER MANAGEMENT & AUTH (จัดการพนักงานและการล็อกอิน)
 // ==========================================================================
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', verifyToken, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       select: { id: true, username: true, firstName: true, role: true },
@@ -716,7 +717,7 @@ app.get('/api/users', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.post('/api/users', async (req, res) => {
+app.post('/api/users', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { username, password, passwordHash, firstName, role } = req.body;
     const cleanUsername = String(username).toUpperCase().trim();
@@ -735,7 +736,7 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-app.put('/api/users/:id', async (req, res) => {
+app.put('/api/users/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { username, password, passwordHash, firstName, role } = req.body;
     const updateData = { username: String(username).toUpperCase().trim(), firstName, role: role === 'admin' ? 'Admin' : 'Operator' };
@@ -750,7 +751,7 @@ app.put('/api/users/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     await prisma.user.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ success: true, message: '✅ ลบพนักงานสำเร็จ' });
@@ -766,15 +767,57 @@ app.post('/api/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) return res.status(401).json({ success: false, message: '❌ รหัสผ่านไม่ถูกต้อง' });
 
-    res.json({ success: true, user: { id: user.id, username: user.username, firstName: user.firstName, role: user.role } });
-  } catch (error) { res.status(500).json({ success: false, message: 'ระบบขัดข้อง' }); }
+    // 🌟 1. สร้าง Payload (ข้อมูลที่จะฝังไปกับ Token)
+    const payload = {
+      id: user.id,
+      username: user.username,
+      role: user.role
+    };
+
+    // 🌟 2. เซ็นออกบัตรผ่าน (Token) อายุ 8 ชั่วโมง
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+    // 🌟 3. ส่ง Token กลับไปให้หน้าบ้านพร้อมข้อมูล User
+    res.json({
+      success: true,
+      message: '✅ เข้าสู่ระบบสำเร็จ',
+      token: token, // <--- พระเอกของเราถูกส่งไปตรงนี้
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'ระบบขัดข้อง' });
+  }
 });
 
+// ฟังก์ชันด่านตรวจ (Middleware)
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  // ตัดคำว่า Bearer ออก เอาแค่ตัวกุญแจ
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' });
+  }
+
+  // เอากุญแจมาตรวจสอบกับรหัสลับของเรา
+  jwt.verify(token, process.env.JWT_SECRET, (err, decodedUser) => {
+    if (err) {
+      return res.status(403).json({ success: false, message: 'Token หมดอายุ หรือไม่ถูกต้อง' });
+    }
+    req.user = decodedUser; // ฝังข้อมูล User ไว้ใช้ต่อใน API
+    next(); // ปล่อยให้ผ่านไปใช้งาน API ได้!
+  });
+};
 // ==========================================================================
 // 📝 TRANSACTION LOGS & REPORTS (ประวัติการทำงานและออกรายงาน)
 // ==========================================================================
 
-app.post('/api/pack', async (req, res) => {
+app.post('/api/pack', verifyToken, async (req, res) => {
   try {
     const { userId, itemId, packQty, boxUsed, totalWeight, boxId } = req.body;
     await prisma.packingLog.create({ data: { userId, itemId, packQty, boxUsed, totalWeight } });
@@ -786,21 +829,21 @@ app.post('/api/pack', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.get('/api/logs', async (req, res) => {
+app.get('/api/logs', verifyToken, async (req, res) => {
   try {
     const logs = await prisma.packingLog.findMany({ include: { item: true, user: true }, orderBy: { packedAt: 'desc' } });
     res.json({ success: true, data: logs });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.delete('/api/logs/:id', async (req, res) => {
+app.delete('/api/logs/:id', verifyToken, async (req, res) => {
   try {
     await prisma.packingLog.delete({ where: { logId: parseInt(req.params.id) } });
     res.json({ success: true, message: '✅ ลบประวัติสำเร็จ!' });
   } catch (error) { res.status(500).json({ success: false, message: 'ไม่สามารถลบได้' }); }
 });
 
-app.post('/api/reports', async (req, res) => {
+app.post('/api/reports', verifyToken, async (req, res) => {
   try {
     const { operator, totalOrders, totalBoxes, data } = req.body;
     await prisma.report.create({ data: { operator, totalOrders, totalBoxes, data: JSON.stringify(data) } });
@@ -808,7 +851,7 @@ app.post('/api/reports', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-app.get('/api/reports', async (req, res) => {
+app.get('/api/reports', verifyToken, async (req, res) => {
   try {
     const reports = await prisma.report.findMany({ orderBy: { createdAt: 'desc' }, take: 50 });
     res.json({ success: true, reports });
