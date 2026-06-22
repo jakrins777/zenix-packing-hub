@@ -246,47 +246,46 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     try {
       const boxesToPack = [];
 
-      // 🌟 ลูปรอบนอกสุด: ดึงกลุ่มกล่องหลักมาคำนวณ
       boxSummary.forEach(group => {
-        // ค้นหาข้อมูลสเปกกล่องจาก Master Data
         const boxData = boxes.find(b => b.pckId === group.boxType);
         if (!boxData) return;
 
-        // 🌟 ลูปด้านใน: เจาะลึกกล่องแต่ละใบในกลุ่ม
         group.boxesBreakdown.forEach(b => {
-          // คำนวณยอดชิ้นสินค้าที่แพ็คอยู่ในกล่องใบนี้จริงๆ
           const totalItemsInThisBox = b.items.reduce((sum, item) => sum + item.qty, 0);
 
           boxesToPack.push({
-            pckId: boxData.pckId, // ส่ง ID เผื่อหลังบ้านเอาไปใช้แจ้ง Error
+            pckId: boxData.pckId,
             name: `${group.boxCodename || group.boxType}-#${b.boxNo}`,
-            width: Number(boxData.width) || 300,   // 🚨 แก้จาก w เป็น width
-            length: Number(boxData.length) || 400, // 🚨 แก้จาก l เป็น length
-            height: Number(boxData.height) || 200, // 🚨 แก้จาก h เป็น height
-            weight: Number(boxData.weight) || 10,  // ดึงน้ำหนักจริงจากกล่อง (ถ้ามี)
+            width: Number(boxData.width) || 300,
+            length: Number(boxData.length) || 400,
+            height: Number(boxData.height) || 200,
+            weight: Number(boxData.weight) || 10,
             itemCap: group.boxCap || 0,
             packedQty: totalItemsInThisBox || 0,
-            boundPalletId: boxData.boundPalletId || null // ผูกรหัสพาเลทจาก Master Data
+
+            // 🌟 จุดเปลี่ยน: ถ้ามีการเลือกพาเลทเอง ให้บังคับใช้พาเลทนั้นเลย 
+            // ถ้าไม่เลือก ก็ให้ไปใช้ค่าที่ผูกไว้ (หรือ null ให้ระบบคิดเอง)
+            boundPalletId: selectedPallet ? selectedPallet : (boxData.boundPalletId || null)
           });
         });
       });
 
-      // 🌟 เปลี่ยนมาใช้ NODE_API_URL แทนการ Hardcode
+      // ยิงข้อมูลไป API
       const response = await axios.post(`${NODE_API_URL}/api/pallet/calculate`, {
-        boxesToPack: boxesToPack
+        boxesToPack: boxesToPack,
+        forcePallet: selectedPallet !== '' // 🌟 (Option) ส่ง Flag ไปบอกหลังบ้านด้วยว่า "ฉันบังคับใช้นะ ห้ามเถียง!"
       });
 
       if (response.data.success) {
         setPallet3DResult(response.data);
         setActivePalletTab(0);
-        toast.success(`คำนวณสำเร็จ! ระบบจัดสรรพาเลทที่เหมาะสมที่สุดให้รวม ${response.data.totalPalletsUsed} ใบ`, { id: toastId });
+        toast.success(`คำนวณสำเร็จ! จัดเรียงลงพาเลทรหัส ${selectedPallet || 'Auto'} เรียบร้อย`, { id: toastId });
       } else {
         toast.error('ล้มเหลว: ' + response.data.message, { id: toastId });
       }
     } catch (error) {
       toast.error('ระบบขัดข้อง: ' + (error.response?.data?.message || error.message), { id: toastId });
     } finally {
-      // ย้ายการปิด Loading มาไว้ใน finally เพื่อให้มันปิดเสมอไม่ว่าจะ Error หรือไม่
       setIsCalculating3D(false);
     }
   };
@@ -662,18 +661,35 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden text-gray-800 border border-gray-200">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 border-b border-gray-200 gap-4">
                 <h3 className="text-xl font-bold text-[#0066CC] flex items-center gap-2">
-                   {t('planner.summary_title')}
+                  {t('planner.summary_title')}
                 </h3>
 
-                <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+
+                  {/* 🌟 1. เพิ่ม Dropdown สำหรับเลือกพาเลทแบบ Manual ตรงนี้ */}
+                  <select
+                    value={selectedPallet}
+                    onChange={(e) => setSelectedPallet(e.target.value)}
+                    className="flex-1 sm:flex-none border border-gray-300 text-gray-700 bg-white rounded-lg py-2 px-3 font-bold text-sm shadow-sm outline-none focus:border-[#0066CC] transition-colors"
+                  >
+                    <option value="">✨ (Auto) ให้ระบบหาพาเลทที่ดีที่สุด</option>
+                    {palletsList.map(p => (
+                      <option key={p.palletId} value={p.palletId}>
+                        🪵 บังคับใช้: {p.palletId} ({p.width}x{p.length}x{p.maxHeight || 0})
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* 2. ปุ่มจำลองพาเลทเดิม */}
                   <button onClick={handleCalculate3DPallet} disabled={isCalculating3D} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
                     {isCalculating3D ? 'กำลังคำนวณ...' : '🔮 จำลองพาเลท 3D'}
                   </button>
+
                   <button onClick={handleExportPlanToExcel} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
                     <span>📊</span> Export
                   </button>
                   <button onClick={() => setShowSummaryModal(true)} className="flex-1 sm:flex-none bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
-                     {t('planner.btn_view_print')}
+                    {t('planner.btn_view_print')}
                   </button>
                 </div>
               </div>
@@ -1066,5 +1082,5 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         </div>
       )}
     </div>
-  );
+    );
 }
