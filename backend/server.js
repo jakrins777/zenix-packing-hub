@@ -84,13 +84,13 @@ app.get('/', (req, res) => {
 // ==========================================================================
 
 
-// 🔮 API คำนวณพาเลท 3D (รองรับระบบผูกพาเลท และแก้กล่องลอย)
+
+
 // 🔮 API คำนวณพาเลท 3D (รองรับระบบผูกพาเลท และแก้กล่องลอย)
 app.post('/api/pallet/calculate', async (req, res) => {
   try {
     const { boxesToPack } = req.body;
 
-    // 1. ดักจับข้อมูลว่าง
     if (!boxesToPack || !Array.isArray(boxesToPack) || boxesToPack.length === 0) {
       return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลกล่องที่จะแพ็ค' });
     }
@@ -100,7 +100,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลสเปกพาเลทในระบบ' });
     }
 
-    // 🌟 2. สมุดจดความจุและพาเลทผูก ป้องกันไลบรารี 3D ลบข้อมูลทิ้ง
     const boxExtraData = {};
     boxesToPack.forEach(b => {
       boxExtraData[b.name] = {
@@ -112,18 +111,17 @@ app.post('/api/pallet/calculate', async (req, res) => {
 
     let boxesRemaining = [...boxesToPack];
 
-    // 3. ปูพื้นพาเลท: เรียงจากฐานใหญ่ไปเล็ก
+    // 🚨 แก้จุดที่ 1: ดักจับทั้ง width และ w ป้องกันค่า NaN ตอนเรียงลำดับ
     boxesRemaining.sort((a, b) => {
-      const baseAreaA = a.w * a.l;
-      const baseAreaB = b.w * b.l;
-      if (baseAreaB !== baseAreaA) return baseAreaB - baseAreaA;
-      return b.h - a.h;
+      const areaA = (a.width || a.w || 0) * (a.length || a.l || 0);
+      const areaB = (b.width || b.w || 0) * (b.length || b.l || 0);
+      if (areaB !== areaA) return areaB - areaA;
+      return (b.height || b.h || 0) - (a.height || a.h || 0);
     });
 
     let palletsResult = [];
     let palletIndex = 1;
 
-    // 4. เริ่มจัดกล่องลงพาเลท
     while (boxesRemaining.length > 0) {
       let bestPalletCandidate = null;
       let maxPackedCount = -1;
@@ -132,7 +130,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
       const targetBox = boxesRemaining[0];
       let candidatePallets = allPalletsList;
 
-      // 🌟 4.1 ถ้ากล่องโดนผูกพาเลทไว้ ให้กรองหาแค่พาเลทนั้น
       if (targetBox.boundPalletId) {
         candidatePallets = allPalletsList.filter(p => p.palletId === targetBox.boundPalletId);
         if (candidatePallets.length === 0) {
@@ -140,7 +137,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
         }
       }
 
-      // 🌟 4.2 คัดเฉพาะกล่องที่ไม่ได้ผูก หรือผูกพาเลทเดียวกัน มาแพ็คด้วยกัน
       const boxesToTry = boxesRemaining.filter(b =>
         !b.boundPalletId || b.boundPalletId === targetBox.boundPalletId
       );
@@ -155,7 +151,12 @@ app.post('/api/pallet/calculate', async (req, res) => {
         testPacker.addBin(testBin);
 
         boxesToTry.forEach(box => {
-          let dims = [box.w, box.l, box.h].sort((a, b) => a - b);
+          // 🚨 แก้จุดที่ 2: ดึงค่า width, length, height มาใช้ให้ถูกต้อง
+          const bW = box.width || box.w || 0;
+          const bL = box.length || box.l || 0;
+          const bH = box.height || box.h || 0;
+
+          let dims = [bW, bL, bH].sort((a, b) => a - b);
           let finalW, finalL, finalH;
 
           const boxIsChair = box.name.toUpperCase().includes('CHAIR') || box.name.includes('เก้าอี้');
@@ -170,15 +171,13 @@ app.post('/api/pallet/calculate', async (req, res) => {
             finalH = dims[0];
           }
 
-          const item = new Item(box.name, finalW, finalH, finalL, box.weight);
+          const item = new Item(box.name, finalW, finalH, finalL, box.weight || 0);
           item.allowedRotations = [0, 3];
           testPacker.addItem(item);
         });
 
-        // 🚨🚨🚨 พระเอกมาแล้ว: สั่งให้ไลบรารีลั่นไกคำนวณแพ็ค 🚨🚨🚨
         testPacker.pack();
 
-        // พอ pack() แล้ว testBin.items ถึงจะมีข้อมูลกล่องที่วางสำเร็จโผล่มาครับ
         const packedCount = testBin.items.length;
         const palletVolume = pallet.width * pallet.length * pallet.maxHeight;
 
@@ -207,7 +206,12 @@ app.post('/api/pallet/calculate', async (req, res) => {
       realPacker.addBin(realBin);
 
       boxesToTry.forEach(box => {
-        let dims = [box.w, box.l, box.h].sort((a, b) => a - b);
+        // 🚨 แก้จุดที่ 3: ดึงค่า width, length, height มาใช้ในรอบแพ็คจริง
+        const bW = box.width || box.w || 0;
+        const bL = box.length || box.l || 0;
+        const bH = box.height || box.h || 0;
+
+        let dims = [bW, bL, bH].sort((a, b) => a - b);
         let finalW, finalL, finalH;
 
         const boxIsChair = box.name.toUpperCase().includes('CHAIR') || box.name.includes('เก้าอี้');
@@ -222,18 +226,15 @@ app.post('/api/pallet/calculate', async (req, res) => {
           finalH = dims[0];
         }
 
-        const item = new Item(box.name, finalW, finalH, finalL, box.weight);
+        const item = new Item(box.name, finalW, finalH, finalL, box.weight || 0);
         item.allowedRotations = [0, 3];
         realPacker.addItem(item);
       });
 
-      // 🚨🚨🚨 ลั่นไกแพ็คจริงรอบสุดท้าย 🚨🚨🚨
       realPacker.pack();
 
-      
       // 6. แปลงผลลัพธ์และแก้ปัญหากล่องทะลุ/กล่องลอย
       const packedBoxes = realBin.items.map(packedItem => {
-        // 🚨 ดึงค่าจาก bp3d (ต้องดักเผื่อใช้ w,h,d หรือ width,height,depth)
         const baseW = packedItem.w !== undefined ? packedItem.w : (packedItem.width || 0);
         const baseH = packedItem.h !== undefined ? packedItem.h : (packedItem.height || 0);
         const baseD = packedItem.d !== undefined ? packedItem.d : (packedItem.depth || 0);
@@ -242,7 +243,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
         let rH = baseH;
         let rL = baseD;
 
-        // สลับแกนมิติตามการหมุนกล่อง
         switch (packedItem.rotationType) {
           case 1: rW = baseH; rH = baseW; rL = baseD; break;
           case 2: rW = baseH; rH = baseD; rL = baseW; break;
@@ -252,7 +252,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
           default: break;
         }
 
-        // 🚨 ดักพิกัด X, Y, Z ป้องกันค่า undefined
         const posX = (packedItem.position && packedItem.position[0] !== undefined) ? packedItem.position[0] : 0;
         const posY = (packedItem.position && packedItem.position[1] !== undefined) ? packedItem.position[1] : 0;
         const posZ = (packedItem.position && packedItem.position[2] !== undefined) ? packedItem.position[2] : 0;
@@ -267,7 +266,6 @@ app.post('/api/pallet/calculate', async (req, res) => {
         };
       });
 
-      // 🌟 Gravity Drop (ดึงกล่องลงพื้น)
       packedBoxes.sort((a, b) => a.position.y - b.position.y);
       for (let i = 0; i < packedBoxes.length; i++) {
         let currentBox = packedBoxes[i];
