@@ -275,7 +275,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       });
 
       // ยิงข้อมูลไป API
-      const response = await axios.post(`${NODE_API_URL}/api/pallet/calculate`, {
+      const response = await api.post(`${NODE_API_URL}/api/pallet/calculate`, {
         boxesToPack: boxesToPack,
         forcePallet: selectedPallet !== '' // 🌟 (Option) ส่ง Flag ไปบอกหลังบ้านด้วยว่า "ฉันบังคับใช้นะ ห้ามเถียง!"
       });
