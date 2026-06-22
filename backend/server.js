@@ -172,7 +172,23 @@ app.post('/api/pallet/calculate', async (req, res) => {
           }
 
           const item = new Item(box.name, finalW, finalH, finalL, box.weight || 0);
-          item.allowedRotations = [0, 3];
+          let currentRotation = 0;
+          Object.defineProperty(item, 'rotationType', {
+            get: function () {
+              return currentRotation;
+            },
+            set: function (val) {
+              // 0 = หน้าตรงปกติตามที่เราใส่ (W, H, L)
+              // 3 = หมุนสลับแนวนอน 90 องศา (L, H, W)
+              // 1, 2, 4, 5 = ท่าพิสดารจับกล่องตั้งหรือตะแคง
+
+              if (val === 1 || val === 2 || val === 4 || val === 5) {
+                currentRotation = 0; // 🛑 ถ้าระบบสั่งตั้ง บังคับให้กลับมาเป็นหน้าตรงเสมอ!
+              } else {
+                currentRotation = val; // ✅ ยอมให้ใช้ 0 กับ 3 ได้ตามปกติ
+              }
+            }
+          });
           testPacker.addItem(item);
         });
 
@@ -227,7 +243,22 @@ app.post('/api/pallet/calculate', async (req, res) => {
         }
 
         const item = new Item(box.name, finalW, finalH, finalL, box.weight || 0);
-        item.allowedRotations = [0, 3];
+        let currentRotation = 0;
+        Object.defineProperty(item, 'rotationType', {
+          get: function () {
+            return currentRotation;
+          },
+          set: function (val) {
+         
+
+            if (val === 1 || val === 2 || val === 4 || val === 5) {
+              currentRotation = 0;
+            } else {
+              currentRotation = val; 
+          }
+          }
+        }
+        );
         realPacker.addItem(item);
       });
 
