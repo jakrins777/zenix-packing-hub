@@ -3,22 +3,22 @@ import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Edges, Html } from '@react-three/drei';
 
-// 📦 คอมโพเนนต์สำหรับวาดกล่องแต่ละใบ (ปรับเป็นสีน้ำตาลกล่องลัง)
-const PackedBox = ({ position, dimensions, boxId }) => {
+// 📦 คอมโพเนนต์สำหรับวาดกล่องแต่ละใบ (รับ prop เป็น box ทั้งก้อน)
+const PackedBox = ({ box }) => {
     const [hovered, setHovered] = useState(false);
 
-    const w = dimensions.width / 1000;
-    const l = dimensions.length / 1000;
-    const h = dimensions.height / 1000;
+    const w = box.dimensions.width / 1000;
+    const l = box.dimensions.length / 1000;
+    const h = box.dimensions.height / 1000;
 
-    const x = position.x / 1000 + w / 2;
-    const y = position.y / 1000 + h / 2;
-    const z = position.z / 1000 + l / 2;
+    const x = box.position.x / 1000 + w / 2;
+    const y = box.position.y / 1000 + h / 2;
+    const z = box.position.z / 1000 + l / 2;
 
     // 🪵 กำหนดโทนสีน้ำตาลกล่องกระดาษคราฟท์ (Cardboard Brown)
-    const baseBoxColor = '#8B5A2B';       // สีน้ำตาลกล่องลังปกติ
-    const highlightBoxColor = '#A27246';  // สีน้ำตาลสว่างขึ้นเล็กน้อยเวลาเมาส์ชี้ (Hover)
-    const edgeColor = '#5C3A21';          // เส้นขอบกล่องสีน้ำตาลเข้ม เพิ่มความคมชัด
+    const baseBoxColor = '#8B5A2B';
+    const highlightBoxColor = '#A27246';
+    const edgeColor = '#5C3A21';
 
     return (
         <mesh
@@ -30,17 +30,29 @@ const PackedBox = ({ position, dimensions, boxId }) => {
             onPointerOut={() => setHovered(false)}
         >
             <boxGeometry args={[w, h, l]} />
-            {/* ใช้สีน้ำตาลตามสถานะการ Hover */}
             <meshStandardMaterial color={hovered ? highlightBoxColor : baseBoxColor} roughness={0.4} opacity={0.95} transparent />
             <Edges linewidth={hovered ? 2 : 1} threshold={15} color={hovered ? "#2D190B" : edgeColor} />
 
-            {/* 🌟 ป้าย Tooltip ปรับปรุงใหม่ แสดง "ชื่อกล่อง" ชัดเจน */}
+            {/* 🌟 ป้าย Tooltip แบบจัดเต็ม แสดงข้อมูลสินค้าและยอดแพ็ค */}
             {hovered && (
                 <Html position={[0, h / 2 + 0.05, 0]} center zIndexRange={[100, 0]}>
-                    <div className="bg-slate-900/95 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap pointer-events-none border border-amber-600/40 font-bold backdrop-blur-sm">
-                        <span className="text-amber-400">📦 ชื่อกล่อง:</span> {boxId}
-                        <div className="text-[10px] text-slate-300 font-normal mt-1 border-t border-slate-700 pt-1">
-                            📐 ขนาด: {dimensions.width} x {dimensions.height} x {dimensions.length} มม.
+                    <div className="bg-slate-900/95 text-white text-xs px-4 py-3 rounded-xl shadow-2xl whitespace-nowrap pointer-events-none border border-amber-600/50 backdrop-blur-md transition-all">
+                        <div className="text-amber-400 font-black text-sm mb-2 border-b border-slate-700 pb-2">
+                            📦 {box.boxId}
+                        </div>
+                        <div className="space-y-1.5 text-[11px] text-slate-300 font-medium">
+                            <div className="flex justify-between gap-6">
+                                <span className="text-slate-400">📐 ขนาด:</span>
+                                <span>{box.dimensions.width} x {box.dimensions.length} x {box.dimensions.height} มม.</span>
+                            </div>
+                            <div className="flex justify-between gap-6">
+                                <span className="text-slate-400">🛒 บรรจุ:</span>
+                                <span className="text-emerald-400 font-bold text-xs">{box.packedQty || 0} / {box.itemCap || 0} ชิ้น</span>
+                            </div>
+                            <div className="flex justify-between gap-6">
+                                <span className="text-slate-400">⚖️ น้ำหนักรวม:</span>
+                                <span>{box.weight || 0} kg</span>
+                            </div>
                         </div>
                     </div>
                 </Html>
@@ -76,16 +88,16 @@ export default function Pallet3DViewer({ palletData }) {
                 <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
                 <pointLight position={[-5, 5, -5]} intensity={0.4} />
 
-                {/* 🪵 ฐานพาเลท ปรับเป็นสีไม้ธรรมชาติโทนอ่อนกว่าตัวกล่อง (Burlywood) */}
+                {/* 🪵 ฐานพาเลท */}
                 <mesh position={[pWidth / 2, -pBaseThickness / 2, pLength / 2]}>
                     <boxGeometry args={[pWidth, pBaseThickness, pLength]} />
                     <meshStandardMaterial color="#DEB887" roughness={0.6} />
-                    <Edges linewidth={1.5} color="#A0845C" /> {/* เส้นขอบพาเลทสีไม้เข้มขรึม */}
+                    <Edges linewidth={1.5} color="#A0845C" />
                 </mesh>
 
-                {/* 📦 กล่องสินค้าสีน้ำตาลล้วน */}
+                {/* 📦 กล่องสินค้าสีน้ำตาล (ส่ง prop box เข้าไปทั้งก้อน) */}
                 {packedBoxes.map((box, index) => (
-                    <PackedBox key={box.boxId || index} position={box.position} dimensions={box.dimensions} boxId={box.boxId} />
+                    <PackedBox key={box.boxId || index} box={box} />
                 ))}
 
                 {/* เส้นตารางพื้น */}
