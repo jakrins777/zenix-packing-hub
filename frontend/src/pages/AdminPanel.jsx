@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from 'react'; // 🌟 เพิ่ม useEffect
-import axios from 'axios'; // 🌟 เพิ่ม axios สำหรับดึงข้อมูลพาเลท
+import api from '../utils/axiosConfig';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import BoxCodenameUpdater from './BoxCodenameUpdater';
@@ -37,7 +37,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   useEffect(() => {
     const fetchPalletsForDropdown = async () => {
       try {
-        const response = await axios.get('https://zenix-packing-hub.onrender.com/api/pallets');
+        const response = await api.get('https://zenix-packing-hub.onrender.com/api/pallets');
         if (response.data && Array.isArray(response.data)) {
           setPalletsList(response.data);
         } else if (response.data && response.data.pallets) {
