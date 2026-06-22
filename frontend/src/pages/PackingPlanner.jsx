@@ -107,10 +107,14 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       const boxesPerUnit = Number(dbItem.boxesPerUnit || 1);
       const itemName = dbItem.itemName || itemCode;
 
+      
       let boxCap = 1;
-      if (dbItem.stdPackQty && Number(dbItem.stdPackQty) > 0) {
+
+      if (dbItem.stdPackQty && Number(dbItem.stdPackQty) > 1) {
         boxCap = Number(dbItem.stdPackQty);
-      } else if (foundBox.maxCapacity && Number(foundBox.maxCapacity) > 0) {
+      }
+     
+      else if (foundBox.maxCapacity && Number(foundBox.maxCapacity) > 0) {
         boxCap = Number(foundBox.maxCapacity);
       }
 
@@ -271,7 +275,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       });
 
       // ยิงข้อมูลไป API
-      const response = await axios.post(`${NODE_API_URL}/api/pallet/calculate`, {
+      const response = await axios.post(`${NODE_API_URL}/api/pallets/calculate`, {
         boxesToPack: boxesToPack,
         forcePallet: selectedPallet !== '' // 🌟 (Option) ส่ง Flag ไปบอกหลังบ้านด้วยว่า "ฉันบังคับใช้นะ ห้ามเถียง!"
       });
