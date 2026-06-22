@@ -21,6 +21,25 @@ BigInt.prototype.toJSON = function () {
 app.use(cors());
 app.use(express.json());
 
+// ฟังก์ชันด่านตรวจ (Middleware)
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  // ตัดคำว่า Bearer ออก เอาแค่ตัวกุญแจ
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' });
+  }
+
+  // เอากุญแจมาตรวจสอบกับรหัสลับของเรา
+  jwt.verify(token, process.env.JWT_SECRET, (err, decodedUser) => {
+    if (err) {
+      return res.status(403).json({ success: false, message: 'Token หมดอายุ หรือไม่ถูกต้อง' });
+    }
+    req.user = decodedUser; // ฝังข้อมูล User ไว้ใช้ต่อใน API
+    next(); // ปล่อยให้ผ่านไปใช้งาน API ได้!
+  });
+};
 // ==========================================================================
 // 🧠 SMART SIZE PARSER FUNCTIONS (ฟังก์ชันสกัดขนาดอัจฉริยะ)
 // ==========================================================================
@@ -794,25 +813,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// ฟังก์ชันด่านตรวจ (Middleware)
-const verifyToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  // ตัดคำว่า Bearer ออก เอาแค่ตัวกุญแจ
-  const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' });
-  }
-
-  // เอากุญแจมาตรวจสอบกับรหัสลับของเรา
-  jwt.verify(token, process.env.JWT_SECRET, (err, decodedUser) => {
-    if (err) {
-      return res.status(403).json({ success: false, message: 'Token หมดอายุ หรือไม่ถูกต้อง' });
-    }
-    req.user = decodedUser; // ฝังข้อมูล User ไว้ใช้ต่อใน API
-    next(); // ปล่อยให้ผ่านไปใช้งาน API ได้!
-  });
-};
 // ==========================================================================
 // 📝 TRANSACTION LOGS & REPORTS (ประวัติการทำงานและออกรายงาน)
 // ==========================================================================
