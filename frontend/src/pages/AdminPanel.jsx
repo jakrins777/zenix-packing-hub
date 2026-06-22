@@ -37,7 +37,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   useEffect(() => {
     const fetchPalletsForDropdown = async () => {
       try {
-        const response = await axios.get('https://zenix-packing-hub.onrender.com/api/pallet');
+        const response = await axios.get('https://zenix-packing-hub.onrender.com/api/pallets');
         if (response.data && Array.isArray(response.data)) {
           setPalletsList(response.data);
         } else if (response.data && response.data.pallets) {
