@@ -230,26 +230,38 @@ app.post('/api/pallet/calculate', async (req, res) => {
       // 🚨🚨🚨 ลั่นไกแพ็คจริงรอบสุดท้าย 🚨🚨🚨
       realPacker.pack();
 
+      
       // 6. แปลงผลลัพธ์และแก้ปัญหากล่องทะลุ/กล่องลอย
       const packedBoxes = realBin.items.map(packedItem => {
-        let rW = packedItem.width;
-        let rH = packedItem.height;
-        let rL = packedItem.depth;
+        // 🚨 ดึงค่าจาก bp3d (ต้องดักเผื่อใช้ w,h,d หรือ width,height,depth)
+        const baseW = packedItem.w !== undefined ? packedItem.w : (packedItem.width || 0);
+        const baseH = packedItem.h !== undefined ? packedItem.h : (packedItem.height || 0);
+        const baseD = packedItem.d !== undefined ? packedItem.d : (packedItem.depth || 0);
 
+        let rW = baseW;
+        let rH = baseH;
+        let rL = baseD;
+
+        // สลับแกนมิติตามการหมุนกล่อง
         switch (packedItem.rotationType) {
-          case 1: rW = packedItem.height; rH = packedItem.width; rL = packedItem.depth; break;
-          case 2: rW = packedItem.height; rH = packedItem.depth; rL = packedItem.width; break;
-          case 3: rW = packedItem.depth; rH = packedItem.height; rL = packedItem.width; break;
-          case 4: rW = packedItem.depth; rH = packedItem.width; rL = packedItem.height; break;
-          case 5: rW = packedItem.width; rH = packedItem.depth; rL = packedItem.height; break;
+          case 1: rW = baseH; rH = baseW; rL = baseD; break;
+          case 2: rW = baseH; rH = baseD; rL = baseW; break;
+          case 3: rW = baseD; rH = baseH; rL = baseW; break;
+          case 4: rW = baseD; rH = baseW; rL = baseH; break;
+          case 5: rW = baseW; rH = baseD; rL = baseH; break;
           default: break;
         }
 
+        // 🚨 ดักพิกัด X, Y, Z ป้องกันค่า undefined
+        const posX = (packedItem.position && packedItem.position[0] !== undefined) ? packedItem.position[0] : 0;
+        const posY = (packedItem.position && packedItem.position[1] !== undefined) ? packedItem.position[1] : 0;
+        const posZ = (packedItem.position && packedItem.position[2] !== undefined) ? packedItem.position[2] : 0;
+
         return {
           boxId: packedItem.name,
-          position: { x: packedItem.position[0], y: packedItem.position[1], z: packedItem.position[2] },
+          position: { x: posX, y: posY, z: posZ },
           dimensions: { width: rW, length: rL, height: rH },
-          weight: packedItem.weight,
+          weight: packedItem.weight || 0,
           itemCap: boxExtraData[packedItem.name]?.itemCap || 0,
           packedQty: boxExtraData[packedItem.name]?.packedQty || 0
         };
