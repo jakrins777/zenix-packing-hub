@@ -371,6 +371,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     try { const { error } = await supabase.from('users').delete().eq('id', id); if (!error) { toast.success(t('toast.delete_user_success'), { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(t('toast.delete_error_msg') + error.message, { id: toastId }); } } catch (err) { toast.error(t('toast.delete_error'), { id: toastId }); }
   };
 
+  // 🌟 ฟังก์ชันที่ 1: อัปโหลดข้อมูล Item
   const handleFileUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -378,14 +379,17 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
     const toastId = toast.loading(t('toast.importing_item'));
     try {
-      
-      const res = await api.post('/api/items/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' } // จำเป็นสำหรับการส่งไฟล์
+      // 🌟 เล็งเป้าไปที่ Render โดยตรง
+      const res = await api.post(`${NODE_API_URL}/api/items/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('zenix_token')}` // กันเหนียว
+        }
       });
       const data = res.data;
       if (data.success) {
         toast.success(data.message, { id: toastId });
-        if (fetchAdminData) fetchAdminData(); // สมมติว่ามีฟังก์ชันรีเฟรชข้อมูล
+        if (refreshAdminData) refreshAdminData();
       } else {
         toast.error(data.message, { id: toastId });
       }
@@ -395,6 +399,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     e.target.value = null;
   };
 
+  // 🌟 ฟังก์ชันที่ 2: อัปโหลดข้อมูล Box
   const handleBoxFileUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -402,14 +407,17 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
     const toastId = toast.loading(t('toast.importing_box'));
     try {
-      // 🌟 เปลี่ยนจาก fetch มาใช้ api.post
-      const res = await api.post('/api/boxes/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      // 🌟 เล็งเป้าไปที่ Render โดยตรง
+      const res = await api.post(`${NODE_API_URL}/api/boxes/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('zenix_token')}` // กันเหนียว
+        }
       });
       const data = res.data;
       if (data.success) {
         toast.success(data.message, { id: toastId });
-        if (fetchAdminData) fetchAdminData();
+        if (refreshAdminData) refreshAdminData();
       } else {
         toast.error(data.message, { id: toastId });
       }
