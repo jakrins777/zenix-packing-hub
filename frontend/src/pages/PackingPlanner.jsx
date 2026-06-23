@@ -299,16 +299,24 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
     // --- 1. เตรียมข้อมูล Sheet: Packing Plan (รายละเอียดการแพ็ครายกล่อง) ---
     const exportData = [];
+
+    // 🌟 ตัวแปรความจำ: เอาไว้เช็กว่าบรรทัดก่อนหน้าคือ PCK และ Box อะไร
+    let currentPck = null;
+    let currentBoxStr = null;
+
     boxSummary.forEach((group) => {
       const boxName = group.boxCodename || group.boxType;
       const pckNo = group.boxType;
 
       group.boxesBreakdown.forEach((box) => {
+        const boxString = `Box #${box.boxNo}`;
+
         if (box.items.length === 0) {
           exportData.push({
-            'PCK No.': pckNo,
-            'Box Type (ชนิดกล่อง)': boxName,
-            'Box No (ใบที่)': `Box #${box.boxNo}`,
+            // 🌟 เช็กว่าถ้าซ้ำกับบรรทัดที่แล้ว ให้ใส่ค่าว่าง ('') 
+            'PCK No.': pckNo === currentPck ? '' : pckNo,
+            'Box Type (ชนิดกล่อง)': pckNo === currentPck ? '' : boxName,
+            'Box No (ใบที่)': (boxString === currentBoxStr && pckNo === currentPck) ? '' : boxString,
             'Item Code': 'EMPTY BOX (กล่องเปล่า)',
             'Item Name': '-',
             'Qty (ชิ้น)': 0,
@@ -316,12 +324,18 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             'PO Number': '-',
             'Lot/PO': '-'
           });
+
+          // 🌟 อัปเดตความจำ
+          currentPck = pckNo;
+          currentBoxStr = boxString;
+
         } else {
           box.items.forEach((item) => {
             exportData.push({
-              'PCK No.': pckNo,
-              'Box Type (ชนิดกล่อง)': boxName,
-              'Box No (ใบที่)': `Box #${box.boxNo}`,
+              // 🌟 เช็กว่าถ้าซ้ำกับบรรทัดที่แล้ว ให้ใส่ค่าว่าง ('') 
+              'PCK No.': pckNo === currentPck ? '' : pckNo,
+              'Box Type (ชนิดกล่อง)': pckNo === currentPck ? '' : boxName,
+              'Box No (ใบที่)': (boxString === currentBoxStr && pckNo === currentPck) ? '' : boxString,
               'Item Code': item.itemCode,
               'Item Name': item.itemName || '-',
               'Qty (ชิ้น)': item.qty,
@@ -329,6 +343,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
               'PO Number': item.poNumber !== t('planner.no_po') ? item.poNumber : '-',
               'Lot/PO': item.lotNo || '-'
             });
+
+            // 🌟 อัปเดตความจำ
+            currentPck = pckNo;
+            currentBoxStr = boxString;
           });
         }
       });
@@ -353,7 +371,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       'Total Boxes (รวมจำนวนกล่อง/ใบ)': item.total
     }));
 
-    // --- 🌟 3. เตรียมข้อมูล Sheet ใหม่: Pivot Summary (ตารางวิเคราะห์ สินค้า x ชนิดกล่อง) ---
+    // --- 3. เตรียมข้อมูล Sheet ใหม่: Pivot Summary (ตารางวิเคราะห์ สินค้า x ชนิดกล่อง) ---
     const uniqueItems = {};       // เก็บรายชื่อสินค้า { itemCode: itemName }
     const uniqueBoxTypes = new Set(); // เก็บรายชื่อชนิดกล่องเพื่อทำเป็นหัวคอลัมน์ด้านบน
     const matrix = {};            // สมุดจดสองมิติ { itemCode: { boxType: totalQty } }
@@ -412,7 +430,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const wsSummary = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(workbook, wsSummary, "Box Summary");
 
-    // แท็บที่ 2: ตาราง Pivot Summary วิเคราะห์ข้อมูลสินค้าปะทะกล่อง (ฟีเจอร์ใหม่!)
+    // แท็บที่ 2: ตาราง Pivot Summary วิเคราะห์ข้อมูลสินค้าปะทะกล่อง
     const wsPivot = XLSX.utils.json_to_sheet(pivotData);
     XLSX.utils.book_append_sheet(workbook, wsPivot, "Pivot Summary");
 

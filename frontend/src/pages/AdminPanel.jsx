@@ -271,14 +271,18 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         item.stdPackQty || 1
       ].join(','))
     ];
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = "\uFEFF" + csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `Template_Items_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url); 
+
     toast.success(t('toast.export_item_success'));
   };
 
@@ -307,14 +311,18 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       ].join(','))
     ];
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join('\n');
-    const encodedUri = encodeURI(csvContent);
+   
+    const csvContent = "\uFEFF" + csvRows.join('\n'); // \uFEFF บังคับให้ Excel อ่านภาษาไทยได้
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `Selected_Items_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url); // เคลียร์หน่วยความจำหลังโหลดเสร็จ
 
     toast.success(`ดาวน์โหลด ${selectedData.length} รายการสำเร็จ!`);
   };
