@@ -372,17 +372,51 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   };
 
   const handleFileUpload = async (e) => {
-    const files = e.target.files; if (!files || files.length === 0) return;
-    const formData = new FormData(); for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
     const toastId = toast.loading(t('toast.importing_item'));
-    try { const res = await fetch('/api/items/upload', { method: 'POST', body: formData }); const data = await res.json(); if (data.success) { toast.success(data.message, { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(data.message, { id: toastId }); } } catch (err) { toast.error(t('toast.import_error'), { id: toastId }); } e.target.value = null;
+    try {
+      
+      const res = await api.post('/api/items/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' } // จำเป็นสำหรับการส่งไฟล์
+      });
+      const data = res.data;
+      if (data.success) {
+        toast.success(data.message, { id: toastId });
+        if (fetchAdminData) fetchAdminData(); // สมมติว่ามีฟังก์ชันรีเฟรชข้อมูล
+      } else {
+        toast.error(data.message, { id: toastId });
+      }
+    } catch (err) {
+      toast.error(t('toast.import_error'), { id: toastId });
+    }
+    e.target.value = null;
   };
 
   const handleBoxFileUpload = async (e) => {
-    const files = e.target.files; if (!files || files.length === 0) return;
-    const formData = new FormData(); for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
     const toastId = toast.loading(t('toast.importing_box'));
-    try { const res = await fetch('/api/boxes/upload', { method: 'POST', body: formData }); const data = await res.json(); if (data.success) { toast.success(data.message, { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(data.message, { id: toastId }); } } catch (err) { toast.error(t('toast.import_error'), { id: toastId }); } e.target.value = null;
+    try {
+      // 🌟 เปลี่ยนจาก fetch มาใช้ api.post
+      const res = await api.post('/api/boxes/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const data = res.data;
+      if (data.success) {
+        toast.success(data.message, { id: toastId });
+        if (fetchAdminData) fetchAdminData();
+      } else {
+        toast.error(data.message, { id: toastId });
+      }
+    } catch (err) {
+      toast.error(t('toast.import_error'), { id: toastId });
+    }
+    e.target.value = null;
   };
 
   // ================= Filters & Sorting =================
