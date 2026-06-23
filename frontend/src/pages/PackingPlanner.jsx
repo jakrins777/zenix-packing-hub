@@ -24,8 +24,33 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const [pallet3DResult, setPallet3DResult] = useState(null);
   const [isCalculating3D, setIsCalculating3D] = useState(false);
 
-  // 🌟 State สำหรับสลับหน้าต่างดูพาเลทใบต่างๆ
   const [activePalletTab, setActivePalletTab] = useState(0);
+
+  const [stocksList, setStocksList] = useState([]); // 🌟 สต๊อกสินค้าทั้งหมดในคลัง
+
+  useEffect(() => {
+    const fetchStocksAndPallets = async () => {
+      try {
+        // 1. ดึงข้อมูลสต๊อกที่ยังมีของอยู่ และเรียงตามวันที่รับเข้าจากเก่าไปใหม่ (FIFO)
+        const { data: stockData, error: stockError } = await supabase
+          .from('item_stocks')
+          .select('*')
+          .gt('qtyOnHand', 0)
+          .order('receiveDate', { ascending: true }); // เก่าสุดขึ้นก่อนเสมอนะครับ
+
+        if (stockError) throw stockError;
+        if (stockData) setStocksList(stockData);
+
+        // 2. ดึงข้อมูลพาเลท (โค้ดเดิมของพี่)
+        const { data: palletData, error: palletError } = await supabase.from('Pallet').select('*');
+        if (palletError) throw palletError;
+        if (palletData) setPalletsList(palletData);
+      } catch (error) {
+        console.error("โหลดข้อมูลตั้งต้นไม่สำเร็จ:", error.message);
+      }
+    };
+    fetchStocksAndPallets();
+  }, []);
 
   useEffect(() => {
     const fetchPallets = async () => {
@@ -50,188 +75,146 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const NO_ORDER = t('planner.no_order');
     const NO_PO = t('planner.no_po');
 
+    // คัดลอกข้อมูลสต๊อกจำลองเอาไว้หักยอดในลูป (ไม่กระทบของจริงใน DB จนกว่าจะกด Save)
+    let virtualStocks = [...stocksList];
+
     rows.forEach((row, index) => {
       if (index === 0 && /(item|qty|จำนวน|รหัส|po|order|line|lot)/i.test(row)) return;
 
       let parts = row.trim().split(/[\t ]+/).filter(Boolean);
       if (parts.length < 2) return;
 
-      let orderNo = NO_ORDER;
-      let poNumber = NO_PO;
-      let lineNo = '-';
       let itemCode = '';
-      let lotNo = '';
-      let qty = 0;
+      let totalRequestedQty = 0;
 
+      // ค้นหารหัสสินค้าในแถวข้อมูล
       const itemIndex = parts.findIndex(p => items.some(i => i.itemId === p.toUpperCase().trim()));
-
       if (itemIndex === -1) {
-        errorList.push({ id: index, orderNo, poNumber, itemCode: parts[0], lotNo, qty: 0, error: t('planner.err_item_not_found') });
+        errorList.push({ id: index, orderNo: NO_ORDER, poNumber: NO_PO, itemCode: parts[0], lotNo: '-', qty: 0, error: t('planner.err_item_not_found') });
         return;
       }
-
       itemCode = parts[itemIndex].toUpperCase().trim();
 
-      let qtyIndex = -1;
-      if (itemIndex < parts.length - 1 && !isNaN(parts[itemIndex + 1]) && Number(parts[itemIndex + 1]) > 0) {
-        qtyIndex = itemIndex + 1;
-      } else if (itemIndex > 0 && !isNaN(parts[itemIndex - 1]) && Number(parts[itemIndex - 1]) > 0) {
-        qtyIndex = itemIndex - 1;
-      } else {
-        qtyIndex = parts.findLastIndex((p, idx) => idx !== itemIndex && !isNaN(p) && Number(p) > 0);
-      }
-
+      // ค้นหาจำนวนสินค้าในแถวข้อมูล
+      let qtyIndex = parts.findIndex((p, idx) => idx !== itemIndex && !isNaN(p) && Number(p) > 0);
       if (qtyIndex !== -1) {
-        qty = parseInt(parts[qtyIndex], 10);
+        totalRequestedQty = parseInt(parts[qtyIndex], 10);
       } else {
-        errorList.push({ id: index, orderNo, poNumber, itemCode, lotNo, qty: 0, error: 'ไม่พบจำนวน (Qty)' });
+        errorList.push({ id: index, orderNo: NO_ORDER, poNumber: NO_PO, itemCode, lotNo: '-', qty: 0, error: 'ไม่พบจำนวนที่ต้องการ' });
         return;
       }
 
-      const indicesToRemove = [itemIndex, qtyIndex].sort((a, b) => b - a);
-      indicesToRemove.forEach(idx => parts.splice(idx, 1));
-
-      if (parts.length > 0) poNumber = parts[0].toUpperCase().trim();
-      if (parts.length > 1) orderNo = parts[1].toUpperCase().trim();
-      if (parts.length > 2) lineNo = parts[2].toUpperCase().trim();
-      if (parts.length > 3) lotNo = parts[3].toUpperCase().trim();
-
+      // ดึงสเปกกล่องมาตรฐานของสินค้านั้นๆ ออกมาเตรียมไว้
       const dbItem = items.find(i => i.itemId === itemCode);
       const foundBox = boxes.find(b => b.pckId === dbItem.defaultPckId);
-
       if (!foundBox) {
-        errorList.push({ id: index, orderNo, poNumber, itemCode, lotNo, qty, itemName: dbItem.itemName, error: t('planner.err_no_box_linked') });
+        errorList.push({ id: index, orderNo: NO_ORDER, poNumber: NO_PO, itemCode, lotNo: '-', qty: totalRequestedQty, itemName: dbItem.itemName, error: t('planner.err_no_box_linked') });
         return;
       }
 
       const boxesPerUnit = Number(dbItem.boxesPerUnit || 1);
       const itemName = dbItem.itemName || itemCode;
+      let boxCap = dbItem.stdPackQty && Number(dbItem.stdPackQty) > 1 ? Number(dbItem.stdPackQty) : (Number(foundBox.maxCapacity) || 1);
 
-      
-      let boxCap = 1;
+      // 🌟 ไฮไลท์: อัลกอริทึมจัดการจับคู่สินค้ากับคลังสต๊อกตามหลัก FIFO
+      // ดึงล็อตทั้งหมดที่มีของสินค้ารหัสนี้ออกมารอจัดสรร
+      let availableLots = virtualStocks.filter(s => s.itemId === itemCode && s.qtyOnHand > 0);
 
-      if (dbItem.stdPackQty && Number(dbItem.stdPackQty) > 1) {
-        boxCap = Number(dbItem.stdPackQty);
-      }
-     
-      else if (foundBox.maxCapacity && Number(foundBox.maxCapacity) > 0) {
-        boxCap = Number(foundBox.maxCapacity);
-      }
+      // คำนวณยอดรวมที่มีอยู่ในคลังสต๊อกทั้งหมด ณ ขณะนั้น
+      let totalStockAvailable = availableLots.reduce((sum, s) => sum + s.qtyOnHand, 0);
 
-      let groupKey = '';
-      if (packingMode === 'consolidate') {
-        groupKey = 'ALL_MIXED';
-      } else if (packingMode === 'strict-item') {
-        groupKey = lotNo ? `${itemCode}_${lotNo}` : itemCode;
-      } else {
-        groupKey = `${orderNo}_${poNumber}_${lineNo}_${itemCode}${lotNo ? `_${lotNo}` : ''}`;
+      if (totalStockAvailable < totalRequestedQty) {
+        errorList.push({ id: index, orderNo: NO_ORDER, poNumber: NO_PO, itemCode, lotNo: '-', qty: totalRequestedQty, error: `❌ สต๊อกไม่พอ (ต้องการ ${totalRequestedQty} แต่ในคลังเหลือรวมทุกล็อตแค่ ${totalStockAvailable})` });
+        return;
       }
 
-      const cardGroupKey = packingMode === 'consolidate' ? foundBox.pckId : `${foundBox.pckId}_CAP${boxCap}`;
+      let remainingToAllocate = totalRequestedQty;
 
-      if (boxesPerUnit > 1) {
-        const totalSplitBoxes = qty * boxesPerUnit;
-        for (let splitIdx = 0; splitIdx < totalSplitBoxes; splitIdx++) {
-          const partSeq = (splitIdx % boxesPerUnit) + 1;
-          validItemsList.push({
-            id: Number(`${index}.${splitIdx}`),
-            orderNo, poNumber, lineNo, itemCode,
-            itemName: `${itemName} (Part ${partSeq}/${boxesPerUnit})`,
-            customer: dbItem.supplier || '',
-            qty: 1 / boxesPerUnit,
-            boxType: foundBox.pckId,
-            boxDesc: foundBox.description,
-            boxCodename: foundBox.codename || foundBox.description,
-            boxCap: 1,
-            groupKey: `${groupKey}_PART${splitIdx}`,
-            cardGroupKey,
-            lotNo,
-            isSpecialSplit: true,
-            itemWeight: Number(dbItem.itemWeight || 0) / boxesPerUnit,
-            totalWeight: Number(dbItem.itemWeight || 0) / boxesPerUnit
-          });
-        }
-      } else {
+      // วนลูปหักยอดจากล็อตที่เก่าที่สุดลงมาเรื่อยๆ (FIFO)
+      for (let stockLot of availableLots) {
+        if (remainingToAllocate <= 0) break;
+
+        // คำนวณจำนวนที่จะดึงมาจากล็อตนี้
+        let allocatedFromThisLot = Math.min(remainingToAllocate, stockLot.qtyOnHand);
+
+        // บันทึกการหักยอดจำลองไว้ในตัวแปรชั่วคราว
+        stockLot.qtyOnHand -= allocatedFromThisLot;
+        remainingToAllocate -= allocatedFromThisLot;
+
+        // ดันรายการนี้เข้าสู่แผนการจัดกล่อง 3D
+        let groupKey = packingMode === 'consolidate' ? 'ALL_MIXED' : itemCode;
+        const cardGroupKey = packingMode === 'consolidate' ? foundBox.pckId : `${foundBox.pckId}_CAP${boxCap}`;
+
         validItemsList.push({
-          id: index, orderNo, poNumber, lineNo, itemCode, itemName: itemName, customer: dbItem.supplier || '', qty,
-          boxType: foundBox.pckId, boxDesc: foundBox.description, boxCodename: foundBox.codename || foundBox.description, boxCap, groupKey, cardGroupKey,
-          lotNo,
-          itemWeight: Number(dbItem.itemWeight || 0), totalWeight: qty * Number(dbItem.itemWeight || 0)
+          id: Number(`${index}.${stockLot.id}`), // ป้องกัน ID ซ้ำกรณีสปลิตล็อต
+          orderNo: NO_ORDER, poNumber: NO_PO, lineNo: '-', itemCode, itemName, customer: dbItem.supplier || '',
+          qty: allocatedFromThisLot,
+          boxType: foundBox.pckId, boxDesc: foundBox.description, boxCodename: foundBox.codename || foundBox.description,
+          boxCap, groupKey, cardGroupKey,
+          lotNo: stockLot.lotNo, // 🌟 ดึงข้อมูลล็อตจากฐานข้อมูลโดยตรง
+          itemWeight: Number(dbItem.itemWeight || 0), totalWeight: allocatedFromThisLot * Number(dbItem.itemWeight || 0),
+          stockRecordId: stockLot.id // บันทึก ID สต๊อกไว้ใช้ตัดจริงตอนกดบันทึกแผนงาน
         });
       }
     });
 
+    // โค้ดส่วนสร้างภาพสรุปกล่อง จัดกลุ่มแสดงผล (ยึดตามเวอร์ชันล่าสุดที่เราแก้รวมล้อตกันได้เลยครับ)
     const boxTypesObj = {};
     validItemsList.forEach(item => {
       if (!boxTypesObj[item.cardGroupKey]) {
-        boxTypesObj[item.cardGroupKey] = {
-          cardGroupKey: item.cardGroupKey, boxType: item.boxType, boxDesc: item.boxDesc,
-          boxCodename: item.boxCodename, boxCap: item.boxCap, totalQty: 0, items: []
-        };
+        boxTypesObj[item.cardGroupKey] = { cardGroupKey: item.cardGroupKey, boxType: item.boxType, boxDesc: item.boxDesc, boxCodename: item.boxCodename, boxCap: item.boxCap, totalQty: 0, items: [] };
       }
-      boxTypesObj[item.cardGroupKey].totalQty += item.isSpecialSplit ? (item.qty * item.boxesPerUnit) : item.qty;
+      boxTypesObj[item.cardGroupKey].totalQty += item.qty;
       boxTypesObj[item.cardGroupKey].items.push(item);
     });
 
     const summaryArray = Object.values(boxTypesObj).map(boxGroup => {
-      boxGroup.items.sort((a, b) => a.groupKey.localeCompare(b.groupKey));
+      // จัดการเรียงคิวตามลำดับล้อต (จากล็อตเก่าไปล้อตใหม่)
+      boxGroup.items.sort((a, b) => {
+        const groupCompare = a.groupKey.localeCompare(b.groupKey);
+        if (groupCompare !== 0) return groupCompare;
+        return String(a.lotNo || '').localeCompare(String(b.lotNo || ''));
+      });
 
-      let currentBoxIndex = 1;
-      let currentBoxUsedSpace = 0;
-      let currentGroupKey = null;
+      let currentBoxIndex = 1; let currentBoxUsedSpace = 0; let currentGroupKey = null;
       let boxesBreakdown = [{ boxNo: 1, items: [], spaceLeftPct: 100, spaceLeft: boxGroup.boxCap }];
 
       boxGroup.items.forEach(item => {
-        let remainingQty = item.qty;
-        let spacePerPiece = 1 / item.boxCap;
-
+        let remainingQty = item.qty; let spacePerPiece = 1 / item.boxCap;
         while (remainingQty > 0) {
-          if ((packingMode !== 'consolidate' && currentBoxUsedSpace > 0 && currentGroupKey !== item.groupKey) ||
-            (item.isSpecialSplit && currentBoxUsedSpace > 0)) {
-            currentBoxIndex++;
-            currentBoxUsedSpace = 0;
+          if (packingMode !== 'consolidate' && currentBoxUsedSpace > 0 && currentGroupKey !== item.groupKey) {
+            currentBoxIndex++; currentBoxUsedSpace = 0;
             boxesBreakdown.push({ boxNo: currentBoxIndex, items: [], spaceLeftPct: 100, spaceLeft: item.boxCap });
           }
-
-          currentGroupKey = item.groupKey;
-          let availableSpace = 1 - currentBoxUsedSpace;
-
+          currentGroupKey = item.groupKey; let availableSpace = 1 - currentBoxUsedSpace;
           if (availableSpace < 0.0001) {
-            currentBoxIndex++;
-            currentBoxUsedSpace = 0;
-            availableSpace = 1;
+            currentBoxIndex++; currentBoxUsedSpace = 0; availableSpace = 1;
             boxesBreakdown.push({ boxNo: currentBoxIndex, items: [], spaceLeftPct: 100, spaceLeft: item.boxCap });
           }
-
           let fitQty = Math.floor(availableSpace / spacePerPiece + 0.0001);
-
           if (fitQty === 0) {
-            currentBoxIndex++;
-            currentBoxUsedSpace = 0;
-            availableSpace = 1;
+            currentBoxIndex++; currentBoxUsedSpace = 0; availableSpace = 1;
             boxesBreakdown.push({ boxNo: currentBoxIndex, items: [], spaceLeftPct: 100, spaceLeft: item.boxCap });
             fitQty = Math.floor(availableSpace / spacePerPiece + 0.0001);
           }
-
           let takeQty = Math.min(remainingQty, fitQty);
 
-          boxesBreakdown[currentBoxIndex - 1].items.push({
-            orderNo: item.orderNo, poNumber: item.poNumber, lineNo: item.lineNo,
-            itemCode: item.itemCode, itemName: item.itemName,
-            qty: item.isSpecialSplit ? 1 : takeQty,
-            cap: item.boxCap, lotNo: item.lotNo, isSpecialSplit: item.isSpecialSplit
-          });
+          const currentBoxItems = boxesBreakdown[currentBoxIndex - 1].items;
+          const existingItem = currentBoxItems.find(i => i.itemCode === item.itemCode && (i.lotNo || '') === (item.lotNo || ''));
 
-          remainingQty -= takeQty;
-          currentBoxUsedSpace += (takeQty * spacePerPiece);
-
-          boxesBreakdown[currentBoxIndex - 1].spaceLeftPct = Math.max(0, Math.round((1 - currentBoxUsedSpace) * 100));
-          if (packingMode !== 'consolidate') {
-            boxesBreakdown[currentBoxIndex - 1].spaceLeft = Math.round((1 - currentBoxUsedSpace) / spacePerPiece);
+          if (existingItem) {
+            existingItem.qty += takeQty;
+          } else {
+            currentBoxItems.push({
+              orderNo: item.orderNo, poNumber: item.poNumber, lineNo: item.lineNo,
+              itemCode: item.itemCode, itemName: item.itemName, qty: takeQty, cap: item.boxCap, lotNo: item.lotNo,
+              stockRecordId: item.stockRecordId // บันทึกสิทธิ์เพื่อใช้เชื่อมโยงกับข้อมูลคลังสต๊อกหลัก
+            });
           }
+          remainingQty -= takeQty; currentBoxUsedSpace += (takeQty * spacePerPiece);
+          boxesBreakdown[currentBoxIndex - 1].spaceLeftPct = Math.max(0, Math.round((1 - currentBoxUsedSpace) * 100));
         }
       });
-
       return { ...boxGroup, totalBoxes: currentBoxIndex, boxesBreakdown };
     });
 
@@ -266,18 +249,14 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             weight: Number(boxData.weight) || 10,
             itemCap: group.boxCap || 0,
             packedQty: totalItemsInThisBox || 0,
-
-            // 🌟 จุดเปลี่ยน: ถ้ามีการเลือกพาเลทเอง ให้บังคับใช้พาเลทนั้นเลย 
-            // ถ้าไม่เลือก ก็ให้ไปใช้ค่าที่ผูกไว้ (หรือ null ให้ระบบคิดเอง)
             boundPalletId: selectedPallet ? selectedPallet : (boxData.boundPalletId || null)
           });
         });
       });
 
-      // ยิงข้อมูลไป API
       const response = await api.post(`${NODE_API_URL}/api/pallet/calculate`, {
         boxesToPack: boxesToPack,
-        forcePallet: selectedPallet !== '' // 🌟 (Option) ส่ง Flag ไปบอกหลังบ้านด้วยว่า "ฉันบังคับใช้นะ ห้ามเถียง!"
+        forcePallet: selectedPallet !== ''
       });
 
       if (response.data.success) {
@@ -297,60 +276,37 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const handleExportPlanToExcel = () => {
     if (!boxSummary || boxSummary.length === 0) return toast.error('ไม่มีข้อมูลแผนการแพ็คสำหรับ Export');
 
-    // --- 1. เตรียมข้อมูล Sheet: Packing Plan (รายละเอียดการแพ็ครายกล่อง) ---
     const exportData = [];
-
-    // 🌟 ตัวแปรความจำ: เอาไว้เช็กว่าบรรทัดก่อนหน้าคือ PCK อะไร
     let currentPck = null;
 
     boxSummary.forEach((group) => {
       const boxName = group.boxCodename || group.boxType;
       const pckNo = group.boxType;
 
-      // 🌟 ไฮไลท์หลัก: ถ้ารหัส PCK เปลี่ยนไปจากเดิม (และไม่ใช่ข้อมูลกลุ่มแรกสุด) ให้แทรกบรรทัดว่าง
       if (currentPck !== null && currentPck !== pckNo) {
         exportData.push({
-          'PCK No.': '',
-          'Box Type (ชนิดกล่อง)': '',
-          'Box No (ใบที่)': '',
-          'Item Code': '',
-          'Item Name': '',
-          'Qty (ชิ้น)': '',
-          'Order No': '',
-          'PO Number': '',
-          'Lot/PO': ''
+          'PCK No.': '', 'Box Type (ชนิดกล่อง)': '', 'Box No (ใบที่)': '',
+          'Item Code': '', 'Item Name': '', 'Qty (ชิ้น)': '',
+          'Order No': '', 'PO Number': '', 'Lot/PO': ''
         });
       }
 
-      // อัปเดตความจำว่าตอนนี้กำลังทำ PCK อะไรอยู่
       currentPck = pckNo;
 
       group.boxesBreakdown.forEach((box) => {
         const boxString = `Box #${box.boxNo}`;
 
         if (box.items.length === 0) {
-          // ใส่ข้อมูลเต็มตามปกติ ไม่ต้องซ่อนคำแล้ว
           exportData.push({
-            'PCK No.': pckNo,
-            'Box Type (ชนิดกล่อง)': boxName,
-            'Box No (ใบที่)': boxString,
-            'Item Code': 'EMPTY BOX (กล่องเปล่า)',
-            'Item Name': '-',
-            'Qty (ชิ้น)': 0,
-            'Order No': '-',
-            'PO Number': '-',
-            'Lot/PO': '-'
+            'PCK No.': pckNo, 'Box Type (ชนิดกล่อง)': boxName, 'Box No (ใบที่)': boxString,
+            'Item Code': 'EMPTY BOX (กล่องเปล่า)', 'Item Name': '-', 'Qty (ชิ้น)': 0,
+            'Order No': '-', 'PO Number': '-', 'Lot/PO': '-'
           });
         } else {
           box.items.forEach((item) => {
-            // ใส่ข้อมูลเต็มตามปกติ ไม่ต้องซ่อนคำแล้ว
             exportData.push({
-              'PCK No.': pckNo,
-              'Box Type (ชนิดกล่อง)': boxName,
-              'Box No (ใบที่)': boxString,
-              'Item Code': item.itemCode,
-              'Item Name': item.itemName || '-',
-              'Qty (ชิ้น)': item.qty,
+              'PCK No.': pckNo, 'Box Type (ชนิดกล่อง)': boxName, 'Box No (ใบที่)': boxString,
+              'Item Code': item.itemCode, 'Item Name': item.itemName || '-', 'Qty (ชิ้น)': item.qty,
               'Order No': item.orderNo !== t('planner.no_order') ? item.orderNo : '-',
               'PO Number': item.poNumber !== t('planner.no_po') ? item.poNumber : '-',
               'Lot/PO': item.lotNo || '-'
@@ -360,26 +316,18 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       });
     });
 
-    // --- 2. เตรียมข้อมูล Sheet: Box Summary (สรุปยอดเบิกกล่องรวม) ---
     const summaryMap = {};
     boxSummary.forEach(group => {
       if (!summaryMap[group.boxType]) {
-        summaryMap[group.boxType] = {
-          pckNo: group.boxType,
-          boxName: group.boxCodename || group.boxType,
-          total: 0
-        };
+        summaryMap[group.boxType] = { pckNo: group.boxType, boxName: group.boxCodename || group.boxType, total: 0 };
       }
       summaryMap[group.boxType].total += group.totalBoxes;
     });
 
     const summaryData = Object.values(summaryMap).map(item => ({
-      'PCK No.': item.pckNo,
-      'Box Type (ชนิดกล่อง)': item.boxName,
-      'Total Boxes (รวมจำนวนกล่อง/ใบ)': item.total
+      'PCK No.': item.pckNo, 'Box Type (ชนิดกล่อง)': item.boxName, 'Total Boxes (รวมจำนวนกล่อง/ใบ)': item.total
     }));
 
-    // --- 3. เตรียมข้อมูล Sheet ใหม่: Pivot Summary (ตารางวิเคราะห์ สินค้า x ชนิดกล่อง) ---
     const uniqueItems = {};
     const uniqueBoxTypes = new Set();
     const matrix = {};
@@ -390,16 +338,9 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
       group.boxesBreakdown.forEach((box) => {
         box.items.forEach((item) => {
-          if (!uniqueItems[item.itemCode]) {
-            uniqueItems[item.itemCode] = item.itemName || '-';
-          }
-
-          if (!matrix[item.itemCode]) {
-            matrix[item.itemCode] = {};
-          }
-          if (!matrix[item.itemCode][boxHeaderName]) {
-            matrix[item.itemCode][boxHeaderName] = 0;
-          }
+          if (!uniqueItems[item.itemCode]) uniqueItems[item.itemCode] = item.itemName || '-';
+          if (!matrix[item.itemCode]) matrix[item.itemCode] = {};
+          if (!matrix[item.itemCode][boxHeaderName]) matrix[item.itemCode][boxHeaderName] = 0;
           matrix[item.itemCode][boxHeaderName] += item.qty;
         });
       });
@@ -409,31 +350,22 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const boxHeadersArray = Array.from(uniqueBoxTypes);
 
     Object.entries(uniqueItems).forEach(([itemCode, itemName]) => {
-      const row = {
-        'Item Code (รหัสสินค้า)': itemCode,
-        'Item Name (ชื่อสินค้า)': itemName
-      };
-
+      const row = { 'Item Code (รหัสสินค้า)': itemCode, 'Item Name (ชื่อสินค้า)': itemName };
       let totalRowQty = 0;
       boxHeadersArray.forEach((boxName) => {
         const packedQty = matrix[itemCode]?.[boxName] || 0;
         row[boxName] = packedQty;
         totalRowQty += packedQty;
       });
-
       row['Grand Total (รวมจำนวนทั้งสิ้น)'] = totalRowQty;
       pivotData.push(row);
     });
 
-    // --- 4. ประกอบร่างสร้างมัลติแผ่นงาน (Multi-Sheet Workbook) ---
     const workbook = XLSX.utils.book_new();
-
     const wsSummary = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(workbook, wsSummary, "Box Summary");
-
     const wsPivot = XLSX.utils.json_to_sheet(pivotData);
     XLSX.utils.book_append_sheet(workbook, wsPivot, "Pivot Summary");
-
     const wsPlan = XLSX.utils.json_to_sheet(exportData);
     XLSX.utils.book_append_sheet(workbook, wsPlan, "Packing Plan");
 
@@ -541,38 +473,57 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     if (validItems.length === 0) return toast.error(t('planner.err_no_valid_data'));
 
     const totalBoxesUsed = boxSummary.reduce((sum, box) => sum + (box.totalBoxes || 0), 0);
-    const toastId = toast.loading(t('planner.saving_report'));
+    const toastId = toast.loading('กำลังบันทึกแผนงานและทำการตัดสต๊อกรายล็อตแบบ FIFO...');
 
     try {
+      // 1. บันทึกรายงานใบหลักลงในตาราง Report
       const { error: reportError } = await supabase.from('Report').insert([{
         operator: currentUser?.firstName || t('common.unspecified_user'),
         totalOrders: validItems.length,
         totalBoxes: totalBoxesUsed,
         data: validItems
       }]);
-
       if (reportError) throw reportError;
 
-      const packingLogsPayload = validItems.map(item => {
-        const boxesUsedForThisItem = Number((item.qty / (item.boxCap || 1)).toFixed(2));
-        return {
-          userId: currentUser.id,
-          itemId: item.itemCode,
-          packQty: Number(item.qty),
-          boxUsed: boxesUsedForThisItem,
-          totalWeight: Number((item.totalWeight || 0).toFixed(3))
-        };
-      });
-
+      // 2. บันทึกประวัติ Log การทำแพ็คกิ้งลงในตาราง packing_logs
+      const packingLogsPayload = validItems.map(item => ({
+        userId: currentUser.id,
+        itemId: item.itemCode,
+        lotNo: item.lotNo || null,
+        packQty: Number(item.qty),
+        boxUsed: Number((item.qty / (item.boxCap || 1)).toFixed(2)),
+        totalWeight: Number((item.totalWeight || 0).toFixed(3))
+      }));
       const { error: logsError } = await supabase.from('packing_logs').insert(packingLogsPayload);
       if (logsError) throw logsError;
 
+      // 🌟 3. อัปเดตข้อมูลจำนวนคงคลังในคลังสต๊อก (ตัดยอดสต๊อกรายล็อตจริง)
+      for (let item of validItems) {
+        if (item.stockRecordId) {
+          // ดึงจำนวนสต๊อกล็อตนี้ล่าสุดจากระบบขึ้นมาดูอีกครั้งป้องกันสิทธิ์ชนกัน
+          const { data: currentStockRow } = await supabase
+            .from('item_stocks')
+            .select('qtyOnHand')
+            .eq('id', item.stockRecordId)
+            .single();
+
+          if (currentStockRow) {
+            const newQty = Math.max(0, currentStockRow.qtyOnHand - item.qty);
+            // เขียนคำสั่งอัปเดตจำนวนคงเหลือใหม่ทับลงไป
+            await supabase
+              .from('item_stocks')
+              .update({ qtyOnHand: newQty })
+              .eq('id', item.stockRecordId);
+          }
+        }
+      }
+
+      // 4. หักสต๊อกกล่องกระดาษพัสดุ (โค้ดส่วนของเดิมของพี่)
       const stockDeductions = {};
       boxSummary.forEach(sum => {
         if (!stockDeductions[sum.boxType]) stockDeductions[sum.boxType] = 0;
         stockDeductions[sum.boxType] += sum.totalBoxes;
       });
-
       for (const [pckId, totalUsed] of Object.entries(stockDeductions)) {
         const boxToUpdate = boxes.find(b => b.pckId === pckId);
         if (boxToUpdate) {
@@ -581,15 +532,19 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         }
       }
 
-      toast.success(t('planner.save_success'), { id: toastId });
-      setCalcResults([]);
-      setBoxSummary([]);
-      setBulkText('');
-      setPallet3DResult(null);
+      toast.success('🎉 บันทึกรายงานแผนการแพ็คสินค้าและดำเนินการหักสต๊อกตามระบบ FIFO เรียบร้อยครับพี่!', { id: toastId });
+      setCalcResults([]); setBoxSummary([]); setBulkText(''); setPallet3DResult(null);
 
-      fetchReportsData();
-      fetchLogsData();
-      fetchAdminData();
+      // รีเฟรชข้อมูลกลับมาแสดงบนหน้าจอใหม่
+      fetchReportsData(); fetchLogsData(); fetchAdminData();
+
+      // สั่งดึงข้อมูลคลังสต๊อกสินค้าล็อตใหม่หลังจากตัดสต๊อกเสร็จแล้ว
+      const { data: updatedStocks } = await supabase
+        .from('item_stocks')
+        .select('*')
+        .gt('qtyOnHand', 0)
+        .order('receiveDate', { ascending: true });
+      if (updatedStocks) setStocksList(updatedStocks);
 
     } catch (error) {
       toast.error(t('planner.save_error') + error.message, { id: toastId });
@@ -615,7 +570,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const NO_ORDER = t('planner.no_order');
   const NO_PO = t('planner.no_po');
 
-  // 🌟 ดึงข้อมูลพาเลทที่กำลังเลือกเปิดแท็บดูโมเดลอยู่มาส่งให้ตัว Viewer
   const activePalletData = pallet3DResult && pallet3DResult.pallets && pallet3DResult.pallets[activePalletTab]
     ? { success: true, ...pallet3DResult.pallets[activePalletTab] }
     : null;
@@ -665,7 +619,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
           <div className="flex gap-4">
             <button onClick={handleBulkCalculate} className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-4 rounded-xl shadow-md transition-all transform active:scale-95 text-lg">
-               {t('planner.btn_calculate')}
+              {t('planner.btn_calculate')}
             </button>
             <button onClick={() => { setBulkText(''); setCalcResults([]); setBoxSummary([]); setPallet3DResult(null); toast(t('planner.clear_success'), { icon: '🧹' }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 font-bold py-4 px-8 rounded-xl transition-all">
               {t('common.clear')}
@@ -685,8 +639,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 </h3>
 
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-
-                  {/* 🌟 1. เพิ่ม Dropdown สำหรับเลือกพาเลทแบบ Manual ตรงนี้ */}
                   <select
                     value={selectedPallet}
                     onChange={(e) => setSelectedPallet(e.target.value)}
@@ -700,7 +652,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                     ))}
                   </select>
 
-                  {/* 2. ปุ่มจำลองพาเลทเดิม */}
                   <button onClick={handleCalculate3DPallet} disabled={isCalculating3D} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
                     {isCalculating3D ? 'กำลังคำนวณ...' : '🔮 จำลองพาเลท 3D'}
                   </button>
@@ -714,11 +665,8 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 </div>
               </div>
 
-              {/* 🌟 โซนแสดงผลลัพธ์ 3D แบบ Multi-Pallet Dynamic */}
               {pallet3DResult && pallet3DResult.pallets && (
                 <div className="p-6 bg-slate-50 border-b border-gray-200">
-
-                  {/* ปุ่มสลับแท็บเลือกส่องพาเลทแต่ละใบ */}
                   <div className="flex flex-wrap gap-2 mb-4">
                     {pallet3DResult.pallets.map((p, idx) => (
                       <button
@@ -726,7 +674,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                         onClick={() => setActivePalletTab(idx)}
                         className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${activePalletTab === idx ? 'bg-[#0066CC] text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                       >
-                         ใบที่ {p.palletNo} ({p.palletSpecification.palletId})
+                        ใบที่ {p.palletNo} ({p.palletSpecification.palletId})
                       </button>
                     ))}
                   </div>
@@ -759,7 +707,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                 </div>
               )}
 
-              {/* ส่วนตารางสรุปเดิม ... */}
               <div className="p-6">
                 <div className="mb-4 text-sm font-bold text-gray-500 flex items-center gap-2">{t('planner.quick_summary')}</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -835,7 +782,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                 {b.items.map((item, i) => (
                                   <div key={i} className="flex flex-col text-xs bg-gray-50 p-2 rounded border-l-2 border-[#0066CC]">
                                     <div className="flex justify-between items-start">
-                                      <span className="font-bold text-gray-800">{item.itemCode}</span>
+                                      <div className="flex items-center flex-wrap gap-2">
+                                        <span className="font-bold text-gray-800">{item.itemCode}</span>
+                                        {/* 🌟 ป้าย Badge โชว์เลข Lot หน้าการ์ดแพ็คของ */}
+                                        {item.lotNo && item.lotNo !== '-' && (
+                                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold font-mono">
+                                            Lot: {item.lotNo}
+                                          </span>
+                                        )}
+                                      </div>
                                       <div className="flex items-center gap-2">
                                         <span className="font-bold text-emerald-600 min-w-max">{item.qty} {t('planner.unit_piece')}</span>
                                         {packingMode === 'consolidate' && <span className="text-gray-400 text-[9px] ml-1">{t('planner.spec_cap', { cap: item.cap })}</span>}
@@ -844,10 +799,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                         )}
                                       </div>
                                     </div>
-
-                                    {item.lotNo && (
-                                      <div className="text-[10px] text-gray-500 font-mono mt-1">{t('planner.lot_po')} <span className="text-gray-800">{item.lotNo}</span></div>
-                                    )}
 
                                     {(item.poNumber !== NO_PO || item.orderNo !== NO_ORDER) && (
                                       <div className="text-[10px] text-gray-500 mt-1 leading-tight bg-white p-1 rounded border border-gray-200">
@@ -872,7 +823,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             </div>
           )}
 
-          {/* ตารางสินค้าคงเดิม ... */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
             <div className="bg-gray-50 p-4 border-b border-gray-200 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-gray-800">
               <span className="flex items-center gap-2">
@@ -930,7 +880,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         </div>
       )}
 
-      {/* Modals ต่างๆ โค้ดเดิมคงไว้ 100% ... */}
       {moveConfig && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-2xl p-6 shadow-2xl w-full max-w-sm border border-gray-200 text-gray-800">
@@ -1057,7 +1006,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                           {b.items.map((item, i) => (
                             <li key={i} className="flex flex-col text-sm text-gray-800 print:text-black mb-2 bg-gray-50 print:bg-transparent p-2 print:p-0 rounded border-l-2 border-[#0066CC] print:border-none">
                               <div className="flex justify-between items-start">
-                                <span className="font-bold pr-2">{item.itemCode}</span>
+                                <div className="flex items-center flex-wrap gap-2">
+                                  <span className="font-bold pr-2">{item.itemCode}</span>
+                                  {/* 🌟 ป้าย Badge โชว์เลข Lot สำหรับตอนปรินท์ */}
+                                  {item.lotNo && item.lotNo !== '-' && (
+                                    <span className="text-[10px] text-gray-600 font-mono bg-gray-100 border border-gray-300 print:bg-transparent print:border-gray-400 px-1.5 py-0.5 rounded">
+                                      Lot: {item.lotNo}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-right">
                                   <span className="font-black text-emerald-600 print:text-black text-base">{item.qty} <span className="text-xs font-normal">{t('planner.unit_piece')}</span></span>
                                   {packingMode === 'consolidate' && <div className="text-gray-500 print:text-gray-600 text-[10px]">{t('planner.spec_cap', { cap: item.cap })}</div>}
@@ -1065,12 +1022,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                               </div>
 
                               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                                {item.lotNo && (
-                                  <div className="text-[10px] text-gray-500 print:text-gray-600 font-mono bg-white border border-gray-200 print:border-none print:bg-transparent px-1.5 py-0.5 rounded">
-                                    {t('planner.lot_po')} <span className="text-gray-800 print:text-black">{item.lotNo}</span>
-                                  </div>
-                                )}
-
                                 {(item.poNumber !== NO_PO || item.orderNo !== NO_ORDER) && (
                                   <span className="text-[10px] text-gray-500 print:text-gray-600 bg-white border border-gray-200 print:border-none print:bg-transparent px-1.5 py-0.5 rounded leading-tight flex items-center gap-1">
                                     {item.orderNo !== NO_ORDER ? <span className="text-gray-800 print:text-black">{item.orderNo}</span> : ''}
@@ -1102,5 +1053,5 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         </div>
       )}
     </div>
-    );
+  );
 }
