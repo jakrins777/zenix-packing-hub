@@ -394,7 +394,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         toast.error(data.message, { id: toastId });
       }
     } catch (err) {
-      toast.error(t('toast.import_error'), { id: toastId });
+      // 🌟 สั่งให้มันปริ้นท์ความจริงออกมาใน Console
+      console.error("🔥 สาเหตุที่พัง:", err);
+
+      // ให้ Toast โชว์ข้อความ Error ของจริงออกมาเลย
+      toast.error('พังเพราะ: ' + (err.response?.data?.message || err.message), { id: toastId });
     }
     e.target.value = null;
   };
@@ -422,7 +426,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         toast.error(data.message, { id: toastId });
       }
     } catch (err) {
-      toast.error(t('toast.import_error'), { id: toastId });
+      // 🌟 สั่งให้มันปริ้นท์ความจริงออกมาใน Console
+      console.error("🔥 สาเหตุที่พัง:", err);
+
+      // ให้ Toast โชว์ข้อความ Error ของจริงออกมาเลย
+      toast.error('พังเพราะ: ' + (err.response?.data?.message || err.message), { id: toastId });
     }
     e.target.value = null;
   };
