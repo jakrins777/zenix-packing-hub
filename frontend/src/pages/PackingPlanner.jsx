@@ -300,23 +300,40 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     // --- 1. เตรียมข้อมูล Sheet: Packing Plan (รายละเอียดการแพ็ครายกล่อง) ---
     const exportData = [];
 
-    // 🌟 ตัวแปรความจำ: เอาไว้เช็กว่าบรรทัดก่อนหน้าคือ PCK และ Box อะไร
+    // 🌟 ตัวแปรความจำ: เอาไว้เช็กว่าบรรทัดก่อนหน้าคือ PCK อะไร
     let currentPck = null;
-    let currentBoxStr = null;
 
     boxSummary.forEach((group) => {
       const boxName = group.boxCodename || group.boxType;
       const pckNo = group.boxType;
 
+      // 🌟 ไฮไลท์หลัก: ถ้ารหัส PCK เปลี่ยนไปจากเดิม (และไม่ใช่ข้อมูลกลุ่มแรกสุด) ให้แทรกบรรทัดว่าง
+      if (currentPck !== null && currentPck !== pckNo) {
+        exportData.push({
+          'PCK No.': '',
+          'Box Type (ชนิดกล่อง)': '',
+          'Box No (ใบที่)': '',
+          'Item Code': '',
+          'Item Name': '',
+          'Qty (ชิ้น)': '',
+          'Order No': '',
+          'PO Number': '',
+          'Lot/PO': ''
+        });
+      }
+
+      // อัปเดตความจำว่าตอนนี้กำลังทำ PCK อะไรอยู่
+      currentPck = pckNo;
+
       group.boxesBreakdown.forEach((box) => {
         const boxString = `Box #${box.boxNo}`;
 
         if (box.items.length === 0) {
+          // ใส่ข้อมูลเต็มตามปกติ ไม่ต้องซ่อนคำแล้ว
           exportData.push({
-            // 🌟 เช็กว่าถ้าซ้ำกับบรรทัดที่แล้ว ให้ใส่ค่าว่าง ('') 
-            'PCK No.': pckNo === currentPck ? '' : pckNo,
-            'Box Type (ชนิดกล่อง)': pckNo === currentPck ? '' : boxName,
-            'Box No (ใบที่)': (boxString === currentBoxStr && pckNo === currentPck) ? '' : boxString,
+            'PCK No.': pckNo,
+            'Box Type (ชนิดกล่อง)': boxName,
+            'Box No (ใบที่)': boxString,
             'Item Code': 'EMPTY BOX (กล่องเปล่า)',
             'Item Name': '-',
             'Qty (ชิ้น)': 0,
@@ -324,18 +341,13 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             'PO Number': '-',
             'Lot/PO': '-'
           });
-
-          // 🌟 อัปเดตความจำ
-          currentPck = pckNo;
-          currentBoxStr = boxString;
-
         } else {
           box.items.forEach((item) => {
+            // ใส่ข้อมูลเต็มตามปกติ ไม่ต้องซ่อนคำแล้ว
             exportData.push({
-              // 🌟 เช็กว่าถ้าซ้ำกับบรรทัดที่แล้ว ให้ใส่ค่าว่าง ('') 
-              'PCK No.': pckNo === currentPck ? '' : pckNo,
-              'Box Type (ชนิดกล่อง)': pckNo === currentPck ? '' : boxName,
-              'Box No (ใบที่)': (boxString === currentBoxStr && pckNo === currentPck) ? '' : boxString,
+              'PCK No.': pckNo,
+              'Box Type (ชนิดกล่อง)': boxName,
+              'Box No (ใบที่)': boxString,
               'Item Code': item.itemCode,
               'Item Name': item.itemName || '-',
               'Qty (ชิ้น)': item.qty,
@@ -343,10 +355,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
               'PO Number': item.poNumber !== t('planner.no_po') ? item.poNumber : '-',
               'Lot/PO': item.lotNo || '-'
             });
-
-            // 🌟 อัปเดตความจำ
-            currentPck = pckNo;
-            currentBoxStr = boxString;
           });
         }
       });
@@ -372,23 +380,20 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     }));
 
     // --- 3. เตรียมข้อมูล Sheet ใหม่: Pivot Summary (ตารางวิเคราะห์ สินค้า x ชนิดกล่อง) ---
-    const uniqueItems = {};       // เก็บรายชื่อสินค้า { itemCode: itemName }
-    const uniqueBoxTypes = new Set(); // เก็บรายชื่อชนิดกล่องเพื่อทำเป็นหัวคอลัมน์ด้านบน
-    const matrix = {};            // สมุดจดสองมิติ { itemCode: { boxType: totalQty } }
+    const uniqueItems = {};
+    const uniqueBoxTypes = new Set();
+    const matrix = {};
 
     boxSummary.forEach((group) => {
-      // ใช้ชื่อเล่นกล่อง (Codename) หรือถ้าไม่มีให้ใช้รหัสกล่อง เป็นหัวคอลัมน์
       const boxHeaderName = group.boxCodename || group.boxType;
       uniqueBoxTypes.add(boxHeaderName);
 
       group.boxesBreakdown.forEach((box) => {
         box.items.forEach((item) => {
-          // 3.1 บันทึกรายชื่อคู่รหัสและชื่อสินค้า
           if (!uniqueItems[item.itemCode]) {
             uniqueItems[item.itemCode] = item.itemName || '-';
           }
 
-          // 3.2 บันทึกยอดสะสมลงพิกัด Matrix
           if (!matrix[item.itemCode]) {
             matrix[item.itemCode] = {};
           }
@@ -400,23 +405,20 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       });
     });
 
-    // แปลงโครงสร้างคู่พิกัดด้านบน ออกมาเป็นตารางรูปแบบวัตถุ (JSON) ที่ Excel พร้อมอ่าน
     const pivotData = [];
     const boxHeadersArray = Array.from(uniqueBoxTypes);
 
     Object.entries(uniqueItems).forEach(([itemCode, itemName]) => {
-      // ตั้งต้นแถวด้วยรหัสและชื่อสินค้า
       const row = {
         'Item Code (รหัสสินค้า)': itemCode,
         'Item Name (ชื่อสินค้า)': itemName
       };
 
       let totalRowQty = 0;
-      // วนลูปสร้างคอลัมน์ตามชนิดกล่องที่มีการใช้งานจริง
       boxHeadersArray.forEach((boxName) => {
         const packedQty = matrix[itemCode]?.[boxName] || 0;
-        row[boxName] = packedQty; // ยอดรวมสินค้าตัวนี้ในกล่องไซส์นี้
-        totalRowQty += packedQty; // สะสมยอดรวมขวาสุด
+        row[boxName] = packedQty;
+        totalRowQty += packedQty;
       });
 
       row['Grand Total (รวมจำนวนทั้งสิ้น)'] = totalRowQty;
@@ -426,19 +428,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     // --- 4. ประกอบร่างสร้างมัลติแผ่นงาน (Multi-Sheet Workbook) ---
     const workbook = XLSX.utils.book_new();
 
-    // แท็บที่ 1: สรุปยอดเบิกกล่องสำหรับสโตร์
     const wsSummary = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(workbook, wsSummary, "Box Summary");
 
-    // แท็บที่ 2: ตาราง Pivot Summary วิเคราะห์ข้อมูลสินค้าปะทะกล่อง
     const wsPivot = XLSX.utils.json_to_sheet(pivotData);
     XLSX.utils.book_append_sheet(workbook, wsPivot, "Pivot Summary");
 
-    // แท็บที่ 3: รายละเอียดการหยิบและแพ็คของรายกล่องแบบละเอียด
     const wsPlan = XLSX.utils.json_to_sheet(exportData);
     XLSX.utils.book_append_sheet(workbook, wsPlan, "Packing Plan");
 
-    // สั่งดาวน์โหลดไฟล์ออกมาใช้งาน
     const dateStr = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(workbook, `Packing_Plan_${dateStr}.xlsx`);
     toast.success('ดาวน์โหลดไฟล์ Excel พร้อมตาราง Pivot สำเร็จ!');
