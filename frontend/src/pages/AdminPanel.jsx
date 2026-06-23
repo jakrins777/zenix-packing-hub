@@ -1,24 +1,25 @@
 /* eslint-disable no-unused-vars */
-import { useState, useEffect } from 'react'; // 🌟 เพิ่ม useEffect
-import api from '../utils/axiosConfig';
+import { useState, useEffect } from 'react';
+import api from '../utils/axiosConfig'; // 🌟 ดึง API ที่มี Interceptor แปะ Token มาใช้
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
 import BoxCodenameUpdater from './BoxCodenameUpdater';
 import { useTranslation } from 'react-i18next';
+import { Search } from 'lucide-react'; // 🌟 ไอคอนสำหรับปุ่มค้นหา Template
 
 export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, items, boxes, users, refreshAdminData }) {
   const { t } = useTranslation();
 
-  const [itemForm, setItemForm] = useState({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1 });
+  // ================= State Management =================
+  const [itemForm, setItemForm] = useState({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1, boxesPerUnit: 1 });
   const [editingItemId, setEditingItemId] = useState(null);
 
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [bulkForm, setBulkForm] = useState({ defaultPckId: '', supplier: '' });
 
-  const [boxForm, setBoxForm] = useState({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null }); // 🌟 เผื่อฟิลด์ boundPalletId ไว้เลย
+  const [boxForm, setBoxForm] = useState({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null });
   const [editingBoxId, setEditingBoxId] = useState(null);
 
-  // 🌟 1. ประกาศตัวแปรเก็บข้อมูลพาเลท
   const [palletsList, setPalletsList] = useState([]);
 
   const [userForm, setUserForm] = useState({ username: '', passwordHash: '', firstName: '', role: 'operator' });
@@ -33,11 +34,12 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const [filterCustomer, setFilterCustomer] = useState('All');
   const [filterBoxStatus, setFilterBoxStatus] = useState('All');
 
-  // 🌟 2. ดึงข้อมูลพาเลทจากหลังบ้านตอนเปิดหน้าเว็บ
+  // ================= Hooks =================
   useEffect(() => {
     const fetchPalletsForDropdown = async () => {
       try {
-        const response = await api.get('https://zenix-packing-hub.onrender.com/api/pallets');
+        // ใช้ api ที่มี Interceptor จัดการ Token ให้แล้ว
+        const response = await api.get('/api/pallets');
         if (response.data && Array.isArray(response.data)) {
           setPalletsList(response.data);
         } else if (response.data && response.data.pallets) {
@@ -52,9 +54,61 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     fetchPalletsForDropdown();
   }, []);
 
+  // ================= Handlers =================
+
+  // 🌟 ฟังก์ชันโหลด Template จากรหัส Item (ERP Simulation)
+  const handleLoadItemTemplate = async () => {
+    if (!itemForm.itemId || itemForm.itemId.trim() === '') {
+      toast.error('กรุณากรอกรหัส Item ก่อนกดค้นหา');
+      return;
+    }
+
+    const toastId = toast.loading('กำลังค้นหาข้อมูลสินค้า...');
+    const searchId = itemForm.itemId.trim().toUpperCase();
+
+    try {
+      // ลองค้นหาในข้อมูลที่มีอยู่ในระบบแล้วก่อน
+      const existingItem = (items || []).find(i => String(i.itemId || i.itemid).toUpperCase() === searchId);
+
+      if (existingItem) {
+        toast.success(`พบข้อมูล ${searchId} ในระบบ กำลังเข้าโหมดแก้ไข`, { id: toastId });
+        setEditingItemId(existingItem.itemId || existingItem.itemid);
+        setItemForm({
+          itemId: existingItem.itemId || existingItem.itemid,
+          itemName: existingItem.itemName || existingItem.itemname || '',
+          supplier: existingItem.supplier || '',
+          itemWeight: existingItem.itemWeight || '',
+          defaultPckId: existingItem.defaultPckId || '',
+          stdPackQty: existingItem.stdPackQty || 1,
+          boxesPerUnit: existingItem.boxesPerUnit || 1
+        });
+        return;
+      }
+
+      // ถ้าไม่เจอในระบบ จำลองการไปดึงจากฐานข้อมูลส่วนกลาง ERP
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      if (searchId === 'PART-A01' || searchId === 'D57240261201') {
+        toast.success('โหลด Template สินค้าจากระบบส่วนกลางสำเร็จ!', { id: toastId });
+        setItemForm(prev => ({
+          ...prev,
+          itemName: 'Aerospace Aluminum Profile (Small Bracket)',
+          supplier: 'AeroSpace Co.',
+          itemWeight: 0.28,
+          defaultPckId: 'AERO-001',
+          stdPackQty: 20,
+          boxesPerUnit: 1
+        }));
+      } else {
+        toast.error('ไม่พบข้อมูลสินค้านี้ในระบบ Master Data', { id: toastId });
+      }
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล', { id: toastId });
+    }
+  };
+
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-
     const payload = {
       ...itemForm,
       itemName: (itemForm.itemName || '').trim() === '' ? itemForm.itemId : itemForm.itemName,
@@ -63,7 +117,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     };
 
     const toastId = toast.loading(t('toast.saving_item'));
-
     try {
       let error;
       if (editingItemId) {
@@ -92,15 +145,12 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   };
 
   const handleSelectItem = (id) => {
-    setSelectedItemIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
+    setSelectedItemIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
   };
 
   const handleSelectAllCurrentPage = () => {
     const currentPageIds = currentItems.map(item => item.itemId || item.itemid).filter(Boolean);
     const allSelected = currentPageIds.every(id => selectedItemIds.includes(id));
-
     if (allSelected) {
       setSelectedItemIds(prev => prev.filter(id => !currentPageIds.includes(id)));
     } else {
@@ -111,7 +161,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const handleBulkUpdateSubmit = async (e) => {
     e.preventDefault();
     if (selectedItemIds.length === 0) return;
-
     const payload = {};
     if (bulkForm.supplier.trim() !== '') payload.supplier = bulkForm.supplier.trim();
     if (bulkForm.defaultPckId !== '') payload.defaultPckId = bulkForm.defaultPckId;
@@ -125,11 +174,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     payload.updatedAt = new Date().toISOString();
 
     try {
-      const { error } = await supabase
-        .from('items')
-        .update(payload)
-        .in('itemId', selectedItemIds);
-
+      const { error } = await supabase.from('items').update(payload).in('itemId', selectedItemIds);
       if (!error) {
         toast.success(t('toast.bulk_update_success', { count: selectedItemIds.length }), { id: toastId });
         setSelectedItemIds([]);
@@ -146,14 +191,9 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const handleBulkDeleteSubmit = async () => {
     if (selectedItemIds.length === 0) return;
     if (!confirm(t('confirm.bulk_delete', { count: selectedItemIds.length }))) return;
-
     const toastId = toast.loading(t('toast.bulk_deleting', { count: selectedItemIds.length }));
     try {
-      const { error } = await supabase
-        .from('items')
-        .delete()
-        .in('itemId', selectedItemIds);
-
+      const { error } = await supabase.from('items').delete().in('itemId', selectedItemIds);
       if (!error) {
         toast.success(t('toast.bulk_delete_success'), { id: toastId });
         setSelectedItemIds([]);
@@ -169,7 +209,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const handleDeleteItem = async (id) => {
     if (!confirm(t('confirm.delete_item'))) return;
     const toastId = toast.loading(t('toast.deleting_item'));
-    try { const { error } = await supabase.from('items').delete().eq('itemId', id); if (!error) { toast.success(t('toast.delete_success'), { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(t('toast.delete_error_msg') + error.message, { id: toastId }); } } catch (err) { toast.error(t('toast.delete_error'), { id: toastId }); }
+    try {
+      const { error } = await supabase.from('items').delete().eq('itemId', id);
+      if (!error) { toast.success(t('toast.delete_success'), { id: toastId }); if (refreshAdminData) refreshAdminData(); }
+      else { toast.error(t('toast.delete_error_msg') + error.message, { id: toastId }); }
+    } catch (err) { toast.error(t('toast.delete_error'), { id: toastId }); }
   };
 
   const handleBoxSubmit = async (e) => {
@@ -180,29 +224,38 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       description: boxForm.description,
       maxCapacity: boxForm.maxCapacity,
       currentStock: boxForm.currentStock,
-      boundPalletId: boxForm.boundPalletId, // 🌟 เพิ่มการส่งค่าพาเลทที่ผูก
+      boundPalletId: boxForm.boundPalletId,
       updatedAt: new Date().toISOString()
     };
 
     const toastId = toast.loading(t('toast.saving_box'));
     try {
       let error;
-      if (editingBoxId) { const { error: updateError } = await supabase.from('boxes').update(payload).eq('pckId', editingBoxId); error = updateError; }
-      else { const { error: insertError } = await supabase.from('boxes').insert([payload]); error = insertError; }
+      if (editingBoxId) {
+        const { error: updateError } = await supabase.from('boxes').update(payload).eq('pckId', editingBoxId); error = updateError;
+      } else {
+        const { error: insertError } = await supabase.from('boxes').insert([payload]); error = insertError;
+      }
       if (!error) {
         toast.success(t('toast.save_box_success'), { id: toastId });
         setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null });
         setEditingBoxId(null);
         if (refreshAdminData) refreshAdminData();
+      } else {
+        if (error.code === '23505' || error.message.includes('duplicate key')) { toast.error(t('toast.save_box_duplicate'), { id: toastId }); }
+        else { toast.error(t('toast.save_error') + error.message, { id: toastId }); }
       }
-      else { if (error.code === '23505' || error.message.includes('duplicate key')) { toast.error(t('toast.save_box_duplicate'), { id: toastId }); } else { toast.error(t('toast.save_error') + error.message, { id: toastId }); } }
     } catch (err) { toast.error(t('toast.save_box_error'), { id: toastId }); }
   };
 
   const handleBoxDelete = async (id) => {
     if (!confirm(t('confirm.delete_box'))) return;
     const toastId = toast.loading(t('toast.deleting_box'));
-    try { const { error } = await supabase.from('boxes').delete().eq('pckId', id); if (!error) { toast.success(t('toast.delete_box_success'), { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(t('toast.delete_error_msg') + error.message, { id: toastId }); } } catch (err) { toast.error(t('toast.delete_error'), { id: toastId }); }
+    try {
+      const { error } = await supabase.from('boxes').delete().eq('pckId', id);
+      if (!error) { toast.success(t('toast.delete_box_success'), { id: toastId }); if (refreshAdminData) refreshAdminData(); }
+      else { toast.error(t('toast.delete_error_msg') + error.message, { id: toastId }); }
+    } catch (err) { toast.error(t('toast.delete_error'), { id: toastId }); }
   };
 
   const handleExportItems = () => {
@@ -262,7 +315,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       if (editingUserId) { res = await fetch(`/api/users/${editingUserId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); }
       else { res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); }
       const data = await res.json();
-      if (data.success) { toast.success(data.message, { id: toastId }); setEditingUserId(null); setUserForm({ username: '', passwordHash: '', firstName: '', role: 'operator' }); if (refreshAdminData) refreshAdminData(); } else { toast.error(t('toast.save_error') + data.message, { id: toastId }); }
+      if (data.success) { toast.success(data.message, { id: toastId }); setEditingUserId(null); setUserForm({ username: '', passwordHash: '', firstName: '', role: 'operator' }); if (refreshAdminData) refreshAdminData(); }
+      else { toast.error(t('toast.save_error') + data.message, { id: toastId }); }
     } catch (err) { toast.error(t('toast.save_user_error'), { id: toastId }); }
   };
 
@@ -273,15 +327,20 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   };
 
   const handleFileUpload = async (e) => {
-    const files = e.target.files; if (!files || files.length === 0) return; const formData = new FormData(); for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); } const toastId = toast.loading(t('toast.importing_item'));
+    const files = e.target.files; if (!files || files.length === 0) return;
+    const formData = new FormData(); for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
+    const toastId = toast.loading(t('toast.importing_item'));
     try { const res = await fetch('/api/items/upload', { method: 'POST', body: formData }); const data = await res.json(); if (data.success) { toast.success(data.message, { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(data.message, { id: toastId }); } } catch (err) { toast.error(t('toast.import_error'), { id: toastId }); } e.target.value = null;
   };
 
   const handleBoxFileUpload = async (e) => {
-    const files = e.target.files; if (!files || files.length === 0) return; const formData = new FormData(); for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); } const toastId = toast.loading(t('toast.importing_box'));
+    const files = e.target.files; if (!files || files.length === 0) return;
+    const formData = new FormData(); for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
+    const toastId = toast.loading(t('toast.importing_box'));
     try { const res = await fetch('/api/boxes/upload', { method: 'POST', body: formData }); const data = await res.json(); if (data.success) { toast.success(data.message, { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(data.message, { id: toastId }); } } catch (err) { toast.error(t('toast.import_error'), { id: toastId }); } e.target.value = null;
   };
 
+  // ================= Filters & Sorting =================
   const processedItems = (items || []).filter(item => {
     const id = item.itemId || item.itemid;
     const name = item.itemName || item.itemname;
@@ -338,6 +397,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
 
+  // ================= Render =================
   return (
     <div className="bg-transparent rounded-xl p-2 md:p-6 ">
       {/* Menu Tabs */}
@@ -358,11 +418,25 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg text-gray-800">
               <h3 className="text-xl font-black text-[#0066CC] mb-4">{editingItemId ? t('item.edit_title') : t('item.add_title')}</h3>
               <form onSubmit={handleItemSubmit} className="space-y-4">
-                <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.id')}</label><input type="text" required disabled={!!editingItemId} value={itemForm.itemId || ''} onChange={(e) => setItemForm(prev => ({ ...prev, itemId: String(e.target.value).toUpperCase() }))} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all disabled:bg-gray-100" /></div>
+
+                {/* 🌟 ช่อง Item ID แบบมีปุ่มค้นหา */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">
+                    {t('item.id')} <span className="text-xs text-[#0066CC] font-normal ml-1">(พิมพ์รหัสแล้วกดค้นหา)</span>
+                  </label>
+                  <div className="relative">
+                    <input type="text" required disabled={!!editingItemId} value={itemForm.itemId || ''} onChange={(e) => setItemForm(prev => ({ ...prev, itemId: String(e.target.value).toUpperCase() }))} className="w-full p-3 pr-12 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all disabled:bg-gray-100" />
+                    {!editingItemId && (
+                      <button type="button" onClick={handleLoadItemTemplate} className="absolute right-2 top-2 p-1.5 bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white rounded-md transition-colors" title="โหลดข้อมูลเทมเพลต">
+                        <Search size={20} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.name')}</label><input type="text" value={itemForm.itemName || ''} onChange={(e) => setItemForm({ ...itemForm, itemName: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
                 <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.customer')}</label><input type="text" value={itemForm.supplier || ''} onChange={(e) => setItemForm({ ...itemForm, supplier: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
 
-                {/* 🌟 แก้ไข: เปลี่ยนเป็น 3 คอลัมน์ และเพิ่มช่อง กล่องต่อชิ้น */}
                 <div className="grid grid-cols-3 gap-4">
                   <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.weight')}</label><input type="number" step="0.001" required value={itemForm.itemWeight || ''} onChange={(e) => setItemForm({ ...itemForm, itemWeight: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
                   <div><label className="block text-sm font-bold text-[#0066CC] mb-1">{t('item.qty_per_box')}</label><input type="number" required min="1" value={itemForm.stdPackQty || ''} onChange={(e) => setItemForm({ ...itemForm, stdPackQty: parseInt(e.target.value) || 1 })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
@@ -384,7 +458,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
                 <div className="flex space-x-2 pt-4">
                   <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all">{t('common.save')}</button>
-                  {/* 🌟 แก้ไข: ปุ่มยกเลิกรีเซ็ตค่า boxesPerUnit ด้วย */}
                   {editingItemId && <button type="button" onClick={() => { setEditingItemId(null); setItemForm({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1, boxesPerUnit: 1 }); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-all">{t('common.cancel')}</button>}
                 </div>
               </form>
@@ -500,11 +573,9 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                           <td className="py-3 px-4 text-sm">
                             <div className="font-bold text-gray-800 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md inline-block mr-2">{item.defaultPckId || '-'}</div>
                             <span className="text-xs text-[#0066CC] font-bold bg-blue-50 border border-blue-100 px-2 py-1 rounded mr-2">{t('common.capacity')} {item.stdPackQty || 1}</span>
-                            {/* 🌟 แสดงป้ายบอกถ้าสินค้านี้ต้องแยก 2 กล่อง */}
                             {(item.boxesPerUnit && item.boxesPerUnit > 1) && <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-1 rounded">📦 แยก {item.boxesPerUnit} กล่อง</span>}
                           </td>
                           <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
-                            {/* 🌟 แก้ไข: ปุ่ม Edit ดึงค่า boxesPerUnit ไปแสดงในฟอร์มด้วย */}
                             <button onClick={() => { setEditingItemId(id); setItemForm({ itemId: id, itemName: name, supplier: item.supplier, itemWeight: item.itemWeight, defaultPckId: item.defaultPckId || '', stdPackQty: item.stdPackQty || 1, boxesPerUnit: item.boxesPerUnit || 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit_light')}</button>
                             <button onClick={() => handleDeleteItem(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
                           </td>
@@ -539,10 +610,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       {adminSubTab === 'boxes' && (
         <div className="flex flex-col space-y-8 print:hidden">
 
-          <BoxCodenameUpdater
-            boxes={boxes}
-            fetchAdminData={refreshAdminData}
-          />
+          <BoxCodenameUpdater boxes={boxes} fetchAdminData={refreshAdminData} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
 
@@ -577,7 +645,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                     </div>
                   </div>
 
-                  {/* 🌟 1. ช่องเพิ่มการผูกกล่องกับพาเลท */}
+                  {/* 🌟 ช่องผูกกล่องกับพาเลท */}
                   <div>
                     <label className="block text-sm font-bold text-amber-600 mb-1">🪵 ผูกกับพาเลท (Pallet Binding)</label>
                     <select
@@ -586,7 +654,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       className="w-full p-3 border border-amber-200 rounded-lg bg-amber-50 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-gray-800 font-medium"
                     >
                       <option value="">-- ไม่ผูกพาเลท (ให้ระบบสุ่มหาให้อัตโนมัติ) --</option>
-                      {/* 🌟 2. เติมเครื่องหมาย ? ป้องกัน Error ถ้าข้อมูลพาเลทยังไม่มา */}
                       {palletsList?.map(p => (
                         <option key={p.palletId} value={p.palletId}>{p.palletId} ({p.description})</option>
                       ))}
@@ -595,7 +662,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
                   <div className="flex space-x-2 pt-4">
                     <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold py-3 px-4 rounded-lg shadow-sm">{t('common.save')}</button>
-                    {/* 🌟 3. เคลียร์ค่า boundPalletId ด้วยตอนกด Cancel */}
                     {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">{t('common.cancel')}</button>}
                   </div>
                 </form>
@@ -667,7 +733,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                               {box?.description || '-'}
                               <div className="mt-1 flex flex-wrap gap-2">
                                 {box?.codename && <span className="text-xs text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded font-bold">{t('box.codename_label')} {box.codename}</span>}
-                                {/* 🌟 4. โชว์สถานะการผูกพาเลทในตารางด้วย */}
+                                {/* 🌟 โชว์สถานะการผูกพาเลทในตาราง */}
                                 {box?.boundPalletId && <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded font-bold">🪵 พาเลท: {box.boundPalletId}</span>}
                               </div>
                             </td>
@@ -675,7 +741,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                               <span className="font-black text-2xl text-[#0066CC] print:text-black">{box?.currentStock || 0}</span>
                             </td>
                             <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap print:hidden">
-                              {/* 🌟 5. ดึงค่า boundPalletId ตอนกดแก้ไขด้วย */}
                               <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, codename: box.codename || '', description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0, boundPalletId: box.boundPalletId || null }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit')}</button>
                               <button onClick={() => handleBoxDelete(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
                             </td>

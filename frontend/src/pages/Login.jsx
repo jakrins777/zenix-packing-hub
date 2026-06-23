@@ -62,8 +62,8 @@ export default function Login({ onLogin }) {
             />
           </div>
 
-          <h2 className="text-3xl font-black text-gray-800 tracking-tight">Zenix WPCA</h2>
-          <p className="text-gray-500 font-medium mt-1">Warehouse Packaging Calculation Application</p>
+          <h2 className="text-3xl font-black text-gray-800 tracking-tight">Zenix WPC</h2>
+          <p className="text-gray-500 font-medium mt-1">Warehouse Packaging Calculation</p>
         </div>
 
         {error && (
