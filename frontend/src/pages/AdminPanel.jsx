@@ -282,6 +282,43 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     toast.success(t('toast.export_item_success'));
   };
 
+  // 🌟 ฟังก์ชันสำหรับโหลด CSV เฉพาะรายการที่ติ๊กเลือก
+  const handleExportSelectedItems = () => {
+    if (selectedItemIds.length === 0) {
+      toast.error('กรุณาเลือกรายการที่ต้องการดาวน์โหลด');
+      return;
+    }
+
+    // กรองเอาเฉพาะข้อมูลที่มี ID ตรงกับที่ติ๊กเลือกไว้
+    const selectedData = (items || []).filter(item =>
+      selectedItemIds.includes(item.itemId || item.itemid)
+    );
+
+    const headers = ["itemId", "itemName", "Customer", "itemWeight", "defaultPckId", "stdPackQty"];
+    const csvRows = [
+      headers.join(','),
+      ...selectedData.map(item => [
+        item.itemId || '',
+        `"${(item.itemName || '').replace(/"/g, '""')}"`,
+        `"${(item.supplier || '').replace(/"/g, '""')}"`,
+        item.itemWeight || 0,
+        item.defaultPckId || '',
+        item.stdPackQty || 1
+      ].join(','))
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Selected_Items_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success(`ดาวน์โหลด ${selectedData.length} รายการสำเร็จ!`);
+  };
+
   const handleExportBoxes = () => {
     const headers = ["pckId", "codename", "description", "maxCapacity", "currentStock"];
     const csvRows = [
@@ -538,6 +575,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                     <div className="flex gap-2">
                       <button onClick={handleBulkUpdateSubmit} className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.update_btn')}</button>
                       <button onClick={handleBulkDeleteSubmit} className="bg-red-100 hover:bg-red-500 text-red-600 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.delete_btn')}</button>
+                      <button onClick={handleExportSelectedItems} className="bg-blue-100 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">
+                        📥 โหลดที่เลือก (CSV)
+                      </button>
+
+                      <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
                       <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
                     </div>
                   </div>
