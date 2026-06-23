@@ -34,6 +34,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const [filterCustomer, setFilterCustomer] = useState('All');
   const [filterBoxStatus, setFilterBoxStatus] = useState('All');
 
+  const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'https://zenix-packing-hub.onrender.com';
+
   // ================= Hooks =================
   useEffect(() => {
     const fetchPalletsForDropdown = async () => {
