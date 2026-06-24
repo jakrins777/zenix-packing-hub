@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from 'react';
-import { read, utils } from 'xlsx';
+import * as XLSX from 'xlsx';
 import api from '../utils/axiosConfig'; // 🌟 ดึง API ที่มี Interceptor แปะ Token มาใช้
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
@@ -41,13 +41,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   useEffect(() => {
     const fetchPalletsForDropdown = async () => {
       try {
-        const response = await api.get('/api/pallets');
-        if (response.data && Array.isArray(response.data)) {
-          setPalletsList(response.data);
-        } else if (response.data && response.data.pallets) {
-          setPalletsList(response.data.pallets);
-        } else if (response.data && response.data.data) {
-          setPalletsList(response.data.data);
+        // 🌟 เปลี่ยนมาดึงตรงจาก Supabase เพื่อเลี่ยงปัญหา 403 จากหลังบ้าน
+        const { data, error } = await supabase.from('Pallet').select('*');
+        if (error) throw error;
+        if (data) {
+          setPalletsList(data);
         }
       } catch (error) {
         console.error('ดึงข้อมูลพาเลทไม่สำเร็จ:', error);
@@ -109,6 +107,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
   
  
+  // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO)
   const handleImportStocksExcel = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -120,11 +119,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       try {
         const bstr = evt.target.result;
 
-
-        const wb = read(bstr, { type: 'binary' });
+        // 🌟 เรียกใช้ XLSX ให้ถูกต้อง
+        const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rawData = utils.sheet_to_json(ws);
+        const rawData = XLSX.utils.sheet_to_json(ws);
 
         if (rawData.length === 0) {
           toast.error('ไม่พบข้อมูลในไฟล์ Excel กรุณาตรวจสอบอีกครั้ง', { id: toastId });
@@ -150,11 +149,11 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
 
         if (payload.length === 0) {
-          toast.error('❌ ไม่พบรายการสินค้าที่มีสต๊อกพร้อมส่ง (ยอดหลังหักยอดจองต้อง > 0)', { id: toastId });
+          toast.error('❌ ไม่พบรายการสินค้าที่มีสต๊อกพร้อมส่ง (ยอดหลังหักจองต้อง > 0)', { id: toastId });
           return;
         }
 
-        toast.loading(`กำลังอัปโหลดและจัดคิวสต๊อกจำนวน ${payload.length} รายการลง Database...`, { id: toastId });
+        toast.loading(`กำลังจัดคิวสต๊อก ${payload.length} รายการลง Database...`, { id: toastId });
 
         const { error } = await supabase
           .from('item_stocks')
@@ -162,7 +161,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
         if (error) throw error;
 
-        toast.success(`🎉 อัปโหลดคลังสต๊อกสำเร็จ! นำเข้าข้อมูลระบบ FIFO ทั้งหมด ${payload.length} รายการ`, { id: toastId });
+        toast.success(`🎉 นำเข้าข้อมูลสต๊อก FIFO สำเร็จ ${payload.length} รายการ`, { id: toastId });
 
       } catch (err) {
         console.error("🔥 Import สต๊อกพัง:", err);
@@ -172,8 +171,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
     reader.readAsBinaryString(file);
     e.target.value = null;
-  };
-
+  };  
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     const payload = {
