@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import api from '../utils/axiosConfig'; // 🌟 ดึง API ที่มี Interceptor แปะ Token มาใช้
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
