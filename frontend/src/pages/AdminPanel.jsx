@@ -1,7 +1,9 @@
 /* eslint-disable no-unused-vars */
+
 import { useState, useEffect } from 'react';
 import api from '../utils/axiosConfig'; // 🌟 ดึง API ที่มี Interceptor แปะ Token มาใช้
 import { supabase } from '../supabaseClient';
+import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import BoxCodenameUpdater from './BoxCodenameUpdater';
 import { useTranslation } from 'react-i18next';
@@ -105,67 +107,126 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   };
 
   const handleImportStocksExcel = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+
     if (!file) return;
 
     const toastId = toast.loading('กำลังอ่านไฟล์ Excel...');
+
     const reader = new FileReader();
 
     reader.onload = async (evt) => {
       try {
-        // 🌟 ดึงออกมาตรงๆ แบบนี้ชัวร์ที่สุด
-        const module = await import('xlsx');
-        const { read, utils } = module.default || module;
+        const XLSX = await import('xlsx');
+
+        console.log('XLSX MODULE =>', XLSX);
+        console.log('XLSX.utils =>', XLSX.utils);
+        console.log('XLSX.default =>', XLSX.default);
 
         const bstr = evt.target.result;
-        const wb = read(bstr, { type: 'binary' });
+
+        const wb = XLSX.read(bstr, {
+          type: 'binary'
+        });
+
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
 
-        // ใช้ utils ตรงๆ จากการดึงมาเมื่อกี้
-        const rawData = utils.sheet_to_json(ws);
+        const rawData = XLSX.utils.sheet_to_json(ws);
 
-        if (rawData.length === 0) {
+        if (!rawData || rawData.length === 0) {
           toast.error('ไฟล์ว่างเปล่าครับ', { id: toastId });
           return;
         }
 
-        const payload = rawData.map((row) => {
-          // ชื่อต้องตรงกับ Excel เป๊ะๆ
-          const itemCode = row['Item'];
-          const lotNo = row['Lot'];
-          const qtyOnHandRaw = Number(row['Qty On Hand'] || 0);
-          const reserved = Number(row['Reserved'] || 0);
-          const assigned = Number(row['Assigned'] || 0);
-          const rawDate = row['dcoCreateDate'];
+        const payload = rawData
+          .map((row) => {
+            const itemCode = row['Item'];
+            const lotNo = row['Lot'];
 
-          const actualQty = Math.max(0, qtyOnHandRaw - reserved - assigned);
+            const qtyOnHandRaw = Number(row['Qty On Hand'] || 0);
+            const reserved = Number(row['Reserved'] || 0);
+            const assigned = Number(row['Assigned'] || 0);
 
-          return {
-            itemId: itemCode ? String(itemCode).trim().toUpperCase() : null,
-            lotNo: lotNo ? String(lotNo).trim() : '-',
-            qtyOnHand: actualQty,
-            receiveDate: rawDate ? new Date(rawDate).toISOString() : new Date().toISOString()
-          };
-        }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
+            const actualQty = Math.max(
+              0,
+              qtyOnHandRaw - reserved - assigned
+            );
+
+            let receiveDate;
+
+            try {
+              if (row['dcoCreateDate']) {
+                receiveDate = new Date(
+                  row['dcoCreateDate']
+                ).toISOString();
+              } else {
+                receiveDate = new Date().toISOString();
+              }
+            } catch {
+              receiveDate = new Date().toISOString();
+            }
+
+            return {
+              itemId: itemCode
+                ? String(itemCode).trim().toUpperCase()
+                : null,
+
+              lotNo: lotNo
+                ? String(lotNo).trim()
+                : '-',
+
+              qtyOnHand: actualQty,
+
+              receiveDate
+            };
+          })
+          .filter(
+            (stock) =>
+              stock.itemId &&
+              stock.qtyOnHand > 0
+          );
 
         if (payload.length === 0) {
-          toast.error('ไม่พบข้อมูลสต๊อกที่ใช้งานได้', { id: toastId });
+          toast.error(
+            'ไม่พบข้อมูลสต๊อกที่ใช้งานได้',
+            { id: toastId }
+          );
           return;
         }
 
-        const { error } = await supabase.from('item_stocks').insert(payload);
-        if (error) throw error;
+        const { error } = await supabase
+          .from('item_stocks')
+          .insert(payload);
 
-        toast.success(`🎉 นำเข้าสต๊อก FIFO สำเร็จ ${payload.length} รายการ`, { id: toastId });
+        if (error) {
+          throw error;
+        }
+
+        toast.success(
+          `🎉 นำเข้าสต๊อก FIFO สำเร็จ ${payload.length} รายการ`,
+          { id: toastId }
+        );
 
       } catch (err) {
-        console.error("🔥 Import สต๊อกพัง:", err);
-        toast.error('Import ล้มเหลว: ' + err.message, { id: toastId });
+        console.error('🔥 Import สต๊อกพัง:', err);
+
+        toast.error(
+          `Import ล้มเหลว: ${err.message}`,
+          { id: toastId }
+        );
       }
     };
 
+    reader.onerror = () => {
+      toast.error(
+        'เกิดข้อผิดพลาดในการอ่านไฟล์',
+        { id: toastId }
+      );
+    };
+
     reader.readAsBinaryString(file);
+
     e.target.value = null;
   };
   const handleItemSubmit = async (e) => {
