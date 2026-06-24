@@ -569,7 +569,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             )}
           </div>
 
-          <div className="lg:col-span-2 flex flex-col h-full">
+          <div className="lg:col-span-2 flex flex-col h-full min-w-0 w-full overflow-hidden">
 
             {/* Search & Filter */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-5 mb-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -648,16 +648,18 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             )}
 
             {/* Data Table */}
-            <div className="overflow-x-auto rounded-xl border border-gray-200 flex-1 shadow-sm bg-white">
-              <table className="min-w-full">
+            <div className="overflow-x-auto rounded-xl border border-gray-200 flex-1 shadow-sm bg-white w-full">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="py-4 px-4 text-center w-12"><input type="checkbox" className="w-4 h-4 accent-[#0066CC] rounded cursor-pointer" checked={currentItems.length > 0 && currentItems.map(item => item.itemId || item.itemid).every(id => selectedItemIds.includes(id))} onChange={handleSelectAllCurrentPage} /></th>
-                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm">{t('table.item_id')}</th>
-                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm">{t('table.item_name')}</th>
-                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm">{t('table.customer')}</th>
-                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm">{t('table.std_box')}</th>
-                    <th className="py-4 px-4 text-center text-gray-600 font-bold uppercase tracking-wider text-sm">{t('table.action')}</th>
+                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap">{t('table.item_id')}</th>
+                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap">{t('table.item_name')}</th>
+                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap">{t('table.customer')}</th>
+                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap">{t('table.std_box')}</th>
+
+                    {/* 🌟 บังคับไม่ให้คอลัมน์นี้หดตัว */}
+                    <th className="py-4 px-4 text-center text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap w-40">{t('table.action')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -669,14 +671,16 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       return (
                         <tr key={id} className={`transition-colors ${isChecked ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}>
                           <td className="py-3 px-4 text-center"><input type="checkbox" className="w-4 h-4 accent-[#0066CC] rounded cursor-pointer" checked={isChecked} onChange={() => handleSelectItem(id)} /></td>
-                          <td className="py-3 px-4 font-mono font-black text-[#0066CC]">{id}</td>
-                          <td className="py-3 px-4 text-sm font-bold text-gray-800">{name}</td>
-                          <td className="py-3 px-4 text-gray-500 font-medium text-sm">{item.supplier || '-'}</td>
-                          <td className="py-3 px-4 text-sm">
+                          <td className="py-3 px-4 font-mono font-black text-[#0066CC] whitespace-nowrap">{id}</td>
+                          <td className="py-3 px-4 text-sm font-bold text-gray-800 min-w-[200px]">{name}</td>
+                          <td className="py-3 px-4 text-gray-500 font-medium text-sm whitespace-nowrap">{item.supplier || '-'}</td>
+                          <td className="py-3 px-4 text-sm whitespace-nowrap">
                             <div className="font-bold text-gray-800 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md inline-block mr-2">{item.defaultPckId || '-'}</div>
                             <span className="text-xs text-[#0066CC] font-bold bg-blue-50 border border-blue-100 px-2 py-1 rounded mr-2">{t('common.capacity')} {item.stdPackQty || 1}</span>
                             {(item.boxesPerUnit && item.boxesPerUnit > 1) && <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-1 rounded">📦 แยก {item.boxesPerUnit} กล่อง</span>}
                           </td>
+
+                          {/* 🌟 บังคับให้ปุ่มจัดการไม่ร่วงบรรทัดและไม่โดนบีบแอบ */}
                           <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
                             <button onClick={() => { setEditingItemId(id); setItemForm({ itemId: id, itemName: name, supplier: item.supplier, itemWeight: item.itemWeight, defaultPckId: item.defaultPckId || '', stdPackQty: item.stdPackQty || 1, boxesPerUnit: item.boxesPerUnit || 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit_light')}</button>
                             <button onClick={() => handleDeleteItem(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
