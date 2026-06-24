@@ -108,6 +108,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   
  
   // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO)
+  // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO)
   const handleImportStocksExcel = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -119,11 +120,15 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       try {
         const bstr = evt.target.result;
 
-        // 🌟 เรียกใช้ XLSX ให้ถูกต้อง
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        // 🌟 ท่าไม้ตายปราบ Vite: เช็กว่าไลบรารีมันซ่อนอยู่ใน .default หรือไม่!
+        const sheetJS = XLSX.default ? XLSX.default : XLSX;
+
+        const wb = sheetJS.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rawData = XLSX.utils.sheet_to_json(ws);
+
+        // ใช้ sheetJS ตัวใหม่ที่เช็กแล้วมาดึง utils
+        const rawData = sheetJS.utils.sheet_to_json(ws);
 
         if (rawData.length === 0) {
           toast.error('ไม่พบข้อมูลในไฟล์ Excel กรุณาตรวจสอบอีกครั้ง', { id: toastId });
@@ -171,7 +176,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
     reader.readAsBinaryString(file);
     e.target.value = null;
-  };  
+  };
+  
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     const payload = {
