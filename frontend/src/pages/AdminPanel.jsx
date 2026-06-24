@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import * as XLSXModule from 'xlsx';
 import api from '../utils/axiosConfig'; // 🌟 ดึง API ที่มี Interceptor แปะ Token มาใช้
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
@@ -105,9 +105,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     }
   };
 
-  
- 
-  // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO)
   // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO)
   const handleImportStocksExcel = (e) => {
     const file = e.target.files[0];
@@ -120,14 +117,27 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       try {
         const bstr = evt.target.result;
 
-        // 🌟 ท่าไม้ตายปราบ Vite: เช็กว่าไลบรารีมันซ่อนอยู่ใน .default หรือไม่!
-        const sheetJS = XLSX.default ? XLSX.default : XLSX;
+        // 🌟 ท่าไม้ตายปราบระบบจัดคิวโมเดลของ Vite Production
+        // สแกนหาออบเจกต์ที่มีเครื่องมือ utils คอนเฟิร์มว่าไม่ใช่ undefined แน่นอน
+        let sheetJS = XLSXModule;
+        if (XLSXModule && XLSXModule.default && XLSXModule.default.utils) {
+          sheetJS = XLSXModule.default;
+        } else if (XLSXModule && XLSXModule.utils) {
+          sheetJS = XLSXModule;
+        } else if (window.XLSX) {
+          sheetJS = window.XLSX;
+        }
+
+        // กันเหนียวดักเผื่อกรณีสุดวิสัยจริงๆ
+        if (!sheetJS || !sheetJS.utils) {
+          throw new Error("ระบบไม่สามารถเรียกใช้งานไลบรารี SheetJS (utils) ได้ กรุณารีเฟรชหน้าเว็บ");
+        }
 
         const wb = sheetJS.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
 
-        // ใช้ sheetJS ตัวใหม่ที่เช็กแล้วมาดึง utils
+        // เรียกใช้งานผ่านตัวแปรสแกนที่ปลอดภัยแล้ว
         const rawData = sheetJS.utils.sheet_to_json(ws);
 
         if (rawData.length === 0) {
