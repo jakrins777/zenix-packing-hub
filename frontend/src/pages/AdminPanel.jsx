@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import { read, utils } from 'xlsx';
 import api from '../utils/axiosConfig'; // 🌟 ดึง API ที่มี Interceptor แปะ Token มาใช้
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
@@ -107,7 +107,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     }
   };
 
-  // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO) - [ย้ายมาไว้ข้างนอกให้ถูกสโคปแล้วครับ]
+  
+ 
   const handleImportStocksExcel = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -118,10 +119,12 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+
+
+        const wb = read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rawData = XLSX.utils.sheet_to_json(ws);
+        const rawData = utils.sheet_to_json(ws);
 
         if (rawData.length === 0) {
           toast.error('ไม่พบข้อมูลในไฟล์ Excel กรุณาตรวจสอบอีกครั้ง', { id: toastId });
