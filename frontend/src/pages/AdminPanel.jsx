@@ -115,7 +115,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         const data = evt.target.result;
         let rawData = [];
 
-        // 🌟 โค้ดส่วนที่พี่ต้องการใส่เพิ่ม
         if (file.name.toLowerCase().endsWith('.csv')) {
           const text = new TextDecoder('utf-16').decode(data);
           rawData = XLSX.utils.sheet_to_json(
@@ -125,7 +124,8 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             { defval: '' }
           );
         } else {
-          const workbook = XLSX.read(data, { type: 'array' });
+          // 🌟 เพิ่ม cellDates: true เพื่อให้มันพยายามแปลงวันที่จาก Excel ให้ดีขึ้น
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
           const firstSheet = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheet];
           rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
@@ -136,7 +136,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           return;
         }
 
-        // ประมวลผลข้อมูลเตรียมส่งเข้า DB
         const payload = rawData.map((row) => {
           const itemCode = row['Item'];
           const lotNo = row['Lot'];
@@ -147,11 +146,21 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
           const actualQty = Math.max(0, qtyOnHandRaw - reserved - assigned);
 
+          // 🌟 ระบบจัดการวันที่แบบเซฟโหมด (Safe Date Parsing)
+          let finalReceiveDate = new Date().toISOString(); // ค่าเริ่มต้นคือวันนี้-เวลานี้
+          if (rawDate) {
+            const parsedDate = new Date(rawDate);
+            // ตรวจสอบว่ามันแปลงเป็นวันที่สำเร็จจริงๆ ไม่ใช่ "Invalid Date"
+            if (!isNaN(parsedDate.getTime())) {
+              finalReceiveDate = parsedDate.toISOString();
+            }
+          }
+
           return {
             itemId: itemCode ? String(itemCode).trim().toUpperCase() : null,
             lotNo: lotNo ? String(lotNo).trim() : '-',
             qtyOnHand: actualQty,
-            receiveDate: rawDate ? new Date(rawDate).toISOString() : new Date().toISOString()
+            receiveDate: finalReceiveDate
           };
         }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
 
@@ -160,7 +169,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           return;
         }
 
-        // ระบบแบ่งส่งข้อมูล (ป้องกัน Timeout)
         const CHUNK_SIZE = 100;
         for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
           const chunk = payload.slice(i, i + CHUNK_SIZE);
@@ -178,7 +186,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       }
     };
 
-    // 🌟 สำคัญ: ต้องใช้ ArrayBuffer เพราะ TextDecoder ทำงานกับ ArrayBuffer เท่านั้น
     reader.readAsArrayBuffer(file);
     e.target.value = null;
   };
