@@ -135,39 +135,49 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           return;
         }
 
-        // 🌟 ตัวช่วยแปลงตัวเลข (ดึงลูกน้ำออกให้หมดก่อนคำนวณ)
         const parseNum = (val) => {
           if (val === null || val === undefined || val === '') return 0;
           const cleanStr = String(val).replace(/,/g, '').trim();
           return Number(cleanStr) || 0;
         };
 
-        // 🌟 โชว์ให้เห็นความจริงใน Console (กด F12 ดูได้เลยว่า Excel ส่งอะไรมา)
-        console.log("🔍 ข้อมูลดิบแถวแรกจาก Excel:", rawData[0]);
-
         const payload = rawData.map((row) => {
-          // 🌟 ค้นหาชื่อหัวคอลัมน์แบบ "ตัดช่องว่างทิ้ง" (ดักจับเคาะวรรคแอบแฝงใน Excel)
           const keys = Object.keys(row);
           const getVal = (exactName) => {
             const foundKey = keys.find(k => k.trim() === exactName);
             return foundKey ? row[foundKey] : null;
           };
 
+          // 🌟 แมตช์ชื่อคอลัมน์ตามความจริงที่จับได้จาก Log
           const itemCode = getVal('Item');
           const lotNo = getVal('Lot');
-          const qtyOnHandRaw = parseNum(getVal('Qty On Ha'));
+          const qtyOnHandRaw = parseNum(getVal('Qty On Hand')); // เปลี่ยนจาก Qty On Ha
           const reserved = parseNum(getVal('Reserved'));
-          const assigned = parseNum(getVal('Assigned'));
+          const assigned = parseNum(getVal('Assigned To Be Picked')); // เปลี่ยนจาก Assigned
           const rawDate = getVal('dcoCreateDate');
 
-          // คำนวณสต๊อกจริงแบบปลอดภัย
+          // คำนวณสต๊อกจริง
           const actualQty = Math.max(0, qtyOnHandRaw - reserved - assigned);
 
+          // 🌟 ดักจับและแปลงวันที่รูปแบบ "วัน/เดือน/ปี" (เช่น 18/06/2026) ให้โปรแกรมไม่งง
           let finalReceiveDate = new Date().toISOString();
           if (rawDate) {
-            const parsedDate = new Date(rawDate);
-            if (!isNaN(parsedDate.getTime())) {
-              finalReceiveDate = parsedDate.toISOString();
+            const dateStr = String(rawDate).trim();
+            // เช็กว่ามีเครื่องหมายทับ (/) และแบ่งเป็น 3 ท่อนหรือไม่
+            if (dateStr.includes('/')) {
+              const parts = dateStr.split('/');
+              if (parts.length === 3) {
+                const day = parts[0].padStart(2, '0');
+                const month = parts[1].padStart(2, '0');
+                const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2]; // เผื่อปีมาเป็น 26
+                finalReceiveDate = new Date(`${year}-${month}-${day}T00:00:00.000Z`).toISOString();
+              }
+            } else {
+              // ถ้าไม่ได้ใช้ / ก็ให้ JS จัดการตามปกติ
+              const parsedDate = new Date(dateStr);
+              if (!isNaN(parsedDate.getTime())) {
+                finalReceiveDate = parsedDate.toISOString();
+              }
             }
           }
 
@@ -177,7 +187,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             qtyOnHand: actualQty,
             receiveDate: finalReceiveDate
           };
-        }).filter(stock => stock.itemId && stock.qtyOnHand > 0); // ต้องมีรหัส และยอดของต้องมากกว่า 0
+        }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
 
         console.log("🚀 ข้อมูลที่ฝ่าด่านพร้อมส่งเข้า Database:", payload);
 
@@ -186,7 +196,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           return;
         }
 
-        // ทยอยอัปโหลดทีละ 100 แถว
         const CHUNK_SIZE = 100;
         for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
           const chunk = payload.slice(i, i + CHUNK_SIZE);
