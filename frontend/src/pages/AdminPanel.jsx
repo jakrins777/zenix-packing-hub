@@ -108,37 +108,37 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     const file = e.target.files[0];
     if (!file) return;
 
-    const toastId = toast.loading('กำลังอ่านไฟล์ Excel สต๊อกสินค้า...');
+    const toastId = toast.loading('กำลังอ่านไฟล์ Excel...');
     const reader = new FileReader();
 
     reader.onload = async (evt) => {
       try {
-        // 🌟 ท่าไม้ตาย Dynamic Import แก้ปัญหา Vercel (Cannot read properties of undefined)
-        const XLSX = await import('xlsx');
+        // 🌟 ดึงออกมาตรงๆ แบบนี้ชัวร์ที่สุด
+        const module = await import('xlsx');
+        const { read, utils } = module.default || module;
 
         const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wb = read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
 
-        // แปลงเป็น JSON
-        const rawData = XLSX.utils.sheet_to_json(ws);
+        // ใช้ utils ตรงๆ จากการดึงมาเมื่อกี้
+        const rawData = utils.sheet_to_json(ws);
 
         if (rawData.length === 0) {
-          toast.error('ไฟล์ว่างเปล่าครับพี่', { id: toastId });
+          toast.error('ไฟล์ว่างเปล่าครับ', { id: toastId });
           return;
         }
 
         const payload = rawData.map((row) => {
-          // 🌟 แมตช์ชื่อหัวคอลัมน์ตามภาพที่พี่ส่งมาเป๊ะๆ
+          // ชื่อต้องตรงกับ Excel เป๊ะๆ
           const itemCode = row['Item'];
           const lotNo = row['Lot'];
-          const qtyOnHandRaw = Number(row['Qty On Ha'] || 0);
+          const qtyOnHandRaw = Number(row['Qty On Hand'] || 0);
           const reserved = Number(row['Reserved'] || 0);
           const assigned = Number(row['Assigned'] || 0);
           const rawDate = row['dcoCreateDate'];
 
-          // คำนวณสต๊อกจริง
           const actualQty = Math.max(0, qtyOnHandRaw - reserved - assigned);
 
           return {
@@ -150,19 +150,14 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
 
         if (payload.length === 0) {
-          toast.error('ไม่พบข้อมูลที่มียอดสต๊อกพร้อมส่ง', { id: toastId });
+          toast.error('ไม่พบข้อมูลสต๊อกที่ใช้งานได้', { id: toastId });
           return;
         }
 
-        toast.loading(`กำลังส่ง ${payload.length} รายการเข้า Database...`, { id: toastId });
-
-        const { error } = await supabase
-          .from('item_stocks')
-          .insert(payload);
-
+        const { error } = await supabase.from('item_stocks').insert(payload);
         if (error) throw error;
 
-        toast.success(`🎉 Import สต๊อก FIFO สำเร็จ!`, { id: toastId });
+        toast.success(`🎉 นำเข้าสต๊อก FIFO สำเร็จ ${payload.length} รายการ`, { id: toastId });
 
       } catch (err) {
         console.error("🔥 Import สต๊อกพัง:", err);
@@ -173,7 +168,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     reader.readAsBinaryString(file);
     e.target.value = null;
   };
-
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     const payload = {
