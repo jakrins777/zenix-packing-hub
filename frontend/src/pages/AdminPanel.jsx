@@ -126,7 +126,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         const bstr = evt.target.result;
 
         const wb = XLSX.read(bstr, {
-          type: 'binary'
+          type: 'array'
         });
 
         const wsname = wb.SheetNames[0];
@@ -225,7 +225,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       );
     };
 
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
 
     e.target.value = null;
   };
