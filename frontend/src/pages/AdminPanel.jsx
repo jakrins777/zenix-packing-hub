@@ -1,6 +1,5 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect } from 'react';
-import * as XLSXModule from 'xlsx';
 import api from '../utils/axiosConfig'; // 🌟 ดึง API ที่มี Interceptor แปะ Token มาใช้
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';
@@ -105,70 +104,57 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     }
   };
 
-  // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO)
   const handleImportStocksExcel = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const toastId = toast.loading('กำลังอ่านไฟล์ Excel สต๊อกสินค้าจาก ERP...');
+    const toastId = toast.loading('กำลังอ่านไฟล์ Excel สต๊อกสินค้า...');
     const reader = new FileReader();
 
     reader.onload = async (evt) => {
       try {
+        // 🌟 ท่าไม้ตาย Dynamic Import แก้ปัญหา Vercel (Cannot read properties of undefined)
+        const XLSX = await import('xlsx');
+
         const bstr = evt.target.result;
-
-        // 🌟 ท่าไม้ตายปราบระบบจัดคิวโมเดลของ Vite Production
-        // สแกนหาออบเจกต์ที่มีเครื่องมือ utils คอนเฟิร์มว่าไม่ใช่ undefined แน่นอน
-        let sheetJS = XLSXModule;
-        if (XLSXModule && XLSXModule.default && XLSXModule.default.utils) {
-          sheetJS = XLSXModule.default;
-        } else if (XLSXModule && XLSXModule.utils) {
-          sheetJS = XLSXModule;
-        } else if (window.XLSX) {
-          sheetJS = window.XLSX;
-        }
-
-        // กันเหนียวดักเผื่อกรณีสุดวิสัยจริงๆ
-        if (!sheetJS || !sheetJS.utils) {
-          throw new Error("ระบบไม่สามารถเรียกใช้งานไลบรารี SheetJS (utils) ได้ กรุณารีเฟรชหน้าเว็บ");
-        }
-
-        const wb = sheetJS.read(bstr, { type: 'binary' });
+        const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
 
-        // เรียกใช้งานผ่านตัวแปรสแกนที่ปลอดภัยแล้ว
-        const rawData = sheetJS.utils.sheet_to_json(ws);
+        // แปลงเป็น JSON
+        const rawData = XLSX.utils.sheet_to_json(ws);
 
         if (rawData.length === 0) {
-          toast.error('ไม่พบข้อมูลในไฟล์ Excel กรุณาตรวจสอบอีกครั้ง', { id: toastId });
+          toast.error('ไฟล์ว่างเปล่าครับพี่', { id: toastId });
           return;
         }
 
         const payload = rawData.map((row) => {
-          const itemCode = row['Item'] || row['itemId'];
-          const lotNo = row['Lot'] || row['lotNo'];
-          const qtyOnHa = Number(row['Qty On Ha'] || row['qtyOnHand'] || 0);
+          // 🌟 แมตช์ชื่อหัวคอลัมน์ตามภาพที่พี่ส่งมาเป๊ะๆ
+          const itemCode = row['Item'];
+          const lotNo = row['Lot'];
+          const qtyOnHandRaw = Number(row['Qty On Ha'] || 0);
           const reserved = Number(row['Reserved'] || 0);
           const assigned = Number(row['Assigned'] || 0);
+          const rawDate = row['dcoCreateDate'];
 
-          const actualQtyOnHand = Math.max(0, qtyOnHa - reserved - assigned);
-          let receiveDate = row['dcoCreate'] || row['receiveDate'] || new Date().toISOString();
+          // คำนวณสต๊อกจริง
+          const actualQty = Math.max(0, qtyOnHandRaw - reserved - assigned);
 
           return {
             itemId: itemCode ? String(itemCode).trim().toUpperCase() : null,
-            lotNo: lotNo ? String(lotNo).trim() : 'UNKNOWN-LOT',
-            qtyOnHand: actualQtyOnHand,
-            receiveDate: receiveDate
+            lotNo: lotNo ? String(lotNo).trim() : '-',
+            qtyOnHand: actualQty,
+            receiveDate: rawDate ? new Date(rawDate).toISOString() : new Date().toISOString()
           };
         }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
 
         if (payload.length === 0) {
-          toast.error('❌ ไม่พบรายการสินค้าที่มีสต๊อกพร้อมส่ง (ยอดหลังหักจองต้อง > 0)', { id: toastId });
+          toast.error('ไม่พบข้อมูลที่มียอดสต๊อกพร้อมส่ง', { id: toastId });
           return;
         }
 
-        toast.loading(`กำลังจัดคิวสต๊อก ${payload.length} รายการลง Database...`, { id: toastId });
+        toast.loading(`กำลังส่ง ${payload.length} รายการเข้า Database...`, { id: toastId });
 
         const { error } = await supabase
           .from('item_stocks')
@@ -176,7 +162,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
         if (error) throw error;
 
-        toast.success(`🎉 นำเข้าข้อมูลสต๊อก FIFO สำเร็จ ${payload.length} รายการ`, { id: toastId });
+        toast.success(`🎉 Import สต๊อก FIFO สำเร็จ!`, { id: toastId });
 
       } catch (err) {
         console.error("🔥 Import สต๊อกพัง:", err);
@@ -187,7 +173,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     reader.readAsBinaryString(file);
     e.target.value = null;
   };
-  
+
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     const payload = {
