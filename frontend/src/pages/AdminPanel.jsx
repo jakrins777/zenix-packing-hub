@@ -107,7 +107,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   };
 
   const handleImportStocksExcel = (e) => {
-    const file = e.target.files?.[0];
+  const file = e.target.files?.[0];
 
     if (!file) return;
 
@@ -119,8 +119,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
     reader.onload = async (evt) => {
       try {
-        const XLSX = await import('xlsx');
-
         const data = evt.target.result;
 
         const workbook = XLSX.read(data, {
@@ -271,7 +269,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
     e.target.value = '';
   };
-  
+
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     const payload = {
