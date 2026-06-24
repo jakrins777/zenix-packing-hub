@@ -196,13 +196,24 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           return;
         }
 
+        // 🌟 เปลี่ยนจาก .insert() เป็น .upsert()
+        // โดยบอก Supabase ว่าถ้าซ้ำ ให้เช็กที่คอลัมน์ item_lot_unique (หรือชื่อ constraint ของพี่)
         const CHUNK_SIZE = 50;
         for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
           const chunk = payload.slice(i, i + CHUNK_SIZE);
           toast.loading(`กำลังส่งข้อมูลชุดที่ ${Math.ceil((i + 1) / CHUNK_SIZE)}...`, { id: toastId });
 
-          const { error } = await supabase.from('item_stocks').insert(chunk);
-          if (error) throw error;
+          // 🚀 ใช้ .upsert() แทน .insert()
+          const { error } = await supabase
+            .from('item_stocks')
+            .upsert(chunk, {
+              onConflict: 'itemId, lotNo' // 🌟 ระบุคู่คีย์ที่ห้ามซ้ำ ถ้าซ้ำให้ทับข้อมูลเก่า
+            });
+
+          if (error) {
+            console.error("❌ พังที่ชุดนี้:", error);
+            throw error;
+          }
         }
 
         toast.success(`🎉 นำเข้าสต๊อก FIFO สำเร็จ ${payload.length} รายการ`, { id: toastId });
