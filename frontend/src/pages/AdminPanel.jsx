@@ -41,7 +41,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   useEffect(() => {
     const fetchPalletsForDropdown = async () => {
       try {
-        // ใช้ api ที่มี Interceptor จัดการ Token ให้แล้ว
         const response = await api.get('/api/pallets');
         if (response.data && Array.isArray(response.data)) {
           setPalletsList(response.data);
@@ -70,7 +69,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     const searchId = itemForm.itemId.trim().toUpperCase();
 
     try {
-      // ลองค้นหาในข้อมูลที่มีอยู่ในระบบแล้วก่อน
       const existingItem = (items || []).find(i => String(i.itemId || i.itemid).toUpperCase() === searchId);
 
       if (existingItem) {
@@ -88,7 +86,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         return;
       }
 
-      // ถ้าไม่เจอในระบบ จำลองการไปดึงจากฐานข้อมูลส่วนกลาง ERP
       await new Promise(resolve => setTimeout(resolve, 600));
 
       if (searchId === 'PART-A01' || searchId === 'D57240261201') {
@@ -110,6 +107,70 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     }
   };
 
+  // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO) - [ย้ายมาไว้ข้างนอกให้ถูกสโคปแล้วครับ]
+  const handleImportStocksExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const toastId = toast.loading('กำลังอ่านไฟล์ Excel สต๊อกสินค้าจาก ERP...');
+    const reader = new FileReader();
+
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawData = XLSX.utils.sheet_to_json(ws);
+
+        if (rawData.length === 0) {
+          toast.error('ไม่พบข้อมูลในไฟล์ Excel กรุณาตรวจสอบอีกครั้ง', { id: toastId });
+          return;
+        }
+
+        const payload = rawData.map((row) => {
+          const itemCode = row['Item'] || row['itemId'];
+          const lotNo = row['Lot'] || row['lotNo'];
+          const qtyOnHa = Number(row['Qty On Ha'] || row['qtyOnHand'] || 0);
+          const reserved = Number(row['Reserved'] || 0);
+          const assigned = Number(row['Assigned'] || 0);
+
+          const actualQtyOnHand = Math.max(0, qtyOnHa - reserved - assigned);
+          let receiveDate = row['dcoCreate'] || row['receiveDate'] || new Date().toISOString();
+
+          return {
+            itemId: itemCode ? String(itemCode).trim().toUpperCase() : null,
+            lotNo: lotNo ? String(lotNo).trim() : 'UNKNOWN-LOT',
+            qtyOnHand: actualQtyOnHand,
+            receiveDate: receiveDate
+          };
+        }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
+
+        if (payload.length === 0) {
+          toast.error('❌ ไม่พบรายการสินค้าที่มีสต๊อกพร้อมส่ง (ยอดหลังหักยอดจองต้อง > 0)', { id: toastId });
+          return;
+        }
+
+        toast.loading(`กำลังอัปโหลดและจัดคิวสต๊อกจำนวน ${payload.length} รายการลง Database...`, { id: toastId });
+
+        const { error } = await supabase
+          .from('item_stocks')
+          .insert(payload);
+
+        if (error) throw error;
+
+        toast.success(`🎉 อัปโหลดคลังสต๊อกสำเร็จ! นำเข้าข้อมูลระบบ FIFO ทั้งหมด ${payload.length} รายการ`, { id: toastId });
+
+      } catch (err) {
+        console.error("🔥 Import สต๊อกพัง:", err);
+        toast.error('Import ล้มเหลว: ' + err.message, { id: toastId });
+      }
+    };
+
+    reader.readAsBinaryString(file);
+    e.target.value = null;
+  };
+
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     const payload = {
@@ -117,80 +178,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       itemName: (itemForm.itemName || '').trim() === '' ? itemForm.itemId : itemForm.itemName,
       boxesPerUnit: itemForm.boxesPerUnit ? Number(itemForm.boxesPerUnit) : 1,
       updatedAt: new Date().toISOString()
-    };
-
-    // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO)
-    const handleImportStocksExcel = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const toastId = toast.loading('กำลังอ่านไฟล์ Excel สต๊อกสินค้าจาก ERP...');
-      const reader = new FileReader();
-
-      reader.onload = async (evt) => {
-        try {
-          const bstr = evt.target.result;
-          // อ่านไฟล์ Excel
-          const wb = XLSX.read(bstr, { type: 'binary' });
-          const wsname = wb.SheetNames[0];
-          const ws = wb.Sheets[wsname];
-          // แปลงข้อมูลแถวใน Excel ออกมาเป็น JSON Array
-          const rawData = XLSX.utils.sheet_to_json(ws);
-
-          if (rawData.length === 0) {
-            toast.error('ไม่พบข้อมูลในไฟล์ Excel กรุณาตรวจสอบอีกครั้ง', { id: toastId });
-            return;
-          }
-
-          // 🌟 ดำเนินการจับคู่คอลัมน์และคำนวณยอดตามสูตรที่คุยกันคอรัฟ
-          const payload = rawData.map((row) => {
-            const itemCode = row['Item'] || row['itemId'];
-            const lotNo = row['Lot'] || row['lotNo'];
-            const qtyOnHa = Number(row['Qty On Ha'] || row['qtyOnHand'] || 0);
-            const reserved = Number(row['Reserved'] || 0);
-            const assigned = Number(row['Assigned'] || 0);
-
-            // 💡 สูตรคำนวณหักยอดจอง: ยอดพร้อมแพ็คจริง = Qty On Hand - Reserved - Assigned
-            const actualQtyOnHand = Math.max(0, qtyOnHa - reserved - assigned);
-
-            // จัดการฟอร์แมตวันที่รับเข้า ถ้าไม่มีให้ใช้วันที่ปัจจุบัน
-            let receiveDate = row['dcoCreate'] || row['receiveDate'] || new Date().toISOString();
-
-            return {
-              itemId: itemCode ? String(itemCode).trim().toUpperCase() : null,
-              lotNo: lotNo ? String(lotNo).trim() : 'UNKNOWN-LOT',
-              qtyOnHand: actualQtyOnHand,
-              receiveDate: receiveDate
-            };
-          }).filter(stock => stock.itemId && stock.qtyOnHand > 0); // กรองเอาเฉพาะตัวที่มีของและมีรหัสสินค้า
-
-          if (payload.length === 0) {
-            toast.error('❌ ไม่พบรายการสินค้าที่มีสต๊อกพร้อมส่ง (ยอดหลังหักยอดจองต้อง > 0)', { id: toastId });
-            return;
-          }
-
-          toast.loading(`กำลังอัปโหลดและจัดคิวสต๊อกจำนวน ${payload.length} รายการลง Database...`, { id: toastId });
-
-          // 🚀 ยิงข้อมูลตรงเข้าตาราง item_stocks ใน Supabase
-          const { error } = await supabase
-            .from('item_stocks')
-            .insert(payload);
-
-          if (error) throw error;
-
-          toast.success(`🎉 อัปโหลดคลังสต๊อกสำเร็จ! นำเข้าข้อมูลระบบ FIFO ทั้งหมด ${payload.length} รายการ`, { id: toastId });
-
-          // (Option) ถ้ามีฟังก์ชันดึงข้อมูลสต๊อกใหม่ให้รีเฟรชตรงนี้
-          // if (typeof fetchStocksData === 'function') fetchStocksData();
-
-        } catch (err) {
-          console.error("🔥 Import สต๊อกพัง:", err);
-          toast.error('Import ล้มเหลว: ' + err.message, { id: toastId });
-        }
-      };
-
-      reader.readAsBinaryString(file);
-      e.target.value = null; // เคลียร์ค่าเพื่อให้กดอัปโหลดไฟล์ซ้ำเดิมได้
     };
 
     const toastId = toast.loading(t('toast.saving_item'));
@@ -358,19 +345,17 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url); 
+    URL.revokeObjectURL(url);
 
     toast.success(t('toast.export_item_success'));
   };
 
-  // 🌟 ฟังก์ชันสำหรับโหลด CSV เฉพาะรายการที่ติ๊กเลือก
   const handleExportSelectedItems = () => {
     if (selectedItemIds.length === 0) {
       toast.error('กรุณาเลือกรายการที่ต้องการดาวน์โหลด');
       return;
     }
 
-    // กรองเอาเฉพาะข้อมูลที่มี ID ตรงกับที่ติ๊กเลือกไว้
     const selectedData = (items || []).filter(item =>
       selectedItemIds.includes(item.itemId || item.itemid)
     );
@@ -388,8 +373,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       ].join(','))
     ];
 
-   
-    const csvContent = "\uFEFF" + csvRows.join('\n'); // \uFEFF บังคับให้ Excel อ่านภาษาไทยได้
+    const csvContent = "\uFEFF" + csvRows.join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
@@ -399,7 +383,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url); // เคลียร์หน่วยความจำหลังโหลดเสร็จ
+    URL.revokeObjectURL(url);
 
     toast.success(`ดาวน์โหลด ${selectedData.length} รายการสำเร็จ!`);
   };
@@ -448,7 +432,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     try { const { error } = await supabase.from('users').delete().eq('id', id); if (!error) { toast.success(t('toast.delete_user_success'), { id: toastId }); if (refreshAdminData) refreshAdminData(); } else { toast.error(t('toast.delete_error_msg') + error.message, { id: toastId }); } } catch (err) { toast.error(t('toast.delete_error'), { id: toastId }); }
   };
 
-  // 🌟 ฟังก์ชันที่ 1: อัปโหลดข้อมูล Item
   const handleFileUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -456,11 +439,10 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
     const toastId = toast.loading(t('toast.importing_item'));
     try {
-      // 🌟 เล็งเป้าไปที่ Render โดยตรง
       const res = await api.post(`${NODE_API_URL}/api/items/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('zenix_token')}` // กันเหนียว
+          'Authorization': `Bearer ${localStorage.getItem('zenix_token')}`
         }
       });
       const data = res.data;
@@ -471,16 +453,12 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         toast.error(data.message, { id: toastId });
       }
     } catch (err) {
-      // 🌟 สั่งให้มันปริ้นท์ความจริงออกมาใน Console
       console.error("🔥 สาเหตุที่พัง:", err);
-
-      // ให้ Toast โชว์ข้อความ Error ของจริงออกมาเลย
       toast.error('พังเพราะ: ' + (err.response?.data?.message || err.message), { id: toastId });
     }
     e.target.value = null;
   };
 
-  // 🌟 ฟังก์ชันที่ 2: อัปโหลดข้อมูล Box
   const handleBoxFileUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -488,11 +466,10 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
     const toastId = toast.loading(t('toast.importing_box'));
     try {
-      // 🌟 เล็งเป้าไปที่ Render โดยตรง
       const res = await api.post(`${NODE_API_URL}/api/boxes/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('zenix_token')}` // กันเหนียว
+          'Authorization': `Bearer ${localStorage.getItem('zenix_token')}`
         }
       });
       const data = res.data;
@@ -503,10 +480,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         toast.error(data.message, { id: toastId });
       }
     } catch (err) {
-      // 🌟 สั่งให้มันปริ้นท์ความจริงออกมาใน Console
       console.error("🔥 สาเหตุที่พัง:", err);
-
-      // ให้ Toast โชว์ข้อความ Error ของจริงออกมาเลย
       toast.error('พังเพราะ: ' + (err.response?.data?.message || err.message), { id: toastId });
     }
     e.target.value = null;
@@ -638,19 +612,19 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             {/* 🌟 โซนนำเข้าข้อมูลผ่านไฟล์ Excel (ซ่อนไว้ตอนกำลังกดแก้ไขสินค้า) */}
             {!editingItemId && (
               <div className="space-y-4">
-                
+
                 {/* 1. กล่อง Import ข้อมูลสินค้าหลัก (Master Data) */}
                 <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm">
                   <h3 className="text-sm font-black text-[#0066CC] mb-3 flex items-center gap-2">
                     <span>📑</span> นำเข้าข้อมูลสินค้าใหม่ (Master Data)
                   </h3>
-                  <input 
-                    type="file" 
-                    id="items-file-input" 
-                    accept=".xlsx, .xls, .csv" 
-                    multiple 
-                    onChange={handleFileUpload} 
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all" 
+                  <input
+                    type="file"
+                    id="items-file-input"
+                    accept=".xlsx, .xls, .csv"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all"
                   />
                 </div>
 
@@ -675,7 +649,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
               </div>
             )}
-          
+
           </div>
 
           <div className="lg:col-span-2 w-full min-w-0 flex flex-col h-full">
@@ -749,7 +723,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       </button>
 
                       <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
-                      <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
                     </div>
                   </div>
                 </div>
@@ -758,7 +731,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
             {/* Data Table */}
             <div className="w-full overflow-x-auto rounded-xl border border-gray-200 flex-1 shadow-sm bg-white custom-scrollbar">
-              {/* 🌟 จุดเปลี่ยน: บังคับ min-w-[1000px] เพื่อสร้าง Scrollbar ให้อยู่แต่ในกรอบการ์ด */}
               <table className="w-full min-w-[1000px] divide-y divide-gray-200">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
@@ -857,7 +829,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                     </div>
                   </div>
 
-                  {/* 🌟 ช่องผูกกล่องกับพาเลท */}
                   <div>
                     <label className="block text-sm font-bold text-amber-600 mb-1">🪵 ผูกกับพาเลท (Pallet Binding)</label>
                     <select
@@ -945,7 +916,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                               {box?.description || '-'}
                               <div className="mt-1 flex flex-wrap gap-2">
                                 {box?.codename && <span className="text-xs text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded font-bold">{t('box.codename_label')} {box.codename}</span>}
-                                {/* 🌟 โชว์สถานะการผูกพาเลทในตาราง */}
                                 {box?.boundPalletId && <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded font-bold">🪵 พาเลท: {box.boundPalletId}</span>}
                               </div>
                             </td>
