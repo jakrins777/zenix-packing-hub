@@ -124,7 +124,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             { defval: '' }
           );
         } else {
-          // 🌟 เพิ่ม cellDates: true เพื่อให้มันพยายามแปลงวันที่จาก Excel ให้ดีขึ้น
           const workbook = XLSX.read(data, { type: 'array', cellDates: true });
           const firstSheet = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheet];
@@ -136,21 +135,37 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           return;
         }
 
-        const payload = rawData.map((row) => {
-          const itemCode = row['Item'];
-          const lotNo = row['Lot'];
-          const qtyOnHandRaw = Number(row['Qty On Ha'] || 0);
-          const reserved = Number(row['Reserved'] || 0);
-          const assigned = Number(row['Assigned'] || 0);
-          const rawDate = row['dcoCreateDate'];
+        // 🌟 ตัวช่วยแปลงตัวเลข (ดึงลูกน้ำออกให้หมดก่อนคำนวณ)
+        const parseNum = (val) => {
+          if (val === null || val === undefined || val === '') return 0;
+          const cleanStr = String(val).replace(/,/g, '').trim();
+          return Number(cleanStr) || 0;
+        };
 
+        // 🌟 โชว์ให้เห็นความจริงใน Console (กด F12 ดูได้เลยว่า Excel ส่งอะไรมา)
+        console.log("🔍 ข้อมูลดิบแถวแรกจาก Excel:", rawData[0]);
+
+        const payload = rawData.map((row) => {
+          // 🌟 ค้นหาชื่อหัวคอลัมน์แบบ "ตัดช่องว่างทิ้ง" (ดักจับเคาะวรรคแอบแฝงใน Excel)
+          const keys = Object.keys(row);
+          const getVal = (exactName) => {
+            const foundKey = keys.find(k => k.trim() === exactName);
+            return foundKey ? row[foundKey] : null;
+          };
+
+          const itemCode = getVal('Item');
+          const lotNo = getVal('Lot');
+          const qtyOnHandRaw = parseNum(getVal('Qty On Ha'));
+          const reserved = parseNum(getVal('Reserved'));
+          const assigned = parseNum(getVal('Assigned'));
+          const rawDate = getVal('dcoCreateDate');
+
+          // คำนวณสต๊อกจริงแบบปลอดภัย
           const actualQty = Math.max(0, qtyOnHandRaw - reserved - assigned);
 
-          // 🌟 ระบบจัดการวันที่แบบเซฟโหมด (Safe Date Parsing)
-          let finalReceiveDate = new Date().toISOString(); // ค่าเริ่มต้นคือวันนี้-เวลานี้
+          let finalReceiveDate = new Date().toISOString();
           if (rawDate) {
             const parsedDate = new Date(rawDate);
-            // ตรวจสอบว่ามันแปลงเป็นวันที่สำเร็จจริงๆ ไม่ใช่ "Invalid Date"
             if (!isNaN(parsedDate.getTime())) {
               finalReceiveDate = parsedDate.toISOString();
             }
@@ -162,13 +177,16 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             qtyOnHand: actualQty,
             receiveDate: finalReceiveDate
           };
-        }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
+        }).filter(stock => stock.itemId && stock.qtyOnHand > 0); // ต้องมีรหัส และยอดของต้องมากกว่า 0
+
+        console.log("🚀 ข้อมูลที่ฝ่าด่านพร้อมส่งเข้า Database:", payload);
 
         if (payload.length === 0) {
-          toast.error('ไม่พบข้อมูลสต๊อกที่ใช้งานได้', { id: toastId });
+          toast.error('ไม่พบข้อมูลสต๊อกที่มียอด > 0 (กด F12 เพื่อดู Log)', { id: toastId });
           return;
         }
 
+        // ทยอยอัปโหลดทีละ 100 แถว
         const CHUNK_SIZE = 100;
         for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
           const chunk = payload.slice(i, i + CHUNK_SIZE);
