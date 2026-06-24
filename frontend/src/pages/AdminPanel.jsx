@@ -1,13 +1,12 @@
 /* eslint-disable no-unused-vars */
-
 import { useState, useEffect } from 'react';
-import api from '../utils/axiosConfig'; // 🌟 ดึง API ที่มี Interceptor แปะ Token มาใช้
+import api from '../utils/axiosConfig';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import BoxCodenameUpdater from './BoxCodenameUpdater';
 import { useTranslation } from 'react-i18next';
-import { Search } from 'lucide-react'; // 🌟 ไอคอนสำหรับปุ่มค้นหา Template
+import { Search } from 'lucide-react';
 
 export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, items, boxes, users, refreshAdminData }) {
   const { t } = useTranslation();
@@ -42,7 +41,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   useEffect(() => {
     const fetchPalletsForDropdown = async () => {
       try {
-        // 🌟 เปลี่ยนมาดึงตรงจาก Supabase เพื่อเลี่ยงปัญหา 403 จากหลังบ้าน
         const { data, error } = await supabase.from('Pallet').select('*');
         if (error) throw error;
         if (data) {
@@ -56,8 +54,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   }, []);
 
   // ================= Handlers =================
-
-  // 🌟 ฟังก์ชันโหลด Template จากรหัส Item (ERP Simulation)
   const handleLoadItemTemplate = async () => {
     if (!itemForm.itemId || itemForm.itemId.trim() === '') {
       toast.error('กรุณากรอกรหัส Item ก่อนกดค้นหา');
@@ -106,168 +102,85 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     }
   };
 
+  // 🌟 ฟังก์ชันจัดการ Import สต๊อก (เพิ่มโค้ดอ่าน CSV UTF-16 ตามที่พี่ขอ)
   const handleImportStocksExcel = (e) => {
-  const file = e.target.files?.[0];
-
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    const toastId = toast.loading(
-      'กำลังนำเข้าสต๊อก...'
-    );
-
+    const toastId = toast.loading('กำลังนำเข้าสต๊อก...');
     const reader = new FileReader();
 
     reader.onload = async (evt) => {
       try {
         const data = evt.target.result;
+        let rawData = [];
 
-        const workbook = XLSX.read(data, {
-          type: 'array'
-        });
-
-        const firstSheet =
-          workbook.SheetNames[0];
-
-        const worksheet =
-          workbook.Sheets[firstSheet];
-
-        const rawData =
-          XLSX.utils.sheet_to_json(
-            worksheet,
-            {
-              defval: ''
-            }
+        // 🌟 โค้ดส่วนที่พี่ต้องการใส่เพิ่ม
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          const text = new TextDecoder('utf-16').decode(data);
+          rawData = XLSX.utils.sheet_to_json(
+            XLSX.read(text, { type: 'string', FS: '\t' }).Sheets[
+            XLSX.read(text, { type: 'string', FS: '\t' }).SheetNames[0]
+            ],
+            { defval: '' }
           );
-
-        const payload = rawData
-          .map((row) => {
-            const itemCode =
-              row['Item'];
-
-            const lotNo =
-              row['Lot'];
-
-            const qtyOnHandRaw =
-              Number(
-                row['Qty On Hand'] || 0
-              );
-
-            const reserved =
-              Number(
-                row['Reserved'] || 0
-              );
-
-            const assigned =
-              Number(
-                row[
-                'Assigned To Be Picked'
-                ] || 0
-              );
-
-            const actualQty =
-              Math.max(
-                0,
-                qtyOnHandRaw -
-                reserved -
-                assigned
-              );
-
-            let receiveDate;
-
-            try {
-              receiveDate =
-                row['dcoCreateDate']
-                  ? new Date(
-                    row[
-                    'dcoCreateDate'
-                    ]
-                  ).toISOString()
-                  : new Date().toISOString();
-            } catch {
-              receiveDate =
-                new Date().toISOString();
-            }
-
-            return {
-              itemId: itemCode
-                ? String(
-                  itemCode
-                )
-                  .trim()
-                  .toUpperCase()
-                : null,
-
-              lotNo: lotNo
-                ? String(lotNo).trim()
-                : '-',
-
-              qtyOnHand:
-                actualQty,
-
-              receiveDate
-            };
-          })
-          .filter(
-            (stock) =>
-              stock.itemId &&
-              stock.qtyOnHand > 0
-          );
-
-        if (
-          payload.length === 0
-        ) {
-          throw new Error(
-            'ไม่พบข้อมูลสต๊อก'
-          );
+        } else {
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
         }
 
-        const { error } =
-          await supabase
-            .from('item_stocks')
-            .upsert(payload, {
-              onConflict:
-                'itemId,lotNo'
-            });
+        if (rawData.length === 0) {
+          toast.error('ไฟล์ว่างเปล่าครับ', { id: toastId });
+          return;
+        }
 
-        if (error)
-          throw error;
+        // ประมวลผลข้อมูลเตรียมส่งเข้า DB
+        const payload = rawData.map((row) => {
+          const itemCode = row['Item'];
+          const lotNo = row['Lot'];
+          const qtyOnHandRaw = Number(row['Qty On Ha'] || 0);
+          const reserved = Number(row['Reserved'] || 0);
+          const assigned = Number(row['Assigned'] || 0);
+          const rawDate = row['dcoCreateDate'];
 
-        toast.success(
-          `นำเข้าสำเร็จ ${payload.length} รายการ`,
-          {
-            id: toastId
-          }
-        );
+          const actualQty = Math.max(0, qtyOnHandRaw - reserved - assigned);
+
+          return {
+            itemId: itemCode ? String(itemCode).trim().toUpperCase() : null,
+            lotNo: lotNo ? String(lotNo).trim() : '-',
+            qtyOnHand: actualQty,
+            receiveDate: rawDate ? new Date(rawDate).toISOString() : new Date().toISOString()
+          };
+        }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
+
+        if (payload.length === 0) {
+          toast.error('ไม่พบข้อมูลสต๊อกที่ใช้งานได้', { id: toastId });
+          return;
+        }
+
+        // ระบบแบ่งส่งข้อมูล (ป้องกัน Timeout)
+        const CHUNK_SIZE = 100;
+        for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
+          const chunk = payload.slice(i, i + CHUNK_SIZE);
+          toast.loading(`กำลังส่งข้อมูลชุดที่ ${Math.ceil((i + 1) / CHUNK_SIZE)}...`, { id: toastId });
+
+          const { error } = await supabase.from('item_stocks').insert(chunk);
+          if (error) throw error;
+        }
+
+        toast.success(`🎉 นำเข้าสต๊อก FIFO สำเร็จ ${payload.length} รายการ`, { id: toastId });
+
       } catch (err) {
-        console.error(
-          '🔥 Import สต๊อกพัง:',
-          err
-        );
-
-        toast.error(
-          err.message ||
-          'Import ไม่สำเร็จ',
-          {
-            id: toastId
-          }
-        );
+        console.error("🔥 Import สต๊อกพัง:", err);
+        toast.error('Import ล้มเหลว: ' + err.message, { id: toastId });
       }
     };
 
-    reader.onerror = () => {
-      toast.error(
-        'อ่านไฟล์ไม่สำเร็จ',
-        {
-          id: toastId
-        }
-      );
-    };
-
-    reader.readAsArrayBuffer(
-      file
-    );
-
-    e.target.value = '';
+    // 🌟 สำคัญ: ต้องใช้ ArrayBuffer เพราะ TextDecoder ทำงานกับ ArrayBuffer เท่านั้น
+    reader.readAsArrayBuffer(file);
+    e.target.value = null;
   };
 
   const handleItemSubmit = async (e) => {
