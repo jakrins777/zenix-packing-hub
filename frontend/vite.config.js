@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  optimizeDeps: {
+    include: ['xlsx']
+  },
   server: {
     host: '0.0.0.0',
     port: 5173, // 🌟 ล็อกพอร์ตไว้เลย
