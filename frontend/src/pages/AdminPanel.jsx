@@ -196,7 +196,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           return;
         }
 
-        const CHUNK_SIZE = 100;
+        const CHUNK_SIZE = 50;
         for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
           const chunk = payload.slice(i, i + CHUNK_SIZE);
           toast.loading(`กำลังส่งข้อมูลชุดที่ ${Math.ceil((i + 1) / CHUNK_SIZE)}...`, { id: toastId });
