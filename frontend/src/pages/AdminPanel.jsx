@@ -187,7 +187,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             qtyOnHand: actualQty,
             receiveDate: finalReceiveDate
           };
-        }).filter(stock => stock.itemId && stock.qtyOnHand > 0);
+        }).filter(stock => stock.itemId && stock.qtyOnHand > -1);
 
         console.log("🚀 ข้อมูลที่ฝ่าด่านพร้อมส่งเข้า Database:", payload);
 
@@ -198,23 +198,28 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
         // 🌟 เปลี่ยนจาก .insert() เป็น .upsert()
         // โดยบอก Supabase ว่าถ้าซ้ำ ให้เช็กที่คอลัมน์ item_lot_unique (หรือชื่อ constraint ของพี่)
+        console.log("📦 ข้อมูลทั้งหมดที่เตรียมส่ง:", payload.length);
+
         const CHUNK_SIZE = 50;
+        let successCount = 0;
+
         for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
           const chunk = payload.slice(i, i + CHUNK_SIZE);
-          toast.loading(`กำลังส่งข้อมูลชุดที่ ${Math.ceil((i + 1) / CHUNK_SIZE)}...`, { id: toastId });
+          console.log(`🚀 กำลังส่งชุดที่ ${i / CHUNK_SIZE + 1} | รายการที่ ${i} ถึง ${i + chunk.length}`);
 
-          // 🚀 ใช้ .upsert() แทน .insert()
           const { error } = await supabase
             .from('item_stocks')
-            .upsert(chunk, {
-              onConflict: 'itemId, lotNo' // 🌟 ระบุคู่คีย์ที่ห้ามซ้ำ ถ้าซ้ำให้ทับข้อมูลเก่า
-            });
+            .upsert(chunk, { onConflict: 'itemId, lotNo' });
 
           if (error) {
-            console.error("❌ พังที่ชุดนี้:", error);
+            console.error("❌ Error ชุดที่:", i / CHUNK_SIZE + 1, error);
             throw error;
           }
+
+          successCount += chunk.length;
         }
+
+        toast.success(`🎉 นำเข้าสำเร็จครบ ${successCount} รายการ!`);
 
         toast.success(`🎉 นำเข้าสต๊อก FIFO สำเร็จ ${payload.length} รายการ`, { id: toastId });
 
