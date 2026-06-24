@@ -118,6 +118,80 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       updatedAt: new Date().toISOString()
     };
 
+    // 🌟 ฟังก์ชันสำหรับเซ็ตระบบ Import สต๊อกสินค้าจากไฟล์ Excel ERP (FIFO)
+    const handleImportStocksExcel = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const toastId = toast.loading('กำลังอ่านไฟล์ Excel สต๊อกสินค้าจาก ERP...');
+      const reader = new FileReader();
+
+      reader.onload = async (evt) => {
+        try {
+          const bstr = evt.target.result;
+          // อ่านไฟล์ Excel
+          const wb = XLSX.read(bstr, { type: 'binary' });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          // แปลงข้อมูลแถวใน Excel ออกมาเป็น JSON Array
+          const rawData = XLSX.utils.sheet_to_json(ws);
+
+          if (rawData.length === 0) {
+            toast.error('ไม่พบข้อมูลในไฟล์ Excel กรุณาตรวจสอบอีกครั้ง', { id: toastId });
+            return;
+          }
+
+          // 🌟 ดำเนินการจับคู่คอลัมน์และคำนวณยอดตามสูตรที่คุยกันคอรัฟ
+          const payload = rawData.map((row) => {
+            const itemCode = row['Item'] || row['itemId'];
+            const lotNo = row['Lot'] || row['lotNo'];
+            const qtyOnHa = Number(row['Qty On Ha'] || row['qtyOnHand'] || 0);
+            const reserved = Number(row['Reserved'] || 0);
+            const assigned = Number(row['Assigned'] || 0);
+
+            // 💡 สูตรคำนวณหักยอดจอง: ยอดพร้อมแพ็คจริง = Qty On Hand - Reserved - Assigned
+            const actualQtyOnHand = Math.max(0, qtyOnHa - reserved - assigned);
+
+            // จัดการฟอร์แมตวันที่รับเข้า ถ้าไม่มีให้ใช้วันที่ปัจจุบัน
+            let receiveDate = row['dcoCreate'] || row['receiveDate'] || new Date().toISOString();
+
+            return {
+              itemId: itemCode ? String(itemCode).trim().toUpperCase() : null,
+              lotNo: lotNo ? String(lotNo).trim() : 'UNKNOWN-LOT',
+              qtyOnHand: actualQtyOnHand,
+              receiveDate: receiveDate
+            };
+          }).filter(stock => stock.itemId && stock.qtyOnHand > 0); // กรองเอาเฉพาะตัวที่มีของและมีรหัสสินค้า
+
+          if (payload.length === 0) {
+            toast.error('❌ ไม่พบรายการสินค้าที่มีสต๊อกพร้อมส่ง (ยอดหลังหักยอดจองต้อง > 0)', { id: toastId });
+            return;
+          }
+
+          toast.loading(`กำลังอัปโหลดและจัดคิวสต๊อกจำนวน ${payload.length} รายการลง Database...`, { id: toastId });
+
+          // 🚀 ยิงข้อมูลตรงเข้าตาราง item_stocks ใน Supabase
+          const { error } = await supabase
+            .from('item_stocks')
+            .insert(payload);
+
+          if (error) throw error;
+
+          toast.success(`🎉 อัปโหลดคลังสต๊อกสำเร็จ! นำเข้าข้อมูลระบบ FIFO ทั้งหมด ${payload.length} รายการ`, { id: toastId });
+
+          // (Option) ถ้ามีฟังก์ชันดึงข้อมูลสต๊อกใหม่ให้รีเฟรชตรงนี้
+          // if (typeof fetchStocksData === 'function') fetchStocksData();
+
+        } catch (err) {
+          console.error("🔥 Import สต๊อกพัง:", err);
+          toast.error('Import ล้มเหลว: ' + err.message, { id: toastId });
+        }
+      };
+
+      reader.readAsBinaryString(file);
+      e.target.value = null; // เคลียร์ค่าเพื่อให้กดอัปโหลดไฟล์ซ้ำเดิมได้
+    };
+
     const toastId = toast.loading(t('toast.saving_item'));
     try {
       let error;
@@ -560,13 +634,47 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
               </form>
             </div>
 
-            {/* Import Excel */}
+            {/* 🌟 โซนนำเข้าข้อมูลผ่านไฟล์ Excel (ซ่อนไว้ตอนกำลังกดแก้ไขสินค้า) */}
             {!editingItemId && (
-              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
-                <h3 className="text-lg font-black text-[#0066CC] mb-3 flex items-center gap-2">{t('item.import_excel')}</h3>
-                <input type="file" id="items-file-input" accept=".xlsx, .xls, .csv" multiple onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all" />
+              <div className="space-y-4">
+                
+                {/* 1. กล่อง Import ข้อมูลสินค้าหลัก (Master Data) */}
+                <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm">
+                  <h3 className="text-sm font-black text-[#0066CC] mb-3 flex items-center gap-2">
+                    <span>📑</span> นำเข้าข้อมูลสินค้าใหม่ (Master Data)
+                  </h3>
+                  <input 
+                    type="file" 
+                    id="items-file-input" 
+                    accept=".xlsx, .xls, .csv" 
+                    multiple 
+                    onChange={handleFileUpload} 
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all" 
+                  />
+                </div>
+
+                {/* 2. กล่อง Import สต๊อกประจำวัน (FIFO) */}
+                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 shadow-sm">
+                  <h3 className="text-sm font-black text-amber-700 mb-3 flex items-center gap-2">
+                    <span>📦</span> อัปเดตสต๊อกสินค้าจาก ERP (รายวัน)
+                  </h3>
+                  <label className="cursor-pointer w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
+                    <span>📥</span> อัปโหลดไฟล์ Excel สต๊อก (FIFO)
+                    <input
+                      type="file"
+                      accept=".xlsx, .xls, .csv"
+                      onChange={handleImportStocksExcel}
+                      className="hidden"
+                    />
+                  </label>
+                  <div className="text-[10px] text-amber-600/80 text-center mt-2 font-medium">
+                    *ระบบจะคำนวณหักยอด Reserved/Assigned อัตโนมัติ
+                  </div>
+                </div>
+
               </div>
             )}
+          
           </div>
 
           <div className="lg:col-span-2 w-full min-w-0 flex flex-col h-full">
