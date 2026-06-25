@@ -338,7 +338,14 @@
     "not_enough_stock" : "สต๊อกไม่พอ (ต้องการ ${totalRequestedQty} แต่ในคลังเหลือรวมทุกล็อตแค่ ${totalStockAvailable})` });",
     "pallet_name": "พาเลท: {box.boundPalletId}",
     "box_before_calc" : "กรุณาคำนวณกล่องก่อนครับ",
-    "auto_pallet_calc" : "กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ..."
+    "auto_pallet_calc" : "กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ...",
+    "pallet_details": "📋 รายละเอียดพาเลทใบนี้",
+    "pallet_seq": "พาเลทลำดับที่",
+    "pallet_model_selected": "โมเดลที่ระบบเลือก",
+    "boxes_packed_success": "กล่องวางสำเร็จบนใบนี้",
+    "pallet_actual_size": "ขนาดแท้จริงพาเลท",
+    "pallet_overfilled_warning": "⚠️ หมายเหตุ: ตรวจพบกล่องขนาดใหญ่เกินไปกว่าที่สเปกพาเลททุกรุ่นในระบบจะรองรับได้จำนวน",
+    "pallet_auto_optimize_note": "ระบบคำนวณสลับไซส์ให้อัตโนมัติเพื่อความประหยัดที่สุด"
   },
   "packing_station": {
     "title": "🚀 สแกนแพ็คสินค้า",

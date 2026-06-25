@@ -329,8 +329,16 @@
     "used_total_boxes": "(Used {{count}} boxes)",
     "empty_box_hint": "Empty box (can add more items)",
     "btn_print_instruction": "🖨️ Print Packing Instruction",
-    "lot_po": "Lot:"
-  },
+    "lot_po": "Lot:",
+    "pallet_details": "📋 Pallet Details",
+    "pallet_seq": "Pallet Sequence",
+    "pallet_model_selected": "Selected Pallet Model",
+    "boxes_packed_success": "Boxes packed on this pallet",
+    "pallet_actual_size": "Actual Pallet Size",
+    "pallet_overfilled_warning": "⚠️ Note: Detected boxes that exceed all available pallet specifications. Unpacked boxes:",
+    "pallet_auto_optimize_note": "*System automatically optimizes pallet size for best efficiency"
+    }
+,
   "packing_station": {
     "title": "🚀 Scan & Pack",
     "scan_placeholder": "Scan barcode and press Enter...",

@@ -662,14 +662,31 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                       <Pallet3DViewer palletData={activePalletData} />
                     </div>
                     {activePalletData && (
-                      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
-                        <h4 className="font-bold text-slate-800 text-sm border-b pb-2 uppercase tracking-wide">📋 {t('planner.pallet_details', 'รายละเอียดพาเลทใบนี้')}</h4>
-                        <ul className="text-xs space-y-3 text-slate-600">
-                          <li className="flex justify-between"><span>{t('planner.pallet_seq', 'พาเลทลำดับที่')}:</span> <span className="font-bold text-slate-800">{t('planner.box_no', { no: activePalletData.palletNo })}</span></li>
-                          <li className="flex justify-between"><span>{t('planner.pallet_model_selected', 'โมเดลที่ระบบเลือก')}:</span> <span className="font-bold text-[#0066CC]">{activePalletData.palletSpecification.palletId}</span></li>
-                          <li className="flex justify-between"><span>{t('common.description', 'คำอธิบาย')}:</span> <span className="font-bold text-slate-700">{activePalletData.palletSpecification.description || '-'}</span></li>
-                          <li className="flex justify-between"><span>{t('planner.boxes_packed_success', 'กล่องวางสำเร็จบนใบนี้')}:</span> <span className="font-bold text-emerald-600 text-sm">{activePalletData.totalPackedCount} {t('planner.unit_box')}</span></li>
-                          <li className="flex justify-between"><span>{t('planner.pallet_actual_size', 'ขนาดแท้จริงพาเลท')}:</span> <span className="font-bold text-slate-800">{activePalletData.palletSpecification.totalWidthMm}x{activePalletData.palletSpecification.totalLengthMm} mm</span></li>
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                          <h4 className="font-bold text-slate-800 text-sm border-b pb-2 uppercase tracking-wide">
+                            📋 {t('planner.pallet_details')}
+                          </h4>
+                          <ul className="text-xs space-y-3 text-slate-600">
+                            <li className="flex justify-between">
+                        <span>{t('planner.pallet_seq')}:</span>
+                        <span className="font-bold text-slate-800">{t('planner.box_no', { no: activePalletData.palletNo })}</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span>{t('planner.pallet_model_selected')}:</span>
+                        <span className="font-bold text-[#0066CC]">{activePalletData.palletSpecification.palletId}</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span>{t('common.description')}:</span>
+                        <span className="font-bold text-slate-700">{activePalletData.palletSpecification.description || '-'}</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span>{t('planner.boxes_packed_success')}:</span>
+                        <span className="font-bold text-emerald-600 text-sm">{activePalletData.totalPackedCount} {t('planner.unit_box')}</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span>{t('planner.pallet_actual_size')}:</span>
+                            <span className="font-bold text-slate-800">{activePalletData.palletSpecification.totalWidthMm}x{activePalletData.palletSpecification.totalLengthMm} mm</span>
+                            </li>
                         </ul>
                         {pallet3DResult.isOverfilled && activePalletTab === (pallet3DResult.pallets.length - 1) && (
                           <div className="bg-red-50 text-red-700 p-3 rounded-lg text-xs border border-red-200 font-bold mt-2">
