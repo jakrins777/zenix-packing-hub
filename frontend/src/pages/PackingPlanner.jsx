@@ -15,18 +15,17 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   const [calcResults, setCalcResults] = useState([]);
   const [boxSummary, setBoxSummary] = useState([]);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
-
   const [packingMode, setPackingMode] = useState('consolidate');
   const [moveConfig, setMoveConfig] = useState(null);
-
   const [palletsList, setPalletsList] = useState([]);
   const [selectedPallet, setSelectedPallet] = useState('');
   const [pallet3DResult, setPallet3DResult] = useState(null);
   const [isCalculating3D, setIsCalculating3D] = useState(false);
-
   const [activePalletTab, setActivePalletTab] = useState(0);
-
   const [stocksList, setStocksList] = useState([]);
+  const NO_ORDER = t('planner.no_order');
+  const NO_PO = t('planner.no_po');
+  
 
   useEffect(() => {
     const fetchStocksAndPallets = async () => {
@@ -57,8 +56,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const validItemsList = [];
     const errorList = [];
 
-    const NO_ORDER = t('planner.no_order');
-    const NO_PO = t('planner.no_po');
+    
 
     let virtualStocks = JSON.parse(JSON.stringify(stocksList));
 
