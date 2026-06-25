@@ -329,7 +329,7 @@
     "used_total_boxes": "(Used {{count}} boxes)",
     "empty_box_hint": "Empty box (can add more items)",
     "btn_print_instruction": "🖨️ Print Packing Instruction",
-    "lot_po": "Lot/PO:"
+    "lot_po": "Lot:"
   },
   "packing_station": {
     "title": "🚀 Scan & Pack",

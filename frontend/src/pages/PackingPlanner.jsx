@@ -765,7 +765,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                         {/* 🌟 ป้าย Badge โชว์เลข Lot หน้าการ์ดแพ็คของ */}
                                         {item.lotNo && item.lotNo !== '-' && (
                                           <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold font-mono">
-                                            {t('planner.lot_po', 'Lot/PO:')} {item.lotNo}
+                                            {t('planner.lot_po', 'Lot:')} {item.lotNo}
                                           </span>
                                         )}
                                       </div>

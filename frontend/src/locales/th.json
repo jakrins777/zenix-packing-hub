@@ -331,7 +331,7 @@
     "used_total_boxes": "(ใช้ {{count}} ใบ)",
     "empty_box_hint": "กล่องเปล่า (ใส่ของเพิ่มได้)",
     "btn_print_instruction": "🖨️ พิมพ์ใบสั่งแพ็ค (Print)",
-    "lot_po": "Lot/PO:",
+    "lot_po": "Lot:",
     "pallet_simulate": "🔮 จำลองพาเลท 3D",
     "auto_pallet": "✨ (Auto) ให้ระบบหาพาเลทที่ดีที่สุด",
     "pallet_select": "เลือกพาเลทที่ต้องการจำลอง",
