@@ -18,7 +18,6 @@ const PackedBox = ({ box }) => {
     // 🪵 กำหนดโทนสีน้ำตาลกล่องกระดาษคราฟท์ (Cardboard Brown)
     const baseBoxColor = '#8B5A2B';
     const highlightBoxColor = '#A27246';
-    const edgeColor = '#5C3A21';
 
     return (
         <mesh
@@ -31,7 +30,13 @@ const PackedBox = ({ box }) => {
         >
             <boxGeometry args={[w, h, l]} />
             <meshStandardMaterial color={hovered ? highlightBoxColor : baseBoxColor} roughness={0.4} opacity={0.95} transparent />
-            <Edges linewidth={hovered ? 2 : 1} threshold={15} color={hovered ? "#2D190B" : edgeColor} />
+
+            {/* 🌟 เปลี่ยนเส้นขอบเป็นสีขาวตรงนี้ครับ (ถ้า Hover จะให้หนาขึ้นและเป็นสีเหลืองสว่าง) */}
+            <Edges
+                linewidth={hovered ? 3 : 1.5}
+                threshold={15}
+                color={hovered ? "#FFD700" : "white"}
+            />
 
             {/* 🌟 ป้าย Tooltip แบบจัดเต็ม แสดงข้อมูลสินค้าและยอดแพ็ค */}
             {hovered && (
