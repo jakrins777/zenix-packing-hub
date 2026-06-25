@@ -37,31 +37,6 @@ const PackedBox = ({ box }) => {
                 threshold={15}
                 color={hovered ? "#FFD700" : "white"}
             />
-
-            {/* 🌟 ป้าย Tooltip แบบจัดเต็ม แสดงข้อมูลสินค้าและยอดแพ็ค */}
-            {hovered && (
-                <Html position={[0, h / 2 + 0.05, 0]} center zIndexRange={[100, 0]}>
-                    <div className="bg-slate-900/95 text-white text-xs px-4 py-3 rounded-xl shadow-2xl whitespace-nowrap pointer-events-none border border-amber-600/50 backdrop-blur-md transition-all">
-                        <div className="text-amber-400 font-black text-sm mb-2 border-b border-slate-700 pb-2">
-                            📦 {box.boxId}
-                        </div>
-                        <div className="space-y-1.5 text-[11px] text-slate-300 font-medium">
-                            <div className="flex justify-between gap-6">
-                                <span className="text-slate-400">📐 ขนาด:</span>
-                                <span>{box.dimensions.width} x {box.dimensions.length} x {box.dimensions.height} มม.</span>
-                            </div>
-                            <div className="flex justify-between gap-6">
-                                <span className="text-slate-400">🛒 บรรจุ:</span>
-                                <span className="text-emerald-400 font-bold text-xs">{box.packedQty || 0} / {box.itemCap || 0} ชิ้น</span>
-                            </div>
-                            <div className="flex justify-between gap-6">
-                                <span className="text-slate-400">⚖️ น้ำหนักรวม:</span>
-                                <span>{box.weight || 0} kg</span>
-                            </div>
-                        </div>
-                    </div>
-                </Html>
-            )}
         </mesh>
     );
 };
