@@ -317,7 +317,7 @@
     "from_box_no": "From Box #{{no}}",
     "move_qty_label": "Quantity to Move (Pcs)",
     "move_dest_label": "Move To Destination",
-    "print_modal_title": "📋 Box Requisition & Packing Instruction",
+    "print_modal_title": "Box Requisition & Packing Instruction",
     "print_header": "Box Requisition and Packing Instruction",
     "calc_mode_label": "Calculation Mode:",
     "print_step1": "1. Total Box Requisition Summary",
