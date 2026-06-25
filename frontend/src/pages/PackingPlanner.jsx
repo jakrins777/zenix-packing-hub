@@ -26,22 +26,20 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
   const [activePalletTab, setActivePalletTab] = useState(0);
 
-  const [stocksList, setStocksList] = useState([]); // 🌟 สต๊อกสินค้าทั้งหมดในคลัง
+  const [stocksList, setStocksList] = useState([]);
 
   useEffect(() => {
     const fetchStocksAndPallets = async () => {
       try {
-        // 1. ดึงข้อมูลสต๊อกที่ยังมีของอยู่ และเรียงตามวันที่รับเข้าจากเก่าไปใหม่ (FIFO)
         const { data: stockData, error: stockError } = await supabase
           .from('item_stocks')
           .select('*')
           .gt('qtyOnHand', 0)
-          .order('receiveDate', { ascending: true }); // เก่าสุดขึ้นก่อนเสมอนะครับ
+          .order('receiveDate', { ascending: true });
 
         if (stockError) throw stockError;
         if (stockData) setStocksList(stockData);
 
-        // 2. ดึงข้อมูลพาเลท (โค้ดเดิมของพี่)
         const { data: palletData, error: palletError } = await supabase.from('Pallet').select('*');
         if (palletError) throw palletError;
         if (palletData) setPalletsList(palletData);
@@ -50,19 +48,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       }
     };
     fetchStocksAndPallets();
-  }, []);
-
-  useEffect(() => {
-    const fetchPallets = async () => {
-      try {
-        const { data, error } = await supabase.from('Pallet').select('*');
-        if (error) throw error;
-        if (data) setPalletsList(data);
-      } catch (error) {
-        console.error("โหลดข้อมูลพาเลทไม่สำเร็จ:", error.message);
-      }
-    };
-    fetchPallets();
   }, []);
 
   const handleBulkCalculate = () => {
@@ -75,8 +60,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const NO_ORDER = t('planner.no_order');
     const NO_PO = t('planner.no_po');
 
-    // คัดลอกข้อมูลสต๊อกจำลองเอาไว้หักยอดในลูป (ไม่กระทบของจริงใน DB จนกว่าจะกด Save)
-    let virtualStocks = [...stocksList];
+    let virtualStocks = JSON.parse(JSON.stringify(stocksList));
 
     rows.forEach((row, index) => {
       if (index === 0 && /(item|qty|จำนวน|รหัส|po|order|line|lot)/i.test(row)) return;
@@ -87,7 +71,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       let itemCode = '';
       let totalRequestedQty = 0;
 
-      // ค้นหารหัสสินค้าในแถวข้อมูล
       const itemIndex = parts.findIndex(p => items.some(i => i.itemId === p.toUpperCase().trim()));
       if (itemIndex === -1) {
         errorList.push({ id: index, orderNo: NO_ORDER, poNumber: NO_PO, itemCode: parts[0], lotNo: '-', qty: 0, error: t('planner.err_item_not_found') });
@@ -95,16 +78,14 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       }
       itemCode = parts[itemIndex].toUpperCase().trim();
 
-      // ค้นหาจำนวนสินค้าในแถวข้อมูล
       let qtyIndex = parts.findIndex((p, idx) => idx !== itemIndex && !isNaN(p) && Number(p) > 0);
       if (qtyIndex !== -1) {
         totalRequestedQty = parseInt(parts[qtyIndex], 10);
       } else {
-        errorList.push({ id: index, orderNo: NO_ORDER, poNumber: NO_PO, itemCode, lotNo: '-', qty: 0, error: 'ไม่พบจำนวนที่ต้องการ' });
+        errorList.push({ id: index, orderNo: NO_ORDER, poNumber: NO_PO, itemCode, lotNo: '-', qty: 0, error: t('planner.err_no_qty', 'ไม่ระบุจำนวน') });
         return;
       }
 
-      // ดึงสเปกกล่องมาตรฐานของสินค้านั้นๆ ออกมาเตรียมไว้
       const dbItem = items.find(i => i.itemId === itemCode);
       const foundBox = boxes.find(b => b.pckId === dbItem.defaultPckId);
       if (!foundBox) {
@@ -116,49 +97,53 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       const itemName = dbItem.itemName || itemCode;
       let boxCap = dbItem.stdPackQty && Number(dbItem.stdPackQty) > 1 ? Number(dbItem.stdPackQty) : (Number(foundBox.maxCapacity) || 1);
 
-      // 🌟 ไฮไลท์: อัลกอริทึมจัดการจับคู่สินค้ากับคลังสต๊อกตามหลัก FIFO
-      // ดึงล็อตทั้งหมดที่มีของสินค้ารหัสนี้ออกมารอจัดสรร
       let availableLots = virtualStocks.filter(s => s.itemId === itemCode && s.qtyOnHand > 0);
-
-      // คำนวณยอดรวมที่มีอยู่ในคลังสต๊อกทั้งหมด ณ ขณะนั้น
-      let totalStockAvailable = availableLots.reduce((sum, s) => sum + s.qtyOnHand, 0);
-
-      if (totalStockAvailable < totalRequestedQty) {
-        errorList.push({ id: index, orderNo: NO_ORDER, poNumber: NO_PO, itemCode, lotNo: '-', qty: totalRequestedQty, error: `❌ สต๊อกไม่พอ (ต้องการ ${totalRequestedQty} แต่ในคลังเหลือรวมทุกล็อตแค่ ${totalStockAvailable})` });
-        return;
-      }
-
       let remainingToAllocate = totalRequestedQty;
 
-      // วนลูปหักยอดจากล็อตที่เก่าที่สุดลงมาเรื่อยๆ (FIFO)
+      // 🌟 ดึงสต๊อกที่มีมาเติมก่อน
       for (let stockLot of availableLots) {
         if (remainingToAllocate <= 0) break;
 
-        // คำนวณจำนวนที่จะดึงมาจากล็อตนี้
         let allocatedFromThisLot = Math.min(remainingToAllocate, stockLot.qtyOnHand);
-
-        // บันทึกการหักยอดจำลองไว้ในตัวแปรชั่วคราว
         stockLot.qtyOnHand -= allocatedFromThisLot;
         remainingToAllocate -= allocatedFromThisLot;
 
-        // ดันรายการนี้เข้าสู่แผนการจัดกล่อง 3D
         let groupKey = packingMode === 'consolidate' ? 'ALL_MIXED' : itemCode;
         const cardGroupKey = packingMode === 'consolidate' ? foundBox.pckId : `${foundBox.pckId}_CAP${boxCap}`;
 
         validItemsList.push({
-          id: Number(`${index}.${stockLot.id}`), // ป้องกัน ID ซ้ำกรณีสปลิตล็อต
+          id: Number(`${index}.${stockLot.id}`),
           orderNo: NO_ORDER, poNumber: NO_PO, lineNo: '-', itemCode, itemName, customer: dbItem.supplier || '',
           qty: allocatedFromThisLot,
           boxType: foundBox.pckId, boxDesc: foundBox.description, boxCodename: foundBox.codename || foundBox.description,
           boxCap, groupKey, cardGroupKey,
-          lotNo: stockLot.lotNo, // 🌟 ดึงข้อมูลล็อตจากฐานข้อมูลโดยตรง
+          lotNo: stockLot.lotNo,
           itemWeight: Number(dbItem.itemWeight || 0), totalWeight: allocatedFromThisLot * Number(dbItem.itemWeight || 0),
-          stockRecordId: stockLot.id // บันทึก ID สต๊อกไว้ใช้ตัดจริงตอนกดบันทึกแผนงาน
+          stockRecordId: stockLot.id,
+          isShortage: false // ✅ สถานะของครบปกติ
+        });
+      }
+
+      // 🌟 ถ้ายังมีจำนวนของค้างอยู่ (สต๊อกขาด) ให้ยัดเข้าแผนด้วย แต่ปักธงว่า isShortage!
+      if (remainingToAllocate > 0) {
+        let groupKey = packingMode === 'consolidate' ? 'ALL_MIXED' : itemCode;
+        const cardGroupKey = packingMode === 'consolidate' ? foundBox.pckId : `${foundBox.pckId}_CAP${boxCap}`;
+
+        validItemsList.push({
+          id: Number(`${index}.99999`), // รหัสจำลองสำหรับของขาด
+          orderNo: NO_ORDER, poNumber: NO_PO, lineNo: '-', itemCode, itemName, customer: dbItem.supplier || '',
+          qty: remainingToAllocate, // คำนวณส่วนที่เหลือลงกล่องต่อเลย!
+          boxType: foundBox.pckId, boxDesc: foundBox.description, boxCodename: foundBox.codename || foundBox.description,
+          boxCap, groupKey, cardGroupKey,
+          lotNo: '-', // ไม่มี Lot เพราะของไม่มี
+          itemWeight: Number(dbItem.itemWeight || 0), totalWeight: remainingToAllocate * Number(dbItem.itemWeight || 0),
+          stockRecordId: null, // ไม่มีสต๊อกให้หัก
+          isShortage: true, // ❌ ปักธงของขาด
+          shortageQty: remainingToAllocate
         });
       }
     });
 
-    // โค้ดส่วนสร้างภาพสรุปกล่อง จัดกลุ่มแสดงผล (ยึดตามเวอร์ชันล่าสุดที่เราแก้รวมล้อตกันได้เลยครับ)
     const boxTypesObj = {};
     validItemsList.forEach(item => {
       if (!boxTypesObj[item.cardGroupKey]) {
@@ -169,7 +154,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     });
 
     const summaryArray = Object.values(boxTypesObj).map(boxGroup => {
-      // จัดการเรียงคิวตามลำดับล้อต (จากล็อตเก่าไปล้อตใหม่)
       boxGroup.items.sort((a, b) => {
         const groupCompare = a.groupKey.localeCompare(b.groupKey);
         if (groupCompare !== 0) return groupCompare;
@@ -208,7 +192,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
             currentBoxItems.push({
               orderNo: item.orderNo, poNumber: item.poNumber, lineNo: item.lineNo,
               itemCode: item.itemCode, itemName: item.itemName, qty: takeQty, cap: item.boxCap, lotNo: item.lotNo,
-              stockRecordId: item.stockRecordId // บันทึกสิทธิ์เพื่อใช้เชื่อมโยงกับข้อมูลคลังสต๊อกหลัก
+              stockRecordId: item.stockRecordId
             });
           }
           remainingQty -= takeQty; currentBoxUsedSpace += (takeQty * spacePerPiece);
@@ -225,10 +209,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   };
 
   const handleCalculate3DPallet = async () => {
-    if (!boxSummary || boxSummary.length === 0) return toast.error('กรุณาคำนวณกล่องก่อนครับ');
+    if (!boxSummary || boxSummary.length === 0) return toast.error(t('planner.box_before_calc', 'ยังไม่มีกล่องให้คำนวณ'));
 
     setIsCalculating3D(true);
-    const toastId = toast.loading('กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ...');
+    const toastId = toast.loading(t('planner.pallet_calc_loading', 'กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ...'));
 
     try {
       const boxesToPack = [];
@@ -262,7 +246,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       if (response.data.success) {
         setPallet3DResult(response.data);
         setActivePalletTab(0);
-        toast.success(`คำนวณสำเร็จ! จัดเรียงลงพาเลทรหัส ${selectedPallet || 'Auto'} เรียบร้อย`, { id: toastId });
+        toast.success(t('planner.pallet_calc_success', 'คำนวณสำเร็จ! จัดเรียงลงพาเลทรหัส') + ` ${selectedPallet || 'Auto'}`, { id: toastId });
       } else {
         toast.error('ล้มเหลว: ' + response.data.message, { id: toastId });
       }
@@ -274,7 +258,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
   };
 
   const handleExportPlanToExcel = () => {
-    if (!boxSummary || boxSummary.length === 0) return toast.error('ไม่มีข้อมูลแผนการแพ็คสำหรับ Export');
+    if (!boxSummary || boxSummary.length === 0) return toast.error(t('planner.err_export_empty', 'ไม่มีข้อมูลแผนการแพ็คสำหรับ Export'));
 
     const exportData = [];
     let currentPck = null;
@@ -371,7 +355,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
     const dateStr = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(workbook, `Packing_Plan_${dateStr}.xlsx`);
-    toast.success('ดาวน์โหลดไฟล์ Excel พร้อมตาราง Pivot สำเร็จ!');
+    toast.success(t('planner.export_excel_success', 'ดาวน์โหลดไฟล์ Excel พร้อมตาราง Pivot สำเร็จ!'));
   };
 
   const handleAdjustBox = (cardGroupKey, amount) => {
@@ -473,10 +457,9 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     if (validItems.length === 0) return toast.error(t('planner.err_no_valid_data'));
 
     const totalBoxesUsed = boxSummary.reduce((sum, box) => sum + (box.totalBoxes || 0), 0);
-    const toastId = toast.loading('กำลังบันทึกแผนงานและทำการตัดสต๊อกรายล็อตแบบ FIFO...');
+    const toastId = toast.loading(t('planner.saving_report'));
 
     try {
-      // 1. บันทึกรายงานใบหลักลงในตาราง Report
       const { error: reportError } = await supabase.from('Report').insert([{
         operator: currentUser?.firstName || t('common.unspecified_user'),
         totalOrders: validItems.length,
@@ -485,8 +468,10 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
       }]);
       if (reportError) throw reportError;
 
-      // 2. บันทึกประวัติ Log การทำแพ็คกิ้งลงในตาราง packing_logs
-      const packingLogsPayload = validItems.map(item => ({
+      // 🌟 กันไว้ก่อน: ลง Log เฉพาะอันที่ไม่ได้ขาดสต๊อก
+      const actualPackedItems = validItems.filter(i => !i.isShortage);
+
+      const packingLogsPayload = actualPackedItems.map(item => ({
         userId: currentUser.id,
         itemId: item.itemCode,
         lotNo: item.lotNo || null,
@@ -494,13 +479,15 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         boxUsed: Number((item.qty / (item.boxCap || 1)).toFixed(2)),
         totalWeight: Number((item.totalWeight || 0).toFixed(3))
       }));
-      const { error: logsError } = await supabase.from('packing_logs').insert(packingLogsPayload);
-      if (logsError) throw logsError;
 
-      // 🌟 3. อัปเดตข้อมูลจำนวนคงคลังในคลังสต๊อก (ตัดยอดสต๊อกรายล็อตจริง)
-      for (let item of validItems) {
+      if (packingLogsPayload.length > 0) {
+        const { error: logsError } = await supabase.from('packing_logs').insert(packingLogsPayload);
+        if (logsError) throw logsError;
+      }
+
+      // 🌟 หักสต๊อกรายล็อตจริง (ข้ามพวก isShortage เพราะ id จะเป็น null)
+      for (let item of actualPackedItems) {
         if (item.stockRecordId) {
-          // ดึงจำนวนสต๊อกล็อตนี้ล่าสุดจากระบบขึ้นมาดูอีกครั้งป้องกันสิทธิ์ชนกัน
           const { data: currentStockRow } = await supabase
             .from('item_stocks')
             .select('qtyOnHand')
@@ -509,7 +496,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
 
           if (currentStockRow) {
             const newQty = Math.max(0, currentStockRow.qtyOnHand - item.qty);
-            // เขียนคำสั่งอัปเดตจำนวนคงเหลือใหม่ทับลงไป
             await supabase
               .from('item_stocks')
               .update({ qtyOnHand: newQty })
@@ -518,7 +504,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         }
       }
 
-      // 4. หักสต๊อกกล่องกระดาษพัสดุ (โค้ดส่วนของเดิมของพี่)
       const stockDeductions = {};
       boxSummary.forEach(sum => {
         if (!stockDeductions[sum.boxType]) stockDeductions[sum.boxType] = 0;
@@ -532,13 +517,11 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
         }
       }
 
-      toast.success('🎉 บันทึกรายงานแผนการแพ็คสินค้าและดำเนินการหักสต๊อกตามระบบ FIFO เรียบร้อยครับพี่!', { id: toastId });
+      toast.success(t('planner.save_success'), { id: toastId });
       setCalcResults([]); setBoxSummary([]); setBulkText(''); setPallet3DResult(null);
 
-      // รีเฟรชข้อมูลกลับมาแสดงบนหน้าจอใหม่
       fetchReportsData(); fetchLogsData(); fetchAdminData();
 
-      // สั่งดึงข้อมูลคลังสต๊อกสินค้าล็อตใหม่หลังจากตัดสต๊อกเสร็จแล้ว
       const { data: updatedStocks } = await supabase
         .from('item_stocks')
         .select('*')
@@ -566,9 +549,6 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
     const subCapsArray = Object.entries(box.subCaps).map(([cap, count]) => ({ cap, boxesCount: count }));
     return { ...box, subCaps: subCapsArray };
   }).sort((a, b) => b.totalBoxes - a.totalBoxes);
-
-  const NO_ORDER = t('planner.no_order');
-  const NO_PO = t('planner.no_po');
 
   const activePalletData = pallet3DResult && pallet3DResult.pallets && pallet3DResult.pallets[activePalletTab]
     ? { success: true, ...pallet3DResult.pallets[activePalletTab] }
@@ -644,16 +624,16 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                     onChange={(e) => setSelectedPallet(e.target.value)}
                     className="flex-1 sm:flex-none border border-gray-300 text-gray-700 bg-white rounded-lg py-2 px-3 font-bold text-sm shadow-sm outline-none focus:border-[#0066CC] transition-colors"
                   >
-                    <option value="">✨ (Auto) ให้ระบบหาพาเลทที่ดีที่สุด</option>
+                    <option value="">{t('planner.auto_pallet', '✨ (Auto) ให้ระบบหาพาเลทที่ดีที่สุด')}</option>
                     {palletsList.map(p => (
                       <option key={p.palletId} value={p.palletId}>
-                        🪵 บังคับใช้: {p.palletId} ({p.width}x{p.length}x{p.maxHeight || 0})
+                        🪵 {t('common.force_use', 'บังคับใช้')}: {p.palletId} ({p.width}x{p.length}x{p.maxHeight || 0})
                       </option>
                     ))}
                   </select>
 
                   <button onClick={handleCalculate3DPallet} disabled={isCalculating3D} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
-                    {isCalculating3D ? 'กำลังคำนวณ...' : '🔮 จำลองพาเลท 3D'}
+                    {isCalculating3D ? t('common.calculating', 'กำลังคำนวณ...') : t('planner.pallet_simulate', '🔮 จำลองพาเลท 3D')}
                   </button>
 
                   <button onClick={handleExportPlanToExcel} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
@@ -674,7 +654,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                         onClick={() => setActivePalletTab(idx)}
                         className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${activePalletTab === idx ? 'bg-[#0066CC] text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                       >
-                        ใบที่ {p.palletNo} ({p.palletSpecification.palletId})
+                        {t('planner.box_no', { no: p.palletNo })} ({p.palletSpecification.palletId})
                       </button>
                     ))}
                   </div>
@@ -685,21 +665,21 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                     </div>
                     {activePalletData && (
                       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
-                        <h4 className="font-bold text-slate-800 text-sm border-b pb-2 uppercase tracking-wide">📋 รายละเอียดพาเลทใบนี้</h4>
+                        <h4 className="font-bold text-slate-800 text-sm border-b pb-2 uppercase tracking-wide">📋 {t('planner.pallet_details', 'รายละเอียดพาเลทใบนี้')}</h4>
                         <ul className="text-xs space-y-3 text-slate-600">
-                          <li className="flex justify-between"><span>พาเลทลำดับที่:</span> <span className="font-bold text-slate-800">ใบที่ {activePalletData.palletNo}</span></li>
-                          <li className="flex justify-between"><span>โมเดลที่ระบบเลือก:</span> <span className="font-bold text-[#0066CC]">{activePalletData.palletSpecification.palletId}</span></li>
-                          <li className="flex justify-between"><span>คำอธิบาย:</span> <span className="font-bold text-slate-700">{activePalletData.palletSpecification.description || '-'}</span></li>
-                          <li className="flex justify-between"><span>กล่องวางสำเร็จบนใบนี้:</span> <span className="font-bold text-emerald-600 text-sm">{activePalletData.totalPackedCount} ใบ</span></li>
-                          <li className="flex justify-between"><span>ขนาดแท้จริงพาเลท:</span> <span className="font-bold text-slate-800">{activePalletData.palletSpecification.totalWidthMm}x{activePalletData.palletSpecification.totalLengthMm} mm</span></li>
+                          <li className="flex justify-between"><span>{t('planner.pallet_seq', 'พาเลทลำดับที่')}:</span> <span className="font-bold text-slate-800">{t('planner.box_no', { no: activePalletData.palletNo })}</span></li>
+                          <li className="flex justify-between"><span>{t('planner.pallet_model_selected', 'โมเดลที่ระบบเลือก')}:</span> <span className="font-bold text-[#0066CC]">{activePalletData.palletSpecification.palletId}</span></li>
+                          <li className="flex justify-between"><span>{t('common.description', 'คำอธิบาย')}:</span> <span className="font-bold text-slate-700">{activePalletData.palletSpecification.description || '-'}</span></li>
+                          <li className="flex justify-between"><span>{t('planner.boxes_packed_success', 'กล่องวางสำเร็จบนใบนี้')}:</span> <span className="font-bold text-emerald-600 text-sm">{activePalletData.totalPackedCount} {t('planner.unit_box')}</span></li>
+                          <li className="flex justify-between"><span>{t('planner.pallet_actual_size', 'ขนาดแท้จริงพาเลท')}:</span> <span className="font-bold text-slate-800">{activePalletData.palletSpecification.totalWidthMm}x{activePalletData.palletSpecification.totalLengthMm} mm</span></li>
                         </ul>
                         {pallet3DResult.isOverfilled && activePalletTab === (pallet3DResult.pallets.length - 1) && (
                           <div className="bg-red-50 text-red-700 p-3 rounded-lg text-xs border border-red-200 font-bold mt-2">
-                            ⚠️ หมายเหตุ: ตรวจพบกล่องขนาดใหญ่เกินไปกว่าที่สเปกพาเลททุกรุ่นในระบบจะรองรับได้จำนวน {pallet3DResult.unpackedBoxes.length} ชิ้น
+                            ⚠️ {t('planner.pallet_overfilled_warning', 'หมายเหตุ: ตรวจพบกล่องขนาดใหญ่เกินไปกว่าที่สเปกพาเลททุกรุ่นในระบบจะรองรับได้จำนวน')} {pallet3DResult.unpackedBoxes.length} {t('planner.unit_piece')}
                           </div>
                         )}
                         <div className="mt-auto text-[10px] text-slate-400 text-center">
-                          *ระบบคำนวณสลับไซส์ให้อัตโนมัติเพื่อความประหยัดที่สุด
+                          *{t('planner.pallet_auto_optimize_note', 'ระบบคำนวณสลับไซส์ให้อัตโนมัติเพื่อความประหยัดที่สุด')}
                         </div>
                       </div>
                     )}
@@ -787,7 +767,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                         {/* 🌟 ป้าย Badge โชว์เลข Lot หน้าการ์ดแพ็คของ */}
                                         {item.lotNo && item.lotNo !== '-' && (
                                           <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold font-mono">
-                                            Lot: {item.lotNo}
+                                            {t('planner.lot_po', 'Lot/PO:')} {item.lotNo}
                                           </span>
                                         )}
                                       </div>
@@ -844,35 +824,57 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {calcResults.map((res) => (
-                    <tr key={res.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-amber-600 text-xs mb-1">{res.orderNo !== NO_ORDER ? res.orderNo : '-'}</div>
-                        <div className="font-bold text-gray-500 text-xs">{res.poNumber !== NO_PO ? res.poNumber : '-'}</div>
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-gray-800">
-                        <div className="text-sm text-[#0066CC]">{res.itemCode}</div>
-                        {res.lotNo && <div className="text-[11px] text-gray-400 font-mono font-normal mt-1">{t('planner.lot_po')} <span className="text-gray-600">{res.lotNo}</span></div>}
-                      </td>
-                      {res.error ? (
-                        <td colSpan="3" className="py-3 px-4 text-red-600 font-bold bg-red-50 border-l-2 border-red-500">{res.error}</td>
-                      ) : (
-                        <>
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-gray-800 text-sm mb-1">{res.itemName}</div>
-                            <div className="text-xs text-gray-500 font-bold">{res.customer}</div>
-                          </td>
-                          <td className="py-3 px-4 text-center font-black text-gray-800 text-lg">{res.qty}</td>
-                          <td className="py-3 px-4 text-center">
-                            <div className="font-bold text-[#0066CC] bg-[#0066CC]/10 border border-[#0066CC]/20 px-3 py-1.5 rounded-lg mb-1 inline-block">
-                              {res.boxCodename || res.boxType} <span className="text-[#0066CC] text-xs ml-1">({res.boxCap} {t('planner.unit_piece')})</span>
-                            </div>
-                            {res.boxCodename && <div className="text-[10px] text-gray-400 font-mono text-center mt-1">ID: {res.boxType}</div>}
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  ))}
+                  {calcResults.map((res) => {
+                    // 🌟 จุดเปลี่ยน: คำนวณจำนวนกล่องเสมอ
+                    const totalBoxesNeeded = Math.ceil(res.qty / (res.boxCap || 1));
+
+                    return (
+                      <tr key={res.id} className={`transition-colors ${res.isShortage ? 'bg-red-50/50 hover:bg-red-50' : 'hover:bg-gray-50'}`}>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-amber-600 text-xs mb-1">{res.orderNo !== NO_ORDER ? res.orderNo : '-'}</div>
+                          <div className="font-bold text-gray-500 text-xs">{res.poNumber !== NO_PO ? res.poNumber : '-'}</div>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-gray-800">
+                          <div className="text-sm text-[#0066CC]">{res.itemCode}</div>
+                          {res.lotNo && <div className="text-[11px] text-gray-400 font-mono font-normal mt-1">{t('planner.lot_po')} <span className="text-gray-600">{res.lotNo}</span></div>}
+                        </td>
+                        {res.error ? (
+                          <td colSpan="3" className="py-3 px-4 text-red-600 font-bold bg-red-50 border-l-2 border-red-500">{res.error}</td>
+                        ) : (
+                          <>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-gray-800 text-sm mb-1">{res.itemName}</div>
+                              <div className="text-xs text-gray-500 font-bold">{res.customer}</div>
+                            </td>
+
+                            {/* 🌟 แสดงจำนวนชิ้น พร้อมแจ้งเตือนถ้าของขาด */}
+                            <td className="py-3 px-4 text-center">
+                              <div className="font-black text-gray-800 text-lg">{res.qty}</div>
+                              {res.isShortage && (
+                                <div className="text-[10px] text-red-600 font-bold mt-1 animate-pulse border border-red-200 bg-red-100 px-1 py-0.5 rounded">
+                                  ❌ {t('planner.shortage', 'ขาดสต๊อก')} {res.shortageQty} {t('planner.unit_piece')}
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4 text-center">
+                              <div className="font-bold text-[#0066CC] bg-[#0066CC]/10 border border-[#0066CC]/20 px-3 py-1.5 rounded-lg mb-1 inline-block">
+                                {res.boxCodename || res.boxType} <span className="text-[#0066CC] text-xs ml-1">({res.boxCap} {t('planner.unit_piece')})</span>
+                              </div>
+                              {res.boxCodename && <div className="text-[10px] text-gray-400 font-mono text-center mt-1">ID: {res.boxType}</div>}
+
+                              {/* 🌟 แสดงจำนวนกล่องที่ต้องใช้ทั้งหมด ตามที่ร้องขอมาเลยครับ */}
+                              <div className="mt-2 pt-2 border-t border-gray-200/50 flex flex-col items-center gap-1">
+                                <div className="text-sm font-black text-gray-800">
+                                  {t('planner.total_used', 'รวมใช้')}: <span className="text-[#0066CC] text-base mx-1">{totalBoxesNeeded}</span> {t('planner.unit_box')}
+                                </div>
+                              </div>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1011,7 +1013,7 @@ export default function PackingPlanner({ items, boxes, currentUser, fetchReports
                                   {/* 🌟 ป้าย Badge โชว์เลข Lot สำหรับตอนปรินท์ */}
                                   {item.lotNo && item.lotNo !== '-' && (
                                     <span className="text-[10px] text-gray-600 font-mono bg-gray-100 border border-gray-300 print:bg-transparent print:border-gray-400 px-1.5 py-0.5 rounded">
-                                      Lot: {item.lotNo}
+                                      {t('planner.lot_po', 'Lot/PO:')} {item.lotNo}
                                     </span>
                                   )}
                                 </div>

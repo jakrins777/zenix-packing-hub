@@ -54,6 +54,10 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   }, []);
 
   // ================= Handlers =================
+
+  // วางไว้ข้างใน Component ก่อนคำสั่ง return
+  
+
   const handleLoadItemTemplate = async () => {
     if (!itemForm.itemId || itemForm.itemId.trim() === '') {
       toast.error('กรุณากรอกรหัส Item ก่อนกดค้นหา');
@@ -414,7 +418,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
 
   const handleExportSelectedItems = () => {
     if (selectedItemIds.length === 0) {
-      toast.error('กรุณาเลือกรายการที่ต้องการดาวน์โหลด');
+      toast.error(t('toast.selected_download'));
       return;
     }
 
@@ -447,7 +451,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    toast.success(`ดาวน์โหลด ${selectedData.length} รายการสำเร็จ!`);
+    toast.success(t('toast.export_success').replace('{{count}}', selectedData.length));
   };
 
   const handleExportBoxes = () => {
@@ -678,7 +682,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 {/* 1. กล่อง Import ข้อมูลสินค้าหลัก (Master Data) */}
                 <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm">
                   <h3 className="text-sm font-black text-[#0066CC] mb-3 flex items-center gap-2">
-                    <span>📑</span> นำเข้าข้อมูลสินค้าใหม่ (Master Data)
+                    <span></span>{t('item.import_master_data')}
                   </h3>
                   <input
                     type="file"
@@ -693,10 +697,10 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 {/* 2. กล่อง Import สต๊อกประจำวัน (FIFO) */}
                 <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 shadow-sm">
                   <h3 className="text-sm font-black text-amber-700 mb-3 flex items-center gap-2">
-                    <span>📦</span> อัปเดตสต๊อกสินค้าจาก ERP (รายวัน)
+                    <span>📦</span> {t('item.update_stock_import')}
                   </h3>
                   <label className="cursor-pointer w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
-                    <span>📥</span> อัปโหลดไฟล์ Excel สต๊อก (FIFO)
+                    <span>📥</span> {t('item.stock_upload_file')}
                     <input
                       type="file"
                       accept=".xlsx, .xls, .csv"
@@ -705,7 +709,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                     />
                   </label>
                   <div className="text-[10px] text-amber-600/80 text-center mt-2 font-medium">
-                    *ระบบจะคำนวณหักยอด Reserved/Assigned อัตโนมัติ
+                    *{t('item.stock_upload_file_desc')}
                   </div>
                 </div>
 
@@ -781,7 +785,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       <button onClick={handleBulkUpdateSubmit} className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.update_btn')}</button>
                       <button onClick={handleBulkDeleteSubmit} className="bg-red-100 hover:bg-red-500 text-red-600 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.delete_btn')}</button>
                       <button onClick={handleExportSelectedItems} className="bg-blue-100 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">
-                        📥 โหลดที่เลือก (CSV)
+{t('bulk.download_btn')}
                       </button>
 
                       <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>

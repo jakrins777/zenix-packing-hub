@@ -79,7 +79,12 @@
     "filter_all": "📦 All",
     "filter_box": "Box:",
     "filter_no_box": "❌ No Box",
-    "filter_has_box": "✅ Has Box"
+    "filter_has_box": "✅ Has Box",
+    "box_per_unit": "Boxes per Unit",
+    "master_data_import": "Import New Items (Master Data)",
+    "update_stock_import": "Update Stock from ERP (Daily)",
+    "stock_upload_file": "Upload Stock File (CSV/Excel)",
+    "stock_upload_file_desc": "*System automatically deducts Reserved/Assigned quantities"
   },
   "sort": {
     "id_asc": "Code (A-Z)",

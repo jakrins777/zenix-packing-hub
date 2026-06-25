@@ -38,7 +38,8 @@
     "import_error": "เกิดข้อผิดพลาด",
     "importing_box": "กำลังนำเข้าข้อมูลกล่อง...",
     "export_empty": "ไม่มีข้อมูลในช่วงเวลาที่เลือกให้ Export ครับ",
-    "export_success": "ดาวน์โหลดไฟล์ Excel สำเร็จ!"
+    "export_success": "ดาวน์โหลดไฟล์ Excel สำเร็จ!",
+    "selected_download": "กรุณาเลือกรายการที่ต้องการดาวน์โหลด"
   },
   "confirm": {
     "bulk_delete": "🚨 คุณยืนยันที่จะลบสินค้าที่เลือกทั้งหมดจำนวน {{count}} รายการใช่หรือไม่? (ไม่สามารถกู้คืนได้)",
@@ -79,7 +80,12 @@
     "filter_all": "📦 ทั้งหมด",
     "filter_box": "กล่อง:",
     "filter_no_box": "❌ ยังไม่มีกล่อง",
-    "filter_has_box": "✅ มีกล่องแล้ว"
+    "filter_has_box": "✅ มีกล่องแล้ว",
+    "box_per_unit" : "จำนวนกล่องต่อชื้น",
+    "master_data_import" : "นำเข้าข้อมูลสินค้าใหม่ (Master Data)",
+    "update_stock_import" : "อัปเดตสต๊อกสินค้าจาก ERP (รายวัน)",
+    "stock_upload_file" : "อัปโหลดไฟล์สต๊อกสินค้า (CSV/Excel)",
+    "stock_upload_file_desc" : "*ระบบจะคำนวณหักยอด Reserved/Assigned อัตโนมัติ"
   },
   "sort": {
     "id_asc": "รหัส (A-Z)",
@@ -148,7 +154,8 @@
     "search_placeholder": "ค้นหารหัสกล่อง หรือ คำอธิบาย...",
     "print_stock": "🖨️ พิมพ์สต็อก",
     "codename_label": "🏷️ ชื่อเรียก:",
-    "packaging": "🔄 กล่องบรรจุภัณฑ์"
+    "packaging": "🔄 กล่องบรรจุภัณฑ์",
+    "pallet_binding" : "ผูกกับพาเลท"
   },
   "user": {
     "edit_title": "✏️ แก้ไขข้อมูลพนักงาน",
@@ -324,7 +331,14 @@
     "used_total_boxes": "(ใช้ {{count}} ใบ)",
     "empty_box_hint": "กล่องเปล่า (ใส่ของเพิ่มได้)",
     "btn_print_instruction": "🖨️ พิมพ์ใบสั่งแพ็ค (Print)",
-    "lot_po": "Lot/PO:"
+    "lot_po": "Lot/PO:",
+    "pallet_simulate": "🔮 จำลองพาเลท 3D",
+    "auto_pallet": "✨ (Auto) ให้ระบบหาพาเลทที่ดีที่สุด",
+    "pallet_select": "เลือกพาเลทที่ต้องการจำลอง",
+    "not_enough_stock" : "สต๊อกไม่พอ (ต้องการ ${totalRequestedQty} แต่ในคลังเหลือรวมทุกล็อตแค่ ${totalStockAvailable})` });",
+    "pallet_name": "พาเลท: {box.boundPalletId}",
+    "box_before_calc" : "กรุณาคำนวณกล่องก่อนครับ",
+    "auto_pallet_calc" : "กำลังประมวลผลวิเคราะห์หาพาเลทที่พอดีที่สุดอัตโนมัติ..."
   },
   "packing_station": {
     "title": "🚀 สแกนแพ็คสินค้า",
