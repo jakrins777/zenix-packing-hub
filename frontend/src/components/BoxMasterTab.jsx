@@ -1,5 +1,5 @@
 import React from 'react';
-import BoxCodenameUpdater from './BoxCodenameUpdater';
+import BoxCodenameUpdater from '../pages/BoxCodenameUpdater';
 
 export default function BoxMasterTab({
     t, boxes, palletsList, boxForm, setBoxForm, editingBoxId, setEditingBoxId,
