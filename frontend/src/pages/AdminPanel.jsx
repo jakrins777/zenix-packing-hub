@@ -6,9 +6,9 @@ import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 // 🌟 นำเข้าไฟล์ย่อยทั้ง 3 ไฟล์ที่สร้างไว้
-import UserManagementTab from './components/UserManagementTab';
-import BoxMasterTab from './components/BoxMasterTab';
-import ItemMasterTab from './components/ItemMasterTab';
+import UserManagementTab from '../components/UserManagementTab';
+import BoxMasterTab from '../components/BoxMasterTab';
+import ItemMasterTab from '../components/ItemMasterTab';
 
 export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, items, boxes, users, refreshAdminData }) {
   const { t } = useTranslation();
