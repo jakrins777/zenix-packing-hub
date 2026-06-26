@@ -66,10 +66,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     setSelectedItemIds([]);
   };
 
-  // ฟังก์ชันเคลียร์การเลือก
-  const handleClearSelection = () => {
-    setSelectedItemIds([]);
-  };
 
   const handleLoadItemTemplate = async () => {
     if (!itemForm.itemId || itemForm.itemId.trim() === '') {
