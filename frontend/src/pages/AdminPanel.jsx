@@ -66,6 +66,53 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     setSelectedItemIds([]);
   };
 
+  const handleCombineExcelToCSV = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    // toast.info('กำลังรวมไฟล์ทั้งหมด กรุณารอสักครู่...');
+    let combinedData = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const data = await file.arrayBuffer();
+        // อ่านไฟล์ Excel
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        // แปลงข้อมูลใน Sheet เป็น JSON เพื่อให้เอามาต่อกันได้ง่ายๆ
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        combinedData = [...combinedData, ...jsonData];
+      }
+
+      if (combinedData.length === 0) {
+        // toast.error('ไม่พบข้อมูลในไฟล์ที่เลือก');
+        return;
+      }
+
+      // แปลงข้อมูล JSON ที่รวมกันแล้ว กลับมาเป็นรูปแบบตาราง
+      const newWorksheet = XLSX.utils.json_to_sheet(combinedData);
+      // แปลงตารางเป็น CSV
+      const csvOutput = XLSX.utils.sheet_to_csv(newWorksheet);
+
+      // 🌟 สร้างไฟล์ CSV แล้วสั่งดาวน์โหลดลงเครื่อง
+      // ใส่ \ufeff ด้านหน้าเพื่อให้ Excel เปิดแล้วภาษาไทยไม่เพี้ยน (UTF-8 BOM)
+      const blob = new Blob(["\ufeff" + csvOutput], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = "Combined_Items_Master.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // toast.success(`รวมข้อมูลสำเร็จ ${combinedData.length} รายการ!`);
+
+    } catch (error) {
+      console.error('Error combining files:', error);
+      // toast.error('เกิดข้อผิดพลาดในการแปลงไฟล์');
+    }
+  };
 
   const handleLoadItemTemplate = async () => {
     if (!itemForm.itemId || itemForm.itemId.trim() === '') {
@@ -827,6 +874,18 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       </button>
 
                       <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
+                    </div>
+                    <div className="p-4 border border-gray-300 rounded-lg bg-gray-50 mt-4">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        🛠️ เครื่องมือพิเศษ: รวมไฟล์ Excel เป็น CSV เดียว
+                      </label>
+                      <input
+                        type="file"
+                        accept=".xlsx, .xls"
+                        multiple
+                        onChange={handleCombineExcelToCSV}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-gray-800 file:text-white hover:file:bg-gray-700 cursor-pointer transition-all"
+                      />
                     </div>
                   </div>
                 </div>
