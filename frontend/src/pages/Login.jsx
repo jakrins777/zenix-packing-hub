@@ -34,7 +34,7 @@ export default function Login({ onLogin }) {
       if (data.success) {
         localStorage.setItem('zenix_user', JSON.stringify(data.user));
         localStorage.setItem('zenix_token', data.token);
-        onLogin(data.user);
+        window.location.href = '/';
       } else {
         setError(data.message);
       }
