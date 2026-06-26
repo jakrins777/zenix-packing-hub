@@ -113,42 +113,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       // toast.error('เกิดข้อผิดพลาดในการแปลงไฟล์');
     }
   };
-
-  const handleCombineExcelToCSV = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    let combinedData = [];
-
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        combinedData = [...combinedData, ...jsonData];
-      }
-
-      if (combinedData.length === 0) return;
-
-      const newWorksheet = XLSX.utils.json_to_sheet(combinedData);
-      const csvOutput = XLSX.utils.sheet_to_csv(newWorksheet);
-
-      const blob = new Blob(["\ufeff" + csvOutput], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = "Combined_Items_Master.csv";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-    } catch (error) {
-      console.error('Error combining files:', error);
-    }
-  };
-
+  
   const handleLoadItemTemplate = async () => {
     if (!itemForm.itemId || itemForm.itemId.trim() === '') {
       toast.error('กรุณากรอกรหัส Item ก่อนกดค้นหา');
