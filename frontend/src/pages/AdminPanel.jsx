@@ -4,9 +4,11 @@ import api from '../utils/axiosConfig';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
-import BoxCodenameUpdater from './BoxCodenameUpdater';
 import { useTranslation } from 'react-i18next';
-import { Search } from 'lucide-react';
+// 🌟 นำเข้าไฟล์ย่อยทั้ง 3 ไฟล์ที่สร้างไว้
+import UserManagementTab from './UserManagementTab';
+import BoxMasterTab from './BoxMasterTab';
+import ItemMasterTab from './ItemMasterTab';
 
 export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, items, boxes, users, refreshAdminData }) {
   const { t } = useTranslation();
@@ -14,18 +16,13 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   // ================= State Management =================
   const [itemForm, setItemForm] = useState({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1, boxesPerUnit: 1 });
   const [editingItemId, setEditingItemId] = useState(null);
-
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [bulkForm, setBulkForm] = useState({ defaultPckId: '', supplier: '' });
-
   const [boxForm, setBoxForm] = useState({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null });
   const [editingBoxId, setEditingBoxId] = useState(null);
-
   const [palletsList, setPalletsList] = useState([]);
-
   const [userForm, setUserForm] = useState({ username: '', passwordHash: '', firstName: '', role: 'operator' });
   const [editingUserId, setEditingUserId] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('id_asc');
   const [boxSearchTerm, setBoxSearchTerm] = useState('');
@@ -43,9 +40,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
       try {
         const { data, error } = await supabase.from('Pallet').select('*');
         if (error) throw error;
-        if (data) {
-          setPalletsList(data);
-        }
+        if (data) setPalletsList(data);
       } catch (error) {
         console.error('ดึงข้อมูลพาเลทไม่สำเร็จ:', error);
       }
@@ -53,10 +48,9 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     fetchPalletsForDropdown();
   }, []);
 
+ 
   // ================= Handlers =================
-  // 🌟 แก้จาก filteredItems เป็น filteredData
   const handleSelectAllPages = () => {
-    // ดึง ID ออกมาจาก filteredData (และเผื่อกรณีชื่อคอลัมน์เป็น itemid ตัวเล็กด้วย)
     const allIds = filteredData.map(item => item.itemId || item.itemid);
     setSelectedItemIds(allIds);
     toast.success(`เลือกข้อมูลทั้งหมด ${allIds.length} รายการแล้ว!`);
@@ -66,54 +60,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     setSelectedItemIds([]);
   };
 
-  const handleCombineExcelToCSV = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    // toast.info('กำลังรวมไฟล์ทั้งหมด กรุณารอสักครู่...');
-    let combinedData = [];
-
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const data = await file.arrayBuffer();
-        // อ่านไฟล์ Excel
-        const workbook = XLSX.read(data, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        // แปลงข้อมูลใน Sheet เป็น JSON เพื่อให้เอามาต่อกันได้ง่ายๆ
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        combinedData = [...combinedData, ...jsonData];
-      }
-
-      if (combinedData.length === 0) {
-        // toast.error('ไม่พบข้อมูลในไฟล์ที่เลือก');
-        return;
-      }
-
-      // แปลงข้อมูล JSON ที่รวมกันแล้ว กลับมาเป็นรูปแบบตาราง
-      const newWorksheet = XLSX.utils.json_to_sheet(combinedData);
-      // แปลงตารางเป็น CSV
-      const csvOutput = XLSX.utils.sheet_to_csv(newWorksheet);
-
-      // 🌟 สร้างไฟล์ CSV แล้วสั่งดาวน์โหลดลงเครื่อง
-      // ใส่ \ufeff ด้านหน้าเพื่อให้ Excel เปิดแล้วภาษาไทยไม่เพี้ยน (UTF-8 BOM)
-      const blob = new Blob(["\ufeff" + csvOutput], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = "Combined_Items_Master.csv";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // toast.success(`รวมข้อมูลสำเร็จ ${combinedData.length} รายการ!`);
-
-    } catch (error) {
-      console.error('Error combining files:', error);
-      // toast.error('เกิดข้อผิดพลาดในการแปลงไฟล์');
-    }
-  };
-  
   const handleLoadItemTemplate = async () => {
     if (!itemForm.itemId || itemForm.itemId.trim() === '') {
       toast.error('กรุณากรอกรหัส Item ก่อนกดค้นหา');
@@ -162,7 +108,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     }
   };
 
-  // 🌟 ฟังก์ชันจัดการ Import สต๊อก (เพิ่มโค้ดอ่าน CSV UTF-16 ตามที่พี่ขอ)
   const handleImportStocksExcel = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -208,32 +153,27 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
             return foundKey ? row[foundKey] : null;
           };
 
-          // 🌟 แมตช์ชื่อคอลัมน์ตามความจริงที่จับได้จาก Log
           const itemCode = getVal('Item');
           const lotNo = getVal('Lot');
-          const qtyOnHandRaw = parseNum(getVal('Qty On Hand')); // เปลี่ยนจาก Qty On Ha
+          const qtyOnHandRaw = parseNum(getVal('Qty On Hand'));
           const reserved = parseNum(getVal('Reserved'));
-          const assigned = parseNum(getVal('Assigned To Be Picked')); // เปลี่ยนจาก Assigned
+          const assigned = parseNum(getVal('Assigned To Be Picked'));
           const rawDate = getVal('dcoCreateDate');
 
-          // คำนวณสต๊อกจริง
           const actualQty = Math.max(0, qtyOnHandRaw - reserved - assigned);
 
-          // 🌟 ดักจับและแปลงวันที่รูปแบบ "วัน/เดือน/ปี" (เช่น 18/06/2026) ให้โปรแกรมไม่งง
           let finalReceiveDate = new Date().toISOString();
           if (rawDate) {
             const dateStr = String(rawDate).trim();
-            // เช็กว่ามีเครื่องหมายทับ (/) และแบ่งเป็น 3 ท่อนหรือไม่
             if (dateStr.includes('/')) {
               const parts = dateStr.split('/');
               if (parts.length === 3) {
                 const day = parts[0].padStart(2, '0');
                 const month = parts[1].padStart(2, '0');
-                const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2]; // เผื่อปีมาเป็น 26
+                const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
                 finalReceiveDate = new Date(`${year}-${month}-${day}T00:00:00.000Z`).toISOString();
               }
             } else {
-              // ถ้าไม่ได้ใช้ / ก็ให้ JS จัดการตามปกติ
               const parsedDate = new Date(dateStr);
               if (!isNaN(parsedDate.getTime())) {
                 finalReceiveDate = parsedDate.toISOString();
@@ -249,37 +189,23 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
           };
         }).filter(stock => stock.itemId && stock.qtyOnHand > -1);
 
-        console.log("🚀 ข้อมูลที่ฝ่าด่านพร้อมส่งเข้า Database:", payload);
-
         if (payload.length === 0) {
           toast.error('ไม่พบข้อมูลสต๊อกที่มียอด > 0 (กด F12 เพื่อดู Log)', { id: toastId });
           return;
         }
-
-        // 🌟 เปลี่ยนจาก .insert() เป็น .upsert()
-        // โดยบอก Supabase ว่าถ้าซ้ำ ให้เช็กที่คอลัมน์ item_lot_unique (หรือชื่อ constraint ของพี่)
-        console.log("📦 ข้อมูลทั้งหมดที่เตรียมส่ง:", payload.length);
 
         const CHUNK_SIZE = 50;
         let successCount = 0;
 
         for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
           const chunk = payload.slice(i, i + CHUNK_SIZE);
-          console.log(`🚀 กำลังส่งชุดที่ ${i / CHUNK_SIZE + 1} | รายการที่ ${i} ถึง ${i + chunk.length}`);
-
           const { error } = await supabase
             .from('item_stocks')
             .upsert(chunk, { onConflict: 'itemId, lotNo' });
 
-          if (error) {
-            console.error("❌ Error ชุดที่:", i / CHUNK_SIZE + 1, error);
-            throw error;
-          }
-
+          if (error) throw error;
           successCount += chunk.length;
         }
-
-        toast.success(`🎉 นำเข้าสำเร็จครบ ${successCount} รายการ!`);
 
         toast.success(`🎉 นำเข้าสต๊อก FIFO สำเร็จ ${payload.length} รายการ`, { id: toastId });
 
@@ -608,6 +534,40 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     e.target.value = null;
   };
 
+  const handleCombineExcelToCSV = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    let combinedData = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        combinedData = [...combinedData, ...jsonData];
+      }
+
+      if (combinedData.length === 0) return;
+
+      const newWorksheet = XLSX.utils.json_to_sheet(combinedData);
+      const csvOutput = XLSX.utils.sheet_to_csv(newWorksheet);
+
+      const blob = new Blob(["\ufeff" + csvOutput], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = "Combined_Items_Master.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error combining files:', error);
+    }
+  };
+
   // ================= Filters & Sorting =================
   const processedItems = (items || []).filter(item => {
     const id = item.itemId || item.itemid;
@@ -639,11 +599,17 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   });
 
   const processedBoxes = (boxes || []).filter(box => {
-    const id = box.pckId || box.pckid; if (!id) return false;
+    const id = box.pckId || box.pckid;
+    if (!id) return false;
     const term = boxSearchTerm.toLowerCase();
     return ((id || '').toLowerCase().includes(term) || (box.description || '').toLowerCase().includes(term) || (box.codename || '').toLowerCase().includes(term));
   }).sort((a, b) => {
-    if (!a || !b) return 0; const idA = String(a.pckId || a.pckid || ''); const idB = String(b.pckId || b.pckid || ''); if (boxSortBy === 'id_asc') return idA.localeCompare(idB, undefined, { numeric: true }); if (boxSortBy === 'id_desc') return idB.localeCompare(idA, undefined, { numeric: true }); return 0;
+    if (!a || !b) return 0;
+    const idA = String(a.pckId || a.pckid || '');
+    const idB = String(b.pckId || b.pckid || '');
+    if (boxSortBy === 'id_asc') return idA.localeCompare(idB, undefined, { numeric: true });
+    if (boxSortBy === 'id_desc') return idB.localeCompare(idA, undefined, { numeric: true });
+    return 0;
   });
 
   const uniqueCustomers = ['All', ...new Set((items || []).map(item => item.supplier || '-').filter(sup => sup !== '-'))];
@@ -665,6 +631,30 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
 
+  // 🌟 รวม Props สำหรับส่งไปให้ ItemMasterTab
+  const itemTabProps = {
+    t, itemForm, setItemForm, editingItemId, setEditingItemId, handleItemSubmit, handleLoadItemTemplate,
+    boxes, handleFileUpload, handleImportStocksExcel, handleCombineExcelToCSV, searchTerm, setSearchTerm,
+    setCurrentPage, filterCustomer, setFilterCustomer, uniqueCustomers, filterBoxStatus, setFilterBoxStatus,
+    sortBy, setSortBy, handleExportItems, currentItems, selectedItemIds, filteredData, handleSelectAllPages,
+    handleClearSelection, bulkForm, setBulkForm, handleBulkUpdateSubmit, handleBulkDeleteSubmit,
+    handleExportSelectedItems, setSelectedItemIds, handleSelectAllCurrentPage, handleSelectItem,
+    handleDeleteItem, indexOfFirstItem, indexOfLastItem, currentPage, totalPages
+  };
+
+  // 🌟 รวม Props สำหรับส่งไปให้ BoxMasterTab
+  const boxTabProps = {
+    t, boxes, palletsList, boxForm, setBoxForm, editingBoxId, setEditingBoxId,
+    handleBoxSubmit, handleBoxDelete, boxSearchTerm, setBoxSearchTerm, boxSortBy,
+    setBoxSortBy, processedBoxes, handleBoxFileUpload, handleExportBoxes, refreshAdminData
+  };
+
+  // 🌟 รวม Props สำหรับส่งไปให้ UserManagementTab
+  const userTabProps = {
+    t, users, userForm, setUserForm, editingUserId, setEditingUserId,
+    handleUserSubmit, handleUserDelete, currentUser
+  };
+
   // ================= Render =================
   return (
     <div className="bg-transparent rounded-xl p-2 md:p-6 ">
@@ -675,497 +665,10 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
         <button onClick={() => setAdminSubTab('users')} className={`text-lg font-bold pb-2 transition-colors ${adminSubTab === 'users' ? 'text-[#0066CC] border-b-4 border-[#0066CC]' : 'text-gray-500 hover:text-[#0066CC]'}`}>{t('tabs.users')}</button>
       </div>
 
-      {/* ========================================== */}
-      {/* Tab 1: Item Master */}
-      {/* ========================================== */}
-      {adminSubTab === 'items' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="space-y-6 h-fit">
-
-            {/* Add/Edit Form */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg text-gray-800">
-              <h3 className="text-xl font-black text-[#0066CC] mb-4">{editingItemId ? t('item.edit_title') : t('item.add_title')}</h3>
-              <form onSubmit={handleItemSubmit} className="space-y-4">
-
-                {/* 🌟 ช่อง Item ID แบบมีปุ่มค้นหา */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-1">
-                    {t('item.id')} <span className="text-xs text-[#0066CC] font-normal ml-1">(พิมพ์รหัสแล้วกดค้นหา)</span>
-                  </label>
-                  <div className="relative">
-                    <input type="text" required disabled={!!editingItemId} value={itemForm.itemId || ''} onChange={(e) => setItemForm(prev => ({ ...prev, itemId: String(e.target.value).toUpperCase() }))} className="w-full p-3 pr-12 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all disabled:bg-gray-100" />
-                    {!editingItemId && (
-                      <button type="button" onClick={handleLoadItemTemplate} className="absolute right-2 top-2 p-1.5 bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white rounded-md transition-colors" title="โหลดข้อมูลเทมเพลต">
-                        <Search size={20} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.name')}</label><input type="text" value={itemForm.itemName || ''} onChange={(e) => setItemForm({ ...itemForm, itemName: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
-                <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.customer')}</label><input type="text" value={itemForm.supplier || ''} onChange={(e) => setItemForm({ ...itemForm, supplier: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('item.weight')}</label><input type="number" step="0.001" required value={itemForm.itemWeight || ''} onChange={(e) => setItemForm({ ...itemForm, itemWeight: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
-                  <div><label className="block text-sm font-bold text-[#0066CC] mb-1">{t('item.qty_per_box')}</label><input type="number" required min="1" value={itemForm.stdPackQty || ''} onChange={(e) => setItemForm({ ...itemForm, stdPackQty: parseInt(e.target.value) || 1 })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all" /></div>
-                  <div><label className="block text-sm font-bold text-amber-600 mb-1">กล่อง/ชิ้น</label><input type="number" required min="1" value={itemForm.boxesPerUnit || 1} onChange={(e) => setItemForm({ ...itemForm, boxesPerUnit: parseInt(e.target.value) || 1 })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" /></div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-1">{t('item.default_box')}</label>
-                  <select value={itemForm.defaultPckId || ''} onChange={(e) => setItemForm({ ...itemForm, defaultPckId: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-800 outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] transition-all">
-                    <option value="" className="text-gray-500">{t('item.select_box')}</option>
-                    {[...(boxes || [])]
-                      .sort((a, b) => String(a.pckId || a.pckid || '').localeCompare(String(b.pckId || b.pckid || ''), undefined, { numeric: true }))
-                      .map(b => {
-                        const id = b.pckId || b.pckid;
-                        return id ? <option key={id} value={id} className="text-gray-800">{id} {b.codename ? `(${b.codename})` : ''}</option> : null;
-                      })}
-                  </select>
-                </div>
-
-                <div className="flex space-x-2 pt-4">
-                  <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all">{t('common.save')}</button>
-                  {editingItemId && <button type="button" onClick={() => { setEditingItemId(null); setItemForm({ itemId: '', itemName: '', supplier: '', itemWeight: '', defaultPckId: '', stdPackQty: 1, boxesPerUnit: 1 }); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-all">{t('common.cancel')}</button>}
-                </div>
-              </form>
-            </div>
-
-            {/* 🌟 โซนนำเข้าข้อมูลผ่านไฟล์ Excel (ซ่อนไว้ตอนกำลังกดแก้ไขสินค้า) */}
-            {!editingItemId && (
-              <div className="space-y-4">
-
-                {/* 1. กล่อง Import ข้อมูลสินค้าหลัก (Master Data) */}
-                <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm">
-                  <h3 className="text-sm font-black text-[#0066CC] mb-3 flex items-center gap-2">
-                    <span></span>{t('item.import_master_data')}
-                  </h3>
-                  <input
-                    type="file"
-                    id="items-file-input"
-                    accept=".xlsx, .xls, .csv"
-                    multiple
-                    onChange={handleFileUpload}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all"
-                  />
-                </div>
-
-                {/* 2. กล่อง Import สต๊อกประจำวัน (FIFO) */}
-                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 shadow-sm">
-                  <h3 className="text-sm font-black text-amber-700 mb-3 flex items-center gap-2">
-                    <span>📦</span> {t('item.update_stock_import')}
-                  </h3>
-                  <label className="cursor-pointer w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
-                    <span>📥</span> {t('item.stock_upload_file')}
-                    <input
-                      type="file"
-                      accept=".xlsx, .xls, .csv"
-                      onChange={handleImportStocksExcel}
-                      className="hidden"
-                    />
-                  </label>
-                  <div className="text-[10px] text-amber-600/80 text-center mt-2 font-medium">
-                    *{t('item.stock_upload_file_desc')}
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm mt-4">
-                  <h3 className="text-sm font-black text-gray-700 mb-3 flex items-center gap-2">
-                    <span>🛠️</span> เครื่องมือ: รวมไฟล์ Excel หลายไฟล์เป็น CSV
-                  </h3>
-                  <input
-                    type="file"
-                    accept=".xlsx, .xls, .csv"
-                    multiple // 🌟 คำสั่งนี้ทำให้กดลากคลุมเลือกได้หลายๆ ไฟล์พร้อมกัน
-                    onChange={handleCombineExcelToCSV}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-gray-700 file:text-white hover:file:bg-gray-800 cursor-pointer transition-all"
-                  />
-                  <div className="text-[10px] text-gray-500 text-center mt-2 font-medium">
-                    *เลือกไฟล์ได้หลายไฟล์ ระบบจะรวมแล้วดาวน์โหลดลงเครื่องทันที
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-          </div>
-
-          <div className="lg:col-span-2 w-full min-w-0 flex flex-col h-full">
-
-            {/* Search & Filter */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-5 mb-6 rounded-2xl border border-gray-200 shadow-sm">
-              <div className="lg:col-span-4 w-full flex items-center bg-gray-50 border border-gray-300 rounded-lg px-4 py-2.5 focus-within:border-[#0066CC] focus-within:ring-1 focus-within:ring-[#0066CC] transition-all">
-                <input type="text" placeholder={t('item.search_placeholder')} value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full outline-none text-sm text-gray-800 bg-transparent placeholder-gray-400" />
-                {searchTerm && <button onClick={() => { setSearchTerm(''); setCurrentPage(1); }} className="text-gray-400 hover:text-red-500 font-bold ml-2">X</button>}
-              </div>
-
-              <div className="lg:col-span-8 flex flex-wrap items-center justify-start lg:justify-end gap-3 text-gray-700 w-full">
-                <div className="flex items-center gap-2">
-                  <label className="font-bold text-sm whitespace-nowrap">{t('item.filter_customer')}</label>
-                  <select value={filterCustomer} onChange={(e) => { setFilterCustomer(e.target.value); setCurrentPage(1); }} className="p-2.5 w-auto min-w-[120px] border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC] outline-none text-sm font-medium bg-white text-gray-800">
-                    {uniqueCustomers.map((cust, idx) => (
-                      <option key={idx} value={cust}>{cust === 'All' ? t('item.filter_all') : cust}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="font-bold text-sm whitespace-nowrap">{t('item.filter_box')}</label>
-                  <select value={filterBoxStatus} onChange={(e) => { setFilterBoxStatus(e.target.value); setCurrentPage(1); }} className="p-2.5 w-auto min-w-[120px] border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC] outline-none text-sm font-medium bg-white text-gray-800">
-                    <option value="All">{t('item.filter_all')}</option>
-                    <option value="NoBox">{t('item.filter_no_box')}</option>
-                    <option value="HasBox">{t('item.filter_has_box')}</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="font-bold text-sm whitespace-nowrap">{t('common.sort_by')}</label>
-                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="p-2.5 w-auto min-w-[120px] border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC] outline-none text-sm font-medium bg-white text-gray-800">
-                    <option value="id_asc">{t('sort.id_asc')}</option>
-                    <option value="id_desc">{t('sort.id_desc')}</option>
-                    <option value="name_asc">{t('sort.name_asc')}</option>
-                    <option value="name_desc">{t('sort.name_desc')}</option>
-                  </select>
-                </div>
-
-                <button onClick={handleExportItems} className="bg-white hover:bg-gray-50 text-[#0066CC] font-bold py-2.5 px-4 rounded-lg border border-[#0066CC] transition-all flex items-center gap-2 whitespace-nowrap shadow-sm">
-                  {t('common.download_template')}
-                </button>
-              </div>
-            </div>
-
-            {/* 🌟 โชว์แถบนี้ก็ต่อเมื่อ: เลือกครบทุกตัวในหน้าปัจจุบันแล้ว แต่ยังไม่ถึงยอดรวมทั้งหมด */}
-            {currentItems.length > 0 && currentItems.every(item => selectedItemIds.includes(item.itemId || item.itemid)) && selectedItemIds.length < filteredData.length && (
-              <div className="bg-[#0066CC]/10 border border-[#0066CC]/20 text-[#0066CC] px-4 py-3 rounded-lg mb-4 text-center text-sm flex items-center justify-center gap-2 animate-fade-in">
-                <span>
-                  ระบบได้เลือก <strong>{selectedItemIds.length}</strong> รายการที่แสดงผลอยู่แล้ว
-                </span>
-                <span className="text-gray-400">|</span>
-                <button
-                  onClick={handleSelectAllPages}
-                  className="font-black hover:text-[#0052a3] hover:underline transition-all"
-                >
-                  คลิกที่นี่เพื่อเลือกทั้งหมด {filteredData.length} รายการ (ทุกหน้า)
-                </button>
-              </div>
-            )}
-
-            {/* 🌟 โชว์เมื่อเลือกครบหมดทุกหน้าจริงๆ แล้ว */}
-            {selectedItemIds.length === filteredData.length && filteredData.length > 0 && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-fade-in">
-                ✅ เลือกข้อมูลครบทั้ง {filteredData.length} รายการแล้ว
-                <button
-                  onClick={handleClearSelection}
-                  className="text-xs ml-2 text-emerald-600 hover:text-emerald-800 underline font-normal"
-                >
-                  ยกเลิกการเลือก
-                </button>
-              </div>
-            )}
-
-            {/* Bulk Actions */}
-            {selectedItemIds.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-gray-800 shadow-sm transition-all animate-fadeIn">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-amber-900">{t('bulk.selected')} <span className="text-xl font-black text-amber-600">{selectedItemIds.length}</span> {t('bulk.items')}</p>
-                    <p className="text-xs text-amber-700/70 mt-0.5">{t('bulk.hint')}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input type="text" placeholder={t('bulk.change_customer')} value={bulkForm.supplier} onChange={(e) => setBulkForm({ ...bulkForm, supplier: e.target.value })} className="p-2 border border-amber-300 rounded-lg bg-white text-sm text-gray-800 outline-none w-40 focus:ring-1 focus:ring-amber-500 focus:border-amber-500" />
-                    <select value={bulkForm.defaultPckId} onChange={(e) => setBulkForm({ ...bulkForm, defaultPckId: e.target.value })} className="p-2 border border-amber-300 rounded-lg bg-white text-sm text-gray-800 outline-none w-auto max-w-[250px] focus:ring-1 focus:ring-amber-500 focus:border-amber-500">
-                      <option value="">{t('bulk.change_box')}</option>
-                      {[...(boxes || [])]
-                        .sort((a, b) => String(a.pckId || a.pckid || '').localeCompare(String(b.pckId || b.pckid || ''), undefined, { numeric: true }))
-                        .map(b => {
-                          const id = b.pckId || b.pckid;
-                          return id ? <option key={id} value={id}>{id} {b.codename ? `(${b.codename})` : ''}</option> : null;
-                        })}
-                    </select>
-
-                    <div className="flex gap-2">
-                      <button onClick={handleBulkUpdateSubmit} className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.update_btn')}</button>
-                      <button onClick={handleBulkDeleteSubmit} className="bg-red-100 hover:bg-red-500 text-red-600 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.delete_btn')}</button>
-                      <button onClick={handleExportSelectedItems} className="bg-blue-100 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">
-                        {t('bulk.download_btn')}
-                      </button>
-
-                      <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Data Table */}
-            <div className="w-full overflow-x-auto rounded-xl border border-gray-200 flex-1 shadow-sm bg-white custom-scrollbar">
-              <table className="w-full min-w-[1000px] divide-y divide-gray-200">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="py-4 px-4 text-center w-12"><input type="checkbox" className="w-4 h-4 accent-[#0066CC] rounded cursor-pointer" checked={currentItems.length > 0 && currentItems.map(item => item.itemId || item.itemid).every(id => selectedItemIds.includes(id))} onChange={handleSelectAllCurrentPage} /></th>
-                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap">{t('table.item_id')}</th>
-                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap">{t('table.item_name')}</th>
-                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap">{t('table.customer')}</th>
-                    <th className="py-4 px-4 text-left text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap">{t('table.std_box')}</th>
-                    <th className="py-4 px-4 text-center text-gray-600 font-bold uppercase tracking-wider text-sm whitespace-nowrap w-40">{t('table.action')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {currentItems.length > 0 ? (
-                    currentItems.map(item => {
-                      const id = item.itemId || item.itemid;
-                      const name = item.itemName || item.itemname;
-                      const isChecked = selectedItemIds.includes(id);
-                      return (
-                        <tr key={id} className={`transition-colors ${isChecked ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}>
-                          <td className="py-3 px-4 text-center"><input type="checkbox" className="w-4 h-4 accent-[#0066CC] rounded cursor-pointer" checked={isChecked} onChange={() => handleSelectItem(id)} /></td>
-                          <td className="py-3 px-4 font-mono font-black text-[#0066CC] whitespace-nowrap">{id}</td>
-                          <td className="py-3 px-4 text-sm font-bold text-gray-800">{name}</td>
-                          <td className="py-3 px-4 text-gray-500 font-medium text-sm whitespace-nowrap">{item.supplier || '-'}</td>
-                          <td className="py-3 px-4 text-sm whitespace-nowrap">
-                            <div className="font-bold text-gray-800 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md inline-block mr-2">{item.defaultPckId || '-'}</div>
-                            <span className="text-xs text-[#0066CC] font-bold bg-blue-50 border border-blue-100 px-2 py-1 rounded mr-2">{t('common.capacity')} {item.stdPackQty || 1}</span>
-                            {(item.boxesPerUnit && item.boxesPerUnit > 1) && <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-1 rounded">📦 แยก {item.boxesPerUnit} กล่อง</span>}
-                          </td>
-                          <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
-                            <button onClick={() => { setEditingItemId(id); setItemForm({ itemId: id, itemName: name, supplier: item.supplier, itemWeight: item.itemWeight, defaultPckId: item.defaultPckId || '', stdPackQty: item.stdPackQty || 1, boxesPerUnit: item.boxesPerUnit || 1 }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit_light')}</button>
-                            <button onClick={() => handleDeleteItem(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  ) : (
-                    <tr><td colSpan="6" className="py-8 text-center text-gray-400 font-bold">{t('table.no_data')}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {filteredData.length > 0 && (
-              <div className="flex justify-between items-center mt-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-gray-600">
-                <div className="text-sm font-medium">{t('pagination.showing')} <span className="font-bold text-[#0066CC]">{indexOfFirstItem + 1}</span> {t('pagination.to')} <span className="font-bold text-[#0066CC]">{Math.min(indexOfLastItem, filteredData.length)}</span> {t('pagination.from')} <span className="font-bold text-gray-800">{filteredData.length}</span> {t('pagination.items')}</div>
-                <div className="flex gap-2">
-                  <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm disabled:opacity-50 font-bold text-sm hover:bg-gray-50 transition-colors">{t('pagination.prev')}</button>
-                  <div className="px-4 py-2 text-sm font-bold bg-gray-50 border border-gray-200 rounded-lg">{currentPage} / {totalPages}</div>
-                  <button disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} className="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm disabled:opacity-50 font-bold text-sm hover:bg-gray-50 transition-colors">{t('pagination.next')}</button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================== */}
-      {/* Tab 2: Box Master */}
-      {/* ========================================== */}
-      {adminSubTab === 'boxes' && (
-        <div className="flex flex-col space-y-8 print:hidden">
-
-          <BoxCodenameUpdater boxes={boxes} fetchAdminData={refreshAdminData} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
-
-            {/* Box Add/Edit Form */}
-            <div className="space-y-6 h-fit print:hidden">
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg text-gray-800">
-                <h3 className="text-xl font-black text-[#0066CC] mb-4">{editingBoxId ? t('box.edit_title') : t('box.add_title')}</h3>
-                <form onSubmit={handleBoxSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">{t('box.id')}</label>
-                    <input type="text" required disabled={!!editingBoxId} value={boxForm.pckId || ''} onChange={(e) => setBoxForm(prev => ({ ...prev, pckId: String(e.target.value).toUpperCase() }))} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800 disabled:bg-gray-100 disabled:text-gray-400" />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold mb-1 text-[#0066CC]">{t('box.codename')}</label>
-                    <input type="text" value={boxForm.codename || ''} onChange={(e) => setBoxForm({ ...boxForm, codename: e.target.value })} className="w-full p-3 border border-blue-200 rounded-lg bg-blue-50 outline-none text-gray-800 focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] placeholder-gray-400" placeholder={t('box.codename_placeholder')} />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">{t('box.desc')}</label>
-                    <input type="text" required value={boxForm.description || ''} onChange={(e) => setBoxForm({ ...boxForm, description: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-600 mb-1">{t('box.capacity')}</label>
-                      <input type="number" required value={boxForm.maxCapacity || ''} onChange={(e) => setBoxForm({ ...boxForm, maxCapacity: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-[#0066CC] mb-1">{t('box.stock')}</label>
-                      <input type="number" required value={boxForm.currentStock || 0} onChange={(e) => setBoxForm({ ...boxForm, currentStock: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] font-bold bg-white text-[#0066CC]" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-amber-600 mb-1">🪵 ผูกกับพาเลท (Pallet Binding)</label>
-                    <select
-                      value={boxForm.boundPalletId || ''}
-                      onChange={(e) => setBoxForm({ ...boxForm, boundPalletId: e.target.value || null })}
-                      className="w-full p-3 border border-amber-200 rounded-lg bg-amber-50 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-gray-800 font-medium"
-                    >
-                      <option value="">-- ไม่ผูกพาเลท (ให้ระบบสุ่มหาให้อัตโนมัติ) --</option>
-                      {palletsList?.map(p => (
-                        <option key={p.palletId} value={p.palletId}>{p.palletId} ({p.description})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex space-x-2 pt-4">
-                    <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold py-3 px-4 rounded-lg shadow-sm">{t('common.save')}</button>
-                    {editingBoxId && <button type="button" onClick={() => { setEditingBoxId(null); setBoxForm({ pckId: '', codename: '', description: '', maxCapacity: '', currentStock: 0, boundPalletId: null }); }} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">{t('common.cancel')}</button>}
-                  </div>
-                </form>
-              </div>
-
-              {!editingBoxId && (
-                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
-                  <h3 className="text-lg font-black text-[#0066CC] mb-3 flex items-center gap-2">{t('box.import_excel')}</h3>
-                  <div className="space-y-3">
-                    <input type="file" accept=".xlsx, .xls, .csv" multiple onChange={handleBoxFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#0066CC] file:text-white hover:file:bg-[#0052a3] cursor-pointer transition-all" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Box Table */}
-            <div className="lg:col-span-2 flex flex-col h-full print:block print:h-auto print:w-full">
-              <div className="hidden print:block mb-8 text-center text-black pt-4">
-                <h1 className="text-3xl font-black mb-2">{t('box.report_title')}</h1>
-                <p className="text-gray-600 font-medium">{t('box.report_date')} {new Date().toLocaleDateString('th-TH')} {t('box.report_time')} {new Date().toLocaleTimeString('th-TH')}</p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-5 mb-6 rounded-2xl border border-gray-200 shadow-sm print:hidden">
-                <div className="lg:col-span-5 w-full flex items-center bg-gray-50 border border-gray-300 rounded-lg px-4 py-2.5 focus-within:border-[#0066CC] focus-within:ring-1 focus-within:ring-[#0066CC] transition-all">
-                  <input type="text" placeholder={t('box.search_placeholder')} value={boxSearchTerm} onChange={(e) => setBoxSearchTerm(e.target.value)} className="w-full outline-none text-sm text-gray-800 bg-transparent placeholder-gray-400" />
-                  {boxSearchTerm && <button onClick={() => setBoxSearchTerm('')} className="text-gray-400 hover:text-red-500 font-bold ml-2">X</button>}
-                </div>
-
-                <div className="lg:col-span-7 flex flex-wrap items-center justify-start lg:justify-end gap-3 w-full text-gray-700">
-                  <div className="flex items-center gap-2">
-                    <label className="font-bold text-sm whitespace-nowrap">{t('common.sort_by')}</label>
-                    <select value={boxSortBy} onChange={(e) => setBoxSortBy(e.target.value)} className="p-2.5 w-auto min-w-[140px] border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC] outline-none text-sm font-medium bg-white text-gray-800">
-                      <option value="id_asc">{t('sort.id_asc')}</option>
-                      <option value="id_desc">{t('sort.id_desc')}</option>
-                      <option value="desc_asc">{t('sort.desc_asc')}</option>
-                      <option value="desc_desc">{t('sort.desc_desc')}</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => window.print()} className="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center gap-2 whitespace-nowrap">
-                      {t('box.print_stock')}
-                    </button>
-                    <button onClick={handleExportBoxes} className="bg-white hover:bg-blue-50 text-[#0066CC] font-bold py-2.5 px-4 rounded-lg border border-[#0066CC] transition-all flex items-center gap-2 whitespace-nowrap shadow-sm">
-                      {t('common.download_template')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto rounded-xl border border-gray-200 flex-1 shadow-sm bg-white print:overflow-visible print:border-gray-400 print:shadow-none print:block">
-                <table className="min-w-full print:bg-white print:text-black">
-                  <thead className="bg-gray-50 border-b border-gray-200 print:bg-gray-200 print:border-gray-400">
-                    <tr>
-                      <th className="py-4 px-4 text-left text-gray-600 print:text-black font-bold uppercase tracking-wider text-sm border-r border-transparent print:border-gray-300">{t('table.box_id')}</th>
-                      <th className="py-4 px-4 text-left text-gray-600 print:text-black font-bold uppercase tracking-wider text-sm border-r border-transparent print:border-gray-300">{t('table.box_desc')}</th>
-                      <th className="py-4 px-4 text-center text-gray-600 print:text-black font-bold uppercase tracking-wider text-sm border-r border-transparent print:border-gray-300">{t('table.box_stock')}</th>
-                      <th className="py-4 px-4 text-center text-gray-600 print:hidden font-bold uppercase tracking-wider text-sm">{t('table.action')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 print:divide-gray-300">
-                    {processedBoxes.length > 0 ? (
-                      processedBoxes.map(box => {
-                        const id = box?.pckId || box?.pckid;
-                        return (
-                          <tr key={id} className="hover:bg-gray-50 print:hover:bg-transparent transition-colors print:break-inside-avoid">
-                            <td className="py-3 px-4 font-mono font-black text-[#0066CC] print:text-black border-r border-transparent print:border-gray-300">{id}</td>
-                            <td className="py-3 px-4 text-gray-800 print:text-black font-medium text-sm border-r border-transparent print:border-gray-300">
-                              {box?.description || '-'}
-                              <div className="mt-1 flex flex-wrap gap-2">
-                                {box?.codename && <span className="text-xs text-blue-600 bg-blue-50 border border-blue-100 px-2 py-1 rounded font-bold">{t('box.codename_label')} {box.codename}</span>}
-                                {box?.boundPalletId && <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded font-bold">🪵 พาเลท: {box.boundPalletId}</span>}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-center border-r border-transparent print:border-gray-300">
-                              <span className="font-black text-2xl text-[#0066CC] print:text-black">{box?.currentStock || 0}</span>
-                            </td>
-                            <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap print:hidden">
-                              <button onClick={() => { setEditingBoxId(id); setBoxForm({ pckId: id, codename: box.codename || '', description: box.description, maxCapacity: box.maxCapacity, currentStock: box.currentStock || 0, boundPalletId: box.boundPalletId || null }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit')}</button>
-                              <button onClick={() => handleBoxDelete(id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>
-                            </td>
-                          </tr>
-                        )
-                      })
-                    ) : (
-                      <tr><td colSpan="4" className="py-8 text-center text-gray-400 font-bold">{t('table.no_box_data')}</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================== */}
-      {/* Tab 3: User Management */}
-      {/* ========================================== */}
-      {adminSubTab === 'users' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="space-y-6 h-fit">
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-lg text-gray-800">
-              <h3 className="text-xl font-black text-[#0066CC] mb-4">{editingUserId ? t('user.edit_title') : t('user.add_title')}</h3>
-              <form onSubmit={handleUserSubmit} className="space-y-4">
-                <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('user.username')}</label><input type="text" required disabled={!!editingUserId} value={userForm.username || ''} onChange={(e) => setUserForm(prev => ({ ...prev, username: String(e.target.value).toUpperCase() }))} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800 disabled:bg-gray-100" /></div>
-                <div><label className="block text-sm font-bold text-gray-600 mb-1">{editingUserId ? t('user.new_password') : t('user.password')}</label><input type="password" required={!editingUserId} value={userForm.passwordHash || ''} onChange={(e) => setUserForm({ ...userForm, passwordHash: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" /></div>
-                <div><label className="block text-sm font-bold text-gray-600 mb-1">{t('user.fullname')}</label><input type="text" required value={userForm.firstName || ''} onChange={(e) => setUserForm({ ...userForm, firstName: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800" /></div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-1">{t('user.role')}</label>
-                  <select value={userForm.role || 'operator'} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg font-bold bg-white outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-gray-800">
-                    <option value="operator">{t('user.role_operator')}</option>
-                    <option value="admin">{t('user.role_admin')}</option>
-                  </select>
-                </div>
-
-                <div className="flex space-x-2 pt-4">
-                  <button type="submit" className="flex-1 bg-[#0066CC] hover:bg-[#0052a3] text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors">{t('common.save')}</button>
-                  {editingUserId && <button type="button" onClick={() => { setEditingUserId(null); setUserForm({ username: '', passwordHash: '', firstName: '', role: 'operator' }); }} className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">{t('common.cancel')}</button>}
-                </div>
-              </form>
-            </div>
-          </div>
-          <div className="lg:col-span-2 overflow-x-auto bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <table className="min-w-full">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-600">
-                <tr>
-                  <th className="py-4 px-4 text-left font-bold uppercase tracking-wider text-sm">{t('table.username')}</th>
-                  <th className="py-4 px-4 text-left font-bold uppercase tracking-wider text-sm">{t('table.fullname')}</th>
-                  <th className="py-4 px-4 text-center font-bold uppercase tracking-wider text-sm">{t('table.role')}</th>
-                  <th className="py-4 px-4 text-center font-bold uppercase tracking-wider text-sm">{t('table.action')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {users && users.length > 0 ? (
-                  users.filter(u => u && u.username).map(u => (
-                    <tr key={u?.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4 font-mono font-black text-[#0066CC]">{u?.username}</td>
-                      <td className="py-3 px-4 text-gray-800 font-bold text-sm">{u?.firstName}</td>
-                      <td className="py-3 px-4 text-center"><span className={`px-3 py-1 rounded-full text-xs font-black uppercase border ${u?.role?.toLowerCase() === 'admin' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>{u?.role}</span></td>
-                      <td className="py-3 px-4 text-center space-x-2 whitespace-nowrap">
-                        <button onClick={() => { setEditingUserId(u.id); setUserForm({ username: u.username, passwordHash: '', firstName: u.firstName, role: u.role?.toLowerCase() }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-sm bg-blue-50 text-[#0066CC] hover:bg-[#0066CC] hover:text-white border border-blue-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.edit')}</button>
-                        {currentUser.id !== u.id && <button onClick={() => handleUserDelete(u.id)} className="text-sm bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-100 px-3 py-1.5 rounded-lg font-bold transition-colors">{t('common.delete')}</button>}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="4" className="py-8 text-center text-gray-400 font-bold">{t('table.no_user_data')}</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* 🌟 เรียกใช้ Component ที่แยกไฟล์ไว้ตาม Tab ที่เลือก */}
+      {adminSubTab === 'items' && <ItemMasterTab {...itemTabProps} />}
+      {adminSubTab === 'boxes' && <BoxMasterTab {...boxTabProps} />}
+      {adminSubTab === 'users' && <UserManagementTab {...userTabProps} />}
     </div>
   );
 }
