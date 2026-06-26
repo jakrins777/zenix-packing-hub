@@ -1,27 +1,30 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next'; // 🌟 Import เครื่องมือแปลภาษา
+import { useTranslation } from 'react-i18next'; 
 
 export default function Login({ onLogin }) {
-  const { t } = useTranslation(); // 🌟 เรียกใช้งาน Hook แปลภาษา
-  // 🌟 ประกาศ State สำหรับเก็บค่าต่างๆ ในหน้า Login ให้ครบถ้วน
+  const { t } = useTranslation(); 
+  
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 🌟 ฟังก์ชันจัดการตอนกดปุ่มเข้าสู่ระบบ
+  //ฟังก์ชันจัดการตอนกดปุ่มเข้าสู่ระบบ
   const handleLogin = async (e) => {
-    e.preventDefault(); 
-    setError('');       
-    setLoading(true);   
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
     try {
-      
-      const res = await fetch('/api/login', {
+      // แก้ไขตรงนี้: ดึง URL ของ Backend มาจาก Environment Variable
+      // (ถ้ารันในเครื่องแล้วไม่มี .env มันจะวิ่งไปที่ http://localhost:5000 เป็นค่า Default)
+      const apiUrl = import.meta.env.VITE_NODE_API_URL || 'https://zenix-packing-hub.onrender.com';
+
+      const res = await fetch(`${apiUrl}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: username.toUpperCase().trim(), 
+          username: username.toUpperCase().trim(),
           password: password
         })
       });
@@ -29,25 +32,20 @@ export default function Login({ onLogin }) {
       const data = await res.json();
 
       if (data.success) {
-        
         localStorage.setItem('zenix_user', JSON.stringify(data.user));
-
-        
         localStorage.setItem('zenix_token', data.token);
-
-        
         onLogin(data.user);
       } else {
-        
         setError(data.message);
       }
     } catch (err) {
       setError(t('login.error_server'));
       console.error(err);
     } finally {
-      setLoading(false); 
+      setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 font-sans">
