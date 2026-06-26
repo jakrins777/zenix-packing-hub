@@ -56,18 +56,17 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   // ================= Handlers =================
 
   // วางไว้ข้างใน Component ก่อนคำสั่ง return
+  // ฟังก์ชันสำหรับเลือกข้อมูล "ทั้งหมดทุกหน้า" (อิงจากข้อมูลที่ฟิลเตอร์แล้ว)
   const handleSelectAllPages = () => {
-    // ดึง ID ของสินค้า "ทั้งหมด" จากก้อนข้อมูลหลักเลย (ไม่ใช่แค่ก้อนของหน้านี้)
-    // 🌟 จุดสำคัญ: เช็กให้ชัวร์ว่าพี่ใช้ itemId หรือ itemCode เป็น Primary Key
+    // สมมติว่า filteredItems คือตัวแปรที่พี่เก็บรายการสินค้าหลังจากกรอง Search/Customer แล้ว
     const allIds = filteredItems.map(item => item.itemId);
-
-    // ยัดทั้งหมดลง State
-    setSelectedItems(allIds);
+    setSelectedItemIds(allIds);
     toast.success(`เลือกข้อมูลทั้งหมด ${allIds.length} รายการแล้ว!`);
   };
 
+  // ฟังก์ชันเคลียร์การเลือก
   const handleClearSelection = () => {
-    setSelectedItems([]);
+    setSelectedItemIds([]);
   };
 
   const handleLoadItemTemplate = async () => {
@@ -773,26 +772,26 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
               </div>
             </div>
 
-            {/* โชว์แถบนี้ก็ต่อเมื่อ: เลือกครบทุกตัวในหน้าปัจจุบันแล้ว แต่ยังไม่ถึงยอดรวมทั้งหมด */}
-            {selectedItems.length > 0 && selectedItems.length === currentItems.length && selectedItems.length < filteredItems.length && (
+            {/* 🌟 โชว์แถบนี้ก็ต่อเมื่อ: เลือกครบทุกตัวในหน้าปัจจุบันแล้ว แต่ยังไม่ถึงยอดรวมทั้งหมด */}
+            {currentItems.length > 0 && currentItems.every(item => selectedItemIds.includes(item.itemId || item.itemid)) && selectedItemIds.length < filteredData.length && (
               <div className="bg-[#0066CC]/10 border border-[#0066CC]/20 text-[#0066CC] px-4 py-3 rounded-lg mb-4 text-center text-sm flex items-center justify-center gap-2 animate-fade-in">
                 <span>
-                  ระบบได้เลือก <strong>{selectedItems.length}</strong> รายการบนหน้านี้แล้ว
+                  ระบบได้เลือก <strong>{selectedItemIds.length}</strong> รายการที่แสดงผลอยู่แล้ว
                 </span>
                 <span className="text-gray-400">|</span>
                 <button
                   onClick={handleSelectAllPages}
                   className="font-black hover:text-[#0052a3] hover:underline transition-all"
                 >
-                  คลิกที่นี่เพื่อเลือกทั้งหมด {filteredItems.length} รายการ (ทุกหน้า)
+                  คลิกที่นี่เพื่อเลือกทั้งหมด {filteredData.length} รายการ (ทุกหน้า)
                 </button>
               </div>
             )}
 
-            {/* โชว์เมื่อเลือกครบหมดทุกหน้าจริงๆ แล้ว */}
-            {selectedItems.length === filteredItems.length && filteredItems.length > 0 && (
+            {/* 🌟 โชว์เมื่อเลือกครบหมดทุกหน้าจริงๆ แล้ว */}
+            {selectedItemIds.length === filteredData.length && filteredData.length > 0 && (
               <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-fade-in">
-                ✅ เลือกข้อมูลครบทั้ง {filteredItems.length} รายการในระบบแล้ว
+                ✅ เลือกข้อมูลครบทั้ง {filteredData.length} รายการแล้ว
                 <button
                   onClick={handleClearSelection}
                   className="text-xs ml-2 text-emerald-600 hover:text-emerald-800 underline font-normal"
@@ -826,7 +825,7 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       <button onClick={handleBulkUpdateSubmit} className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.update_btn')}</button>
                       <button onClick={handleBulkDeleteSubmit} className="bg-red-100 hover:bg-red-500 text-red-600 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">{t('bulk.delete_btn')}</button>
                       <button onClick={handleExportSelectedItems} className="bg-blue-100 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-sm py-2 px-4 rounded-lg shadow-sm transition-colors">
-{t('bulk.download_btn')}
+                        {t('bulk.download_btn')}
                       </button>
 
                       <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
