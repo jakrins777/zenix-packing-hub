@@ -54,14 +54,16 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   }, []);
 
   // ================= Handlers =================
-
-  // วางไว้ข้างใน Component ก่อนคำสั่ง return
-  // ฟังก์ชันสำหรับเลือกข้อมูล "ทั้งหมดทุกหน้า" (อิงจากข้อมูลที่ฟิลเตอร์แล้ว)
+  // 🌟 แก้จาก filteredItems เป็น filteredData
   const handleSelectAllPages = () => {
-    // สมมติว่า filteredItems คือตัวแปรที่พี่เก็บรายการสินค้าหลังจากกรอง Search/Customer แล้ว
-    const allIds = filteredItems.map(item => item.itemId);
+    // ดึง ID ออกมาจาก filteredData (และเผื่อกรณีชื่อคอลัมน์เป็น itemid ตัวเล็กด้วย)
+    const allIds = filteredData.map(item => item.itemId || item.itemid);
     setSelectedItemIds(allIds);
     toast.success(`เลือกข้อมูลทั้งหมด ${allIds.length} รายการแล้ว!`);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedItemIds([]);
   };
 
   // ฟังก์ชันเคลียร์การเลือก
