@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Edges, Html } from '@react-three/drei';
+import { useTranslation } from 'react-i18next';
 
 // 📦 คอมโพเนนต์สำหรับวาดกล่องแต่ละใบ (รับ prop เป็น box ทั้งก้อน)
 const PackedBox = ({ box }) => {
@@ -43,10 +44,11 @@ const PackedBox = ({ box }) => {
 
 // 🏭 คอมโพเนนต์หลักสำหรับวาดพาเลทและกล่องทั้งหมด
 export default function Pallet3DViewer({ palletData }) {
+    const { t } = useTranslation();
     if (!palletData || !palletData.success) {
         return (
             <div className="w-full h-[400px] flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 font-bold">
-                📦 กรุณาเลือกพาเลทและกดคำนวณเพื่อดูภาพ 3 มิติ
+                {t('pallet.placeholder')}
             </div>
         );
     }
@@ -60,7 +62,7 @@ export default function Pallet3DViewer({ palletData }) {
         <div className="w-full h-[500px] bg-slate-100 rounded-2xl overflow-hidden relative border border-slate-200 cursor-crosshair">
 
             <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg text-sm font-bold text-slate-800 shadow-sm border border-slate-200">
-                📍 พาเลท: {palletSpecification.palletId} | วางสำเร็จ: {palletSpecification.totalPackedCount} ใบ
+                {t('pallet.overlay', { id: palletSpecification.palletId, count: palletSpecification.totalPackedCount })}
             </div>
 
             <Canvas camera={{ position: [2.5, 2.5, 2.5], fov: 45 }}>

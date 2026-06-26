@@ -56,7 +56,19 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
   // ================= Handlers =================
 
   // วางไว้ข้างใน Component ก่อนคำสั่ง return
-  
+  const handleSelectAllPages = () => {
+    // ดึง ID ของสินค้า "ทั้งหมด" จากก้อนข้อมูลหลักเลย (ไม่ใช่แค่ก้อนของหน้านี้)
+    // 🌟 จุดสำคัญ: เช็กให้ชัวร์ว่าพี่ใช้ itemId หรือ itemCode เป็น Primary Key
+    const allIds = filteredItems.map(item => item.itemId);
+
+    // ยัดทั้งหมดลง State
+    setSelectedItems(allIds);
+    toast.success(`เลือกข้อมูลทั้งหมด ${allIds.length} รายการแล้ว!`);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedItems([]);
+  };
 
   const handleLoadItemTemplate = async () => {
     if (!itemForm.itemId || itemForm.itemId.trim() === '') {
@@ -760,6 +772,35 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                 </button>
               </div>
             </div>
+
+            {/* โชว์แถบนี้ก็ต่อเมื่อ: เลือกครบทุกตัวในหน้าปัจจุบันแล้ว แต่ยังไม่ถึงยอดรวมทั้งหมด */}
+            {selectedItems.length > 0 && selectedItems.length === currentItems.length && selectedItems.length < filteredItems.length && (
+              <div className="bg-[#0066CC]/10 border border-[#0066CC]/20 text-[#0066CC] px-4 py-3 rounded-lg mb-4 text-center text-sm flex items-center justify-center gap-2 animate-fade-in">
+                <span>
+                  ระบบได้เลือก <strong>{selectedItems.length}</strong> รายการบนหน้านี้แล้ว
+                </span>
+                <span className="text-gray-400">|</span>
+                <button
+                  onClick={handleSelectAllPages}
+                  className="font-black hover:text-[#0052a3] hover:underline transition-all"
+                >
+                  คลิกที่นี่เพื่อเลือกทั้งหมด {filteredItems.length} รายการ (ทุกหน้า)
+                </button>
+              </div>
+            )}
+
+            {/* โชว์เมื่อเลือกครบหมดทุกหน้าจริงๆ แล้ว */}
+            {selectedItems.length === filteredItems.length && filteredItems.length > 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 animate-fade-in">
+                ✅ เลือกข้อมูลครบทั้ง {filteredItems.length} รายการในระบบแล้ว
+                <button
+                  onClick={handleClearSelection}
+                  className="text-xs ml-2 text-emerald-600 hover:text-emerald-800 underline font-normal"
+                >
+                  ยกเลิกการเลือก
+                </button>
+              </div>
+            )}
 
             {/* Bulk Actions */}
             {selectedItemIds.length > 0 && (

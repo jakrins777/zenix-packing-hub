@@ -383,4 +383,9 @@
     "del_report_success": "Report deleted successfully",
     "logout_success": "Logged out successfully"
   }
+  ,
+  "pallet": {
+    "placeholder": "📦 Please select a pallet and calculate to view 3D",
+    "overlay": "📍 Pallet: {{id}} | Packed: {{count}} pcs"
+  }
 }
