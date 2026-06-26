@@ -114,6 +114,41 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
     }
   };
 
+  const handleCombineExcelToCSV = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    let combinedData = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        combinedData = [...combinedData, ...jsonData];
+      }
+
+      if (combinedData.length === 0) return;
+
+      const newWorksheet = XLSX.utils.json_to_sheet(combinedData);
+      const csvOutput = XLSX.utils.sheet_to_csv(newWorksheet);
+
+      const blob = new Blob(["\ufeff" + csvOutput], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = "Combined_Items_Master.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (error) {
+      console.error('Error combining files:', error);
+    }
+  };
+
   const handleLoadItemTemplate = async () => {
     if (!itemForm.itemId || itemForm.itemId.trim() === '') {
       toast.error('กรุณากรอกรหัส Item ก่อนกดค้นหา');
@@ -769,6 +804,22 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                   </div>
                 </div>
 
+                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-sm mt-4">
+                  <h3 className="text-sm font-black text-gray-700 mb-3 flex items-center gap-2">
+                    <span>🛠️</span> เครื่องมือ: รวมไฟล์ Excel หลายไฟล์เป็น CSV
+                  </h3>
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    multiple // 🌟 คำสั่งนี้ทำให้กดลากคลุมเลือกได้หลายๆ ไฟล์พร้อมกัน
+                    onChange={handleCombineExcelToCSV}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-gray-700 file:text-white hover:file:bg-gray-800 cursor-pointer transition-all"
+                  />
+                  <div className="text-[10px] text-gray-500 text-center mt-2 font-medium">
+                    *เลือกไฟล์ได้หลายไฟล์ ระบบจะรวมแล้วดาวน์โหลดลงเครื่องทันที
+                  </div>
+                </div>
+
               </div>
             )}
 
@@ -874,18 +925,6 @@ export default function AdminPanel({ currentUser, adminSubTab, setAdminSubTab, i
                       </button>
 
                       <button onClick={() => setSelectedItemIds([])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg">X {t('bulk.cancel_btn')}</button>
-                    </div>
-                    <div className="p-4 border border-gray-300 rounded-lg bg-gray-50 mt-4">
-                      <label className="block text-sm font-bold text-gray-700 mb-2">
-                        🛠️ เครื่องมือพิเศษ: รวมไฟล์ Excel เป็น CSV เดียว
-                      </label>
-                      <input
-                        type="file"
-                        accept=".xlsx, .xls"
-                        multiple
-                        onChange={handleCombineExcelToCSV}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-gray-800 file:text-white hover:file:bg-gray-700 cursor-pointer transition-all"
-                      />
                     </div>
                   </div>
                 </div>
